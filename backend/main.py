@@ -287,6 +287,16 @@ def get_plot(gene: str, topk: int = 10):
 # ========= PANEL 2: /flatmap endpoints (matplotlib) ======
 # =========================================================
 
+from pathlib import Path
+import pandas as pd
+import numpy as np
+import re, io
+from fastapi import HTTPException
+from fastapi.responses import StreamingResponse
+import matplotlib.pyplot as plt
+from matplotlib.colors import ListedColormap
+from scipy.interpolate import griddata
+
 DATA_DIR = Path(__file__).resolve().parent / "data"
 
 def load_nmf(gene: str) -> pd.DataFrame:
@@ -321,7 +331,13 @@ def flatmap_pathways(gene: str):
     return {"pathways": list_pathways_for_gene(gene)}
 
 @app.get("/flatmap/image")
-def flatmap_image(gene: str, name: str | None = None):
+def flatmap_image(gene: str, name: str | None = None, collapse: str = "max"):
+    """
+    Returns a PNG flatmap.
+    - Default (no pathway): categorical clusters.
+    - Pathway-specific: cluster geometry + red/green background by average or max GI*.
+    - collapse: "max" or "mean".
+    """
     df = load_nmf(gene)
 
     gi_vals = None
@@ -340,12 +356,18 @@ def flatmap_image(gene: str, name: str | None = None):
         gdf["x_r"] = gdf["x"].round(6)
         gdf["y_r"] = gdf["y"].round(6)
 
-        merged = pd.merge(df, gdf[["x_r", "y_r", "Gi_sum"]], on=["x_r", "y_r"], how="left")
+        # Collapse GI* values per residue
+        if collapse == "mean":
+            collapsed = gdf.groupby(["x_r", "y_r"])["Gi_sum"].mean().reset_index()
+        else:
+            collapsed = gdf.groupby(["x_r", "y_r"])["Gi_sum"].max().reset_index()
+
+        merged = pd.merge(df, collapsed, on=["x_r", "y_r"], how="left")
         gi_vals = merged["Gi_sum"].fillna(0.0).astype(float)
     else:
         merged = df
 
-    # --- Plotting (same as before, with gi_vals if available) ---
+    # --- Plotting ---
     fig, ax = plt.subplots(figsize=(6, 6))
     ax.set_aspect("equal")
     ax.axis("off")
@@ -362,33 +384,65 @@ def flatmap_image(gene: str, name: str | None = None):
     yi = np.linspace(ymn_pad, ymx_pad, ny)
     Xi, Yi = np.meshgrid(xi, yi)
 
+    # Cluster grid
     cmap_clusters = ListedColormap(["#e74c3c","#8e44ad","#1f77b4","#f1c40f","#2ecc71"])
     Zi_cluster = griddata((df["x"], df["y"]), df["cluster"], (Xi, Yi), method="nearest")
-    ax.imshow(Zi_cluster, origin="lower", extent=(xmn_pad, xmx_pad, ymn_pad, ymx_pad),
-              cmap=cmap_clusters, alpha=0.25, interpolation="nearest")
+
+    # Altitude contours
+    Zi_alt = griddata((df["x"], df["y"]), df["altitude"], (Xi, Yi), method="linear")
+    if isinstance(Zi_alt, np.ma.MaskedArray):
+        Zi_alt = Zi_alt.filled(np.nan)
 
     if gi_vals is None:
+        # --- Default cluster view ---
+        ax.imshow(Zi_cluster, origin="lower", extent=(xmn_pad, xmx_pad, ymn_pad, ymx_pad),
+                  cmap=cmap_clusters, alpha=0.25, interpolation="nearest")
         sm = plt.cm.ScalarMappable(cmap=cmap_clusters, norm=plt.Normalize(vmin=0, vmax=4))
         cbar = plt.colorbar(sm, ax=ax, fraction=0.046, pad=0.04, ticks=[0.5,1.5,2.5,3.5,4.5])
         cbar.ax.set_yticklabels([])
         cbar.set_label("Clusters")
 
-    Zi_alt = griddata((df["x"], df["y"]), df["altitude"], (Xi, Yi), method="linear")
-    if isinstance(Zi_alt, np.ma.MaskedArray):
-        Zi_alt = Zi_alt.filled(np.nan)
-    ax.contour(Xi, Yi, Zi_alt, levels=80, colors="black", alpha=0.35, linewidths=0.35)
-
-    if gi_vals is not None:
-        vmax = float(np.nanpercentile(np.abs(gi_vals), 99)) or 1.0
-        norm = TwoSlopeNorm(vcenter=0.0, vmin=-vmax, vmax=vmax)
-        sc = ax.scatter(df["x"], df["y"], c=gi_vals, cmap="coolwarm", norm=norm,
-                        s=150, edgecolors="black", linewidths=0.2, alpha=0.95)
-        cb = plt.colorbar(sc, ax=ax, fraction=0.046, pad=0.04)
-        cb.set_label("GI* sum")
-    else:
+        # Residues colored by cluster
         colors = [cmap_clusters(c % cmap_clusters.N) for c in df["cluster"].to_numpy()]
         ax.scatter(df["x"], df["y"], c=colors, s=150,
                    edgecolors="black", linewidths=0.2, alpha=0.95)
+
+    else:
+        # --- Pathway-specific cluster-level GI values ---
+        merged["cluster"] = merged["cluster"].astype(int)
+        if collapse == "mean":
+            cluster_scores = merged.groupby("cluster")["Gi_sum"].mean()
+        else:
+            cluster_scores = merged.groupby("cluster")["Gi_sum"].max()
+
+        # Map clusters to their GI scores
+        Zi_gi_cluster = np.zeros_like(Zi_cluster, dtype=float)
+        for clust, score in cluster_scores.items():
+            Zi_gi_cluster[Zi_cluster == clust] = score
+
+        # Red–green scale
+        cmap_redgreen = plt.cm.RdYlGn_r
+        vmax = float(np.nanpercentile(np.abs(cluster_scores), 99)) or 1.0
+        norm = plt.Normalize(vmin=0, vmax=vmax)
+
+        # Background clusters colored by average/max GI score
+        ax.imshow(Zi_gi_cluster, origin="lower",
+                  extent=(xmn_pad, xmx_pad, ymn_pad, ymx_pad),
+                  cmap=cmap_redgreen, norm=norm, alpha=0.5, interpolation="nearest")
+
+        # Residues: outlined circles with individual GI values
+        # Residues: outlined circles only (no fill)
+        sc = ax.scatter(
+            merged["x"], merged["y"],
+            s=150, edgecolors="black", facecolors="none", linewidths=0.7
+        )
+
+
+        cb = plt.colorbar(sc, ax=ax, fraction=0.046, pad=0.04)
+        cb.set_label(f"Cluster GI* ({collapse})")
+
+    # Contours (altitude)
+    ax.contour(Xi, Yi, Zi_alt, levels=80, colors="black", alpha=0.35, linewidths=0.35)
 
     ax.set_xlim(xmn_pad, xmx_pad)
     ax.set_ylim(ymn_pad, ymx_pad)
@@ -399,6 +453,8 @@ def flatmap_image(gene: str, name: str | None = None):
     plt.close(fig)
     buf.seek(0)
     return StreamingResponse(buf, media_type="image/png")
+
+
 
 # =========================================================
 # ========= PANEL 3: /empirical (matplotlib) ======
