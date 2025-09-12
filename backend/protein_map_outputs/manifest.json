@@ -1,0 +1,16 @@
+{
+  "vectors_parquet": "protein_vectors.parquet",
+  "coords_parquet": "protein_coords2d.parquet",
+  "edges_parquet": "protein_knn_edges.parquet",
+  "annoy_index": "annoy_index.ann",
+  "annoy_id_map": "annoy_id_map.parquet",
+  "metric": "angular",
+  "dim": 500,
+  "region_aggregation": "mean",
+  "k_neighbors": 20,
+  "umap_min_dist": 0.1,
+  "use_idf": false,
+  "min_value_threshold": 0.0,
+  "n_trees": 200,
+  "pathway_idf_parquet": null
+}
