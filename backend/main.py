@@ -335,7 +335,8 @@ def flatmap_image(gene: str, name: str | None = None, collapse: str = "max"):
     """
     Returns a PNG flatmap.
     - Default (no pathway): categorical clusters.
-    - Pathway-specific: cluster geometry + red/green background by average or max GI*.
+    - Pathway-specific: clusters colored red/green by avg or max GI*,
+      clipped to altitude boundary.
     - collapse: "max" or "mean".
     """
     df = load_nmf(gene)
@@ -425,24 +426,30 @@ def flatmap_image(gene: str, name: str | None = None, collapse: str = "max"):
         vmax = float(np.nanpercentile(np.abs(cluster_scores), 99)) or 1.0
         norm = plt.Normalize(vmin=0, vmax=vmax)
 
-        # Background clusters colored by average/max GI score
-        ax.imshow(Zi_gi_cluster, origin="lower",
-                  extent=(xmn_pad, xmx_pad, ymn_pad, ymx_pad),
-                  cmap=cmap_redgreen, norm=norm, alpha=0.5, interpolation="nearest")
+        # --- Mask background outside altitude-defined region ---
+        outer_mask = np.isnan(Zi_alt) | (Zi_alt <= np.nanmin(Zi_alt) + 1e-6)
+        Zi_gi_masked = np.ma.array(Zi_gi_cluster, mask=outer_mask)
 
-        # Residues: outlined circles with individual GI values
-        # Residues: outlined circles only (no fill)
-        sc = ax.scatter(
-            merged["x"], merged["y"],
-            s=150, edgecolors="black", facecolors="none", linewidths=0.7
-        )
+        # Show masked background
+        im = ax.imshow(Zi_gi_masked, origin="lower",
+                       extent=(xmn_pad, xmx_pad, ymn_pad, ymx_pad),
+                       cmap=cmap_redgreen, norm=norm, alpha=0.6, interpolation="nearest")
 
+        # Cluster outlines
+        ax.contour(Xi, Yi, Zi_cluster, levels=np.unique(df["cluster"]),
+                   colors="black", linewidths=1.2, alpha=0.9)
 
-        cb = plt.colorbar(sc, ax=ax, fraction=0.046, pad=0.04)
-        cb.set_label(f"Cluster GI* ({collapse})")
+        # Altitude contours
+        ax.contour(Xi, Yi, Zi_alt, levels=40,
+                   colors="black", alpha=0.35, linewidths=0.5)
 
-    # Contours (altitude)
-    ax.contour(Xi, Yi, Zi_alt, levels=80, colors="black", alpha=0.35, linewidths=0.35)
+        # Residues: outlined circles only
+        ax.scatter(merged["x"], merged["y"], s=150,
+                   edgecolors="black", facecolors="none", linewidths=0.7)
+
+        # Colorbar
+        cb = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+        cb.set_label(f"Cluster GI* ({collapse})\nGreen = Low, Red = High")
 
     ax.set_xlim(xmn_pad, xmx_pad)
     ax.set_ylim(ymn_pad, ymx_pad)
@@ -453,7 +460,6 @@ def flatmap_image(gene: str, name: str | None = None, collapse: str = "max"):
     plt.close(fig)
     buf.seek(0)
     return StreamingResponse(buf, media_type="image/png")
-
 
 
 # =========================================================
