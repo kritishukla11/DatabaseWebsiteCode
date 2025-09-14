@@ -287,16 +287,6 @@ def get_plot(gene: str, topk: int = 10):
 # ========= PANEL 2: /flatmap endpoints (matplotlib) ======
 # =========================================================
 
-from pathlib import Path
-import pandas as pd
-import numpy as np
-import re, io
-from fastapi import HTTPException
-from fastapi.responses import StreamingResponse
-import matplotlib.pyplot as plt
-from matplotlib.colors import ListedColormap
-from scipy.interpolate import griddata
-
 DATA_DIR = Path(__file__).resolve().parent / "data"
 
 def load_nmf(gene: str) -> pd.DataFrame:
@@ -394,10 +384,20 @@ def flatmap_image(gene: str, name: str | None = None, collapse: str = "max"):
     if isinstance(Zi_alt, np.ma.MaskedArray):
         Zi_alt = Zi_alt.filled(np.nan)
 
+    # Altitude mask
+    outer_mask = np.isnan(Zi_alt) | (Zi_alt <= np.nanmin(Zi_alt) + 1e-6)
+
     if gi_vals is None:
         # --- Default cluster view ---
         ax.imshow(Zi_cluster, origin="lower", extent=(xmn_pad, xmx_pad, ymn_pad, ymx_pad),
                   cmap=cmap_clusters, alpha=0.25, interpolation="nearest")
+
+        # Mask-aware cluster outlines
+        Zi_cluster_masked = np.ma.array(Zi_cluster, mask=outer_mask)
+        ax.contour(Xi, Yi, Zi_cluster_masked, levels=np.unique(df["cluster"]),
+                   colors="black", linewidths=0.8, alpha=0.6)
+
+        # Colorbar
         sm = plt.cm.ScalarMappable(cmap=cmap_clusters, norm=plt.Normalize(vmin=0, vmax=4))
         cbar = plt.colorbar(sm, ax=ax, fraction=0.046, pad=0.04, ticks=[0.5,1.5,2.5,3.5,4.5])
         cbar.ax.set_yticklabels([])
@@ -423,11 +423,10 @@ def flatmap_image(gene: str, name: str | None = None, collapse: str = "max"):
 
         # Red–green scale
         cmap_redgreen = plt.cm.RdYlGn_r
-        vmax = float(np.nanpercentile(np.abs(cluster_scores), 99)) or 1.0
+        vmax = max(1.0, float(np.nanpercentile(np.abs(cluster_scores), 99)))
         norm = plt.Normalize(vmin=0, vmax=vmax)
 
-        # --- Mask background outside altitude-defined region ---
-        outer_mask = np.isnan(Zi_alt) | (Zi_alt <= np.nanmin(Zi_alt) + 1e-6)
+        # Mask background outside altitude-defined region
         Zi_gi_masked = np.ma.array(Zi_gi_cluster, mask=outer_mask)
 
         # Show masked background
@@ -435,12 +434,14 @@ def flatmap_image(gene: str, name: str | None = None, collapse: str = "max"):
                        extent=(xmn_pad, xmx_pad, ymn_pad, ymx_pad),
                        cmap=cmap_redgreen, norm=norm, alpha=0.6, interpolation="nearest")
 
-        # Cluster outlines
-        ax.contour(Xi, Yi, Zi_cluster, levels=np.unique(df["cluster"]),
+        # Mask-aware cluster outlines
+        Zi_cluster_masked = np.ma.array(Zi_cluster, mask=outer_mask)
+        ax.contour(Xi, Yi, Zi_cluster_masked, levels=np.unique(df["cluster"]),
                    colors="black", linewidths=1.2, alpha=0.9)
 
-        # Altitude contours
-        ax.contour(Xi, Yi, Zi_alt, levels=40,
+        # Mask-aware altitude contours
+        Zi_alt_masked = np.ma.array(Zi_alt, mask=outer_mask)
+        ax.contour(Xi, Yi, Zi_alt_masked, levels=40,
                    colors="black", alpha=0.35, linewidths=0.5)
 
         # Residues: outlined circles only
@@ -451,6 +452,17 @@ def flatmap_image(gene: str, name: str | None = None, collapse: str = "max"):
         cb = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
         cb.set_label(f"Cluster GI* ({collapse})\nGreen = Low, Red = High")
 
+    # Bold outline around protein boundary
+    cs = ax.contour(Xi, Yi, Zi_alt, levels=[np.nanmin(Zi_alt) + 1e-6],
+                colors="black", linewidths=2.0)
+
+    paths = cs.get_paths()
+    if paths:
+        outer = max(paths, key=lambda p: p.vertices.shape[0])
+        v = outer.vertices
+        ax.plot(v[:, 0], v[:, 1], color="black", linewidth=2.5)
+
+
     ax.set_xlim(xmn_pad, xmx_pad)
     ax.set_ylim(ymn_pad, ymx_pad)
     fig.tight_layout(pad=0)
@@ -460,7 +472,6 @@ def flatmap_image(gene: str, name: str | None = None, collapse: str = "max"):
     plt.close(fig)
     buf.seek(0)
     return StreamingResponse(buf, media_type="image/png")
-
 
 # =========================================================
 # ========= PANEL 3: /empirical (matplotlib) ======
