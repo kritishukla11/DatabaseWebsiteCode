@@ -451,7 +451,7 @@ def flatmap_image(gene: str, name: str | None = None, collapse: str = "max"):
 
         # Residues as outlines
         ax.scatter(merged["x"], merged["y"], s=150,
-                   edgecolors="black", facecolors="none", linewidths=0.7, zorder=3)
+                   edgecolors="darkgrey", facecolors="none", linewidths=0.7, zorder=3)
 
         cb = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
         cb.set_label(f"Cluster GI* ({collapse})\nGreen = Low, Red = High")
