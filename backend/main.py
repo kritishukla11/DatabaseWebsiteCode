@@ -324,9 +324,8 @@ def flatmap_pathways(gene: str):
 def flatmap_image(gene: str, name: str | None = None, collapse: str = "max"):
     """
     Returns a PNG flatmap.
-    - Default (no pathway): categorical clusters.
-    - Pathway-specific: clusters colored red/green by avg or max GI*,
-      clipped to altitude boundary.
+    - Default (no pathway): categorical clusters, clipped to mask.
+    - Pathway-specific: clusters colored by GI* (mean/max), clipped to mask.
     - collapse: "max" or "mean".
     """
     df = load_nmf(gene)
@@ -340,7 +339,7 @@ def flatmap_image(gene: str, name: str | None = None, collapse: str = "max"):
         if "geometry" not in gdf.columns or "Gi_sum" not in gdf.columns:
             raise HTTPException(status_code=400, detail=f"Expected 'geometry' and 'Gi_sum' in {fn.name}")
 
-        # Parse WKT points
+        # Parse WKT points -> (x, y)
         xy = gdf["geometry"].apply(parse_wkt_point).apply(pd.Series)
         xy.columns = ["x", "y"]
         gdf = pd.concat([gdf, xy], axis=1)
@@ -375,94 +374,102 @@ def flatmap_image(gene: str, name: str | None = None, collapse: str = "max"):
     yi = np.linspace(ymn_pad, ymx_pad, ny)
     Xi, Yi = np.meshgrid(xi, yi)
 
-    # Cluster grid
+    # Cluster grid (categorical)
     cmap_clusters = ListedColormap(["#e74c3c","#8e44ad","#1f77b4","#f1c40f","#2ecc71"])
     Zi_cluster = griddata((df["x"], df["y"]), df["cluster"], (Xi, Yi), method="nearest")
 
-    # Altitude contours
+    # Altitude grid
     Zi_alt = griddata((df["x"], df["y"]), df["altitude"], (Xi, Yi), method="linear")
     if isinstance(Zi_alt, np.ma.MaskedArray):
         Zi_alt = Zi_alt.filled(np.nan)
 
-    # Altitude mask
+    # Mask definition from altitude (inside = True where valid altitude)
     outer_mask = np.isnan(Zi_alt) | (Zi_alt <= np.nanmin(Zi_alt) + 1e-6)
+    inside_mask = (~outer_mask).astype(float)  # for clean border extraction
+
+    # Precompute masked fields
+    Zi_cluster_masked = np.ma.array(Zi_cluster, mask=outer_mask)
+    Zi_alt_masked     = np.ma.array(Zi_alt,     mask=outer_mask)
 
     if gi_vals is None:
-        # --- Default cluster view ---
-        ax.imshow(Zi_cluster, origin="lower", extent=(xmn_pad, xmx_pad, ymn_pad, ymx_pad),
-                  cmap=cmap_clusters, alpha=0.25, interpolation="nearest")
+        # --- Default cluster view (CLIPPED fill) ---
+        # Make masked pixels transparent
+        cmap_clusters_plot = ListedColormap(list(getattr(cmap_clusters, "colors", [])))  # copy
+        try:
+            cmap_clusters_plot.set_bad(alpha=0.0)
+        except Exception:
+            pass
 
-        # Mask-aware cluster outlines
-        Zi_cluster_masked = np.ma.array(Zi_cluster, mask=outer_mask)
+        ax.imshow(Zi_cluster_masked, origin="lower",
+                  extent=(xmn_pad, xmx_pad, ymn_pad, ymx_pad),
+                  cmap=cmap_clusters_plot, alpha=0.25,
+                  interpolation="nearest", zorder=0)
+
+        # Mask-aware cluster outlines (stay inside)
         ax.contour(Xi, Yi, Zi_cluster_masked, levels=np.unique(df["cluster"]),
-                   colors="black", linewidths=0.8, alpha=0.6)
+                   colors="black", linewidths=0.8, alpha=0.6, zorder=4)
 
-        # Colorbar
+        # Colorbar (kept simple)
         sm = plt.cm.ScalarMappable(cmap=cmap_clusters, norm=plt.Normalize(vmin=0, vmax=4))
-        cbar = plt.colorbar(sm, ax=ax, fraction=0.046, pad=0.04, ticks=[0.5,1.5,2.5,3.5,4.5])
+        cbar = plt.colorbar(sm, ax=ax, fraction=0.046, pad=0.04,
+                            ticks=[0.5,1.5,2.5,3.5,4.5])
         cbar.ax.set_yticklabels([])
         cbar.set_label("Clusters")
 
         # Residues colored by cluster
         colors = [cmap_clusters(c % cmap_clusters.N) for c in df["cluster"].to_numpy()]
         ax.scatter(df["x"], df["y"], c=colors, s=150,
-                   edgecolors="black", linewidths=0.2, alpha=0.95)
+                   edgecolors="black", linewidths=0.2, alpha=0.95, zorder=3)
 
     else:
-        # --- Pathway-specific cluster-level GI values ---
+        # --- Pathway-specific (cluster GI* heat) ---
         merged["cluster"] = merged["cluster"].astype(int)
         if collapse == "mean":
             cluster_scores = merged.groupby("cluster")["Gi_sum"].mean()
         else:
             cluster_scores = merged.groupby("cluster")["Gi_sum"].max()
 
-        # Map clusters to their GI scores
+        # Broadcast cluster scores onto grid
         Zi_gi_cluster = np.zeros_like(Zi_cluster, dtype=float)
         for clust, score in cluster_scores.items():
             Zi_gi_cluster[Zi_cluster == clust] = score
 
-        # Red–green scale
         cmap_redgreen = plt.cm.RdYlGn_r
         vmax = max(1.0, float(np.nanpercentile(np.abs(cluster_scores), 99)))
         norm = plt.Normalize(vmin=0, vmax=vmax)
 
-        # Mask background outside altitude-defined region
+        # Clip heat to mask
         Zi_gi_masked = np.ma.array(Zi_gi_cluster, mask=outer_mask)
-
-        # Show masked background
         im = ax.imshow(Zi_gi_masked, origin="lower",
                        extent=(xmn_pad, xmx_pad, ymn_pad, ymx_pad),
-                       cmap=cmap_redgreen, norm=norm, alpha=0.6, interpolation="nearest")
+                       cmap=cmap_redgreen, norm=norm, alpha=0.6,
+                       interpolation="nearest", zorder=1)
 
-        # Mask-aware cluster outlines
-        Zi_cluster_masked = np.ma.array(Zi_cluster, mask=outer_mask)
+        # Cluster outlines (clipped)
         ax.contour(Xi, Yi, Zi_cluster_masked, levels=np.unique(df["cluster"]),
-                   colors="black", linewidths=1.2, alpha=0.9)
+                   colors="black", linewidths=1.2, alpha=0.9, zorder=4)
 
-        # Mask-aware altitude contours
-        Zi_alt_masked = np.ma.array(Zi_alt, mask=outer_mask)
-        ax.contour(Xi, Yi, Zi_alt_masked, levels=40,
-                   colors="black", alpha=0.35, linewidths=0.5)
-
-        # Residues: outlined circles only
+        # Residues as outlines
         ax.scatter(merged["x"], merged["y"], s=150,
-                   edgecolors="black", facecolors="none", linewidths=0.7)
+                   edgecolors="black", facecolors="none", linewidths=0.7, zorder=3)
 
-        # Colorbar
         cb = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
         cb.set_label(f"Cluster GI* ({collapse})\nGreen = Low, Red = High")
 
-    # Bold outline around protein boundary
-    cs = ax.contour(Xi, Yi, Zi_alt, levels=[np.nanmin(Zi_alt) + 1e-6],
-                colors="black", linewidths=2.0)
+    # ---------- Altitude lines + OUTER BORDER (always drawn last) ----------
+    # Altitude contour lines (subtle in default; darker in pathway)
+    if gi_vals is None:
+        ax.contour(Xi, Yi, Zi_alt_masked, levels=40,
+                   colors="darkgrey", alpha=0.3, linewidths=0.5, zorder=5)
+    else:
+        ax.contour(Xi, Yi, Zi_alt_masked, levels=40,
+                   colors="darkgrey", alpha=0.3, linewidths=0.5, zorder=5)
 
-    paths = cs.get_paths()
-    if paths:
-        outer = max(paths, key=lambda p: p.vertices.shape[0])
-        v = outer.vertices
-        ax.plot(v[:, 0], v[:, 1], color="black", linewidth=2.5)
+    # Robust border from the mask itself (level 0.5 on inside_mask)
+    ax.contour(Xi, Yi, inside_mask, levels=[0.5],
+               colors="black", linewidths=2.5, zorder=6)
 
-
+    # ----------------------------------------------------------------------
     ax.set_xlim(xmn_pad, xmx_pad)
     ax.set_ylim(ymn_pad, ymx_pad)
     fig.tight_layout(pad=0)
@@ -472,6 +479,7 @@ def flatmap_image(gene: str, name: str | None = None, collapse: str = "max"):
     plt.close(fig)
     buf.seek(0)
     return StreamingResponse(buf, media_type="image/png")
+
 
 # =========================================================
 # ========= PANEL 3: /empirical (matplotlib) ======
