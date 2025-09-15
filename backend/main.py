@@ -20,6 +20,7 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap, TwoSlopeNorm
 from scipy.interpolate import griddata
 from matplotlib import cm
+import matplotlib.patheffects as patheffects
 
 # -----------------------
 # FastAPI app
@@ -383,18 +384,17 @@ def flatmap_image(gene: str, name: str | None = None, collapse: str = "max"):
     if isinstance(Zi_alt, np.ma.MaskedArray):
         Zi_alt = Zi_alt.filled(np.nan)
 
-    # Mask definition from altitude (inside = True where valid altitude)
+    # Mask definition from altitude
     outer_mask = np.isnan(Zi_alt) | (Zi_alt <= np.nanmin(Zi_alt) + 1e-6)
-    inside_mask = (~outer_mask).astype(float)  # for clean border extraction
+    inside_mask = (~outer_mask).astype(float)
 
     # Precompute masked fields
     Zi_cluster_masked = np.ma.array(Zi_cluster, mask=outer_mask)
     Zi_alt_masked     = np.ma.array(Zi_alt,     mask=outer_mask)
 
     if gi_vals is None:
-        # --- Default cluster view (CLIPPED fill) ---
-        # Make masked pixels transparent
-        cmap_clusters_plot = ListedColormap(list(getattr(cmap_clusters, "colors", [])))  # copy
+        # --- Default cluster view ---
+        cmap_clusters_plot = ListedColormap(list(getattr(cmap_clusters, "colors", [])))
         try:
             cmap_clusters_plot.set_bad(alpha=0.0)
         except Exception:
@@ -405,31 +405,27 @@ def flatmap_image(gene: str, name: str | None = None, collapse: str = "max"):
                   cmap=cmap_clusters_plot, alpha=0.25,
                   interpolation="nearest", zorder=0)
 
-        # Mask-aware cluster outlines (stay inside)
         ax.contour(Xi, Yi, Zi_cluster_masked, levels=np.unique(df["cluster"]),
                    colors="black", linewidths=0.8, alpha=0.6, zorder=4)
 
-        # Colorbar (kept simple)
         sm = plt.cm.ScalarMappable(cmap=cmap_clusters, norm=plt.Normalize(vmin=0, vmax=4))
         cbar = plt.colorbar(sm, ax=ax, fraction=0.046, pad=0.04,
                             ticks=[0.5,1.5,2.5,3.5,4.5])
         cbar.ax.set_yticklabels([])
         cbar.set_label("Clusters")
 
-        # Residues colored by cluster
         colors = [cmap_clusters(c % cmap_clusters.N) for c in df["cluster"].to_numpy()]
         ax.scatter(df["x"], df["y"], c=colors, s=150,
                    edgecolors="black", linewidths=0.2, alpha=0.95, zorder=3)
 
     else:
-        # --- Pathway-specific (cluster GI* heat) ---
+        # --- Pathway-specific ---
         merged["cluster"] = merged["cluster"].astype(int)
         if collapse == "mean":
             cluster_scores = merged.groupby("cluster")["Gi_sum"].mean()
         else:
             cluster_scores = merged.groupby("cluster")["Gi_sum"].max()
 
-        # Broadcast cluster scores onto grid
         Zi_gi_cluster = np.zeros_like(Zi_cluster, dtype=float)
         for clust, score in cluster_scores.items():
             Zi_gi_cluster[Zi_cluster == clust] = score
@@ -438,38 +434,59 @@ def flatmap_image(gene: str, name: str | None = None, collapse: str = "max"):
         vmax = max(1.0, float(np.nanpercentile(np.abs(cluster_scores), 99)))
         norm = plt.Normalize(vmin=0, vmax=vmax)
 
-        # Clip heat to mask
         Zi_gi_masked = np.ma.array(Zi_gi_cluster, mask=outer_mask)
         im = ax.imshow(Zi_gi_masked, origin="lower",
                        extent=(xmn_pad, xmx_pad, ymn_pad, ymx_pad),
                        cmap=cmap_redgreen, norm=norm, alpha=0.6,
                        interpolation="nearest", zorder=1)
 
-        # Cluster outlines (clipped)
         ax.contour(Xi, Yi, Zi_cluster_masked, levels=np.unique(df["cluster"]),
                    colors="black", linewidths=1.2, alpha=0.9, zorder=4)
 
-        # Residues as outlines
         ax.scatter(merged["x"], merged["y"], s=150,
                    edgecolors="darkgrey", facecolors="none", linewidths=0.7, zorder=3)
 
         cb = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
         cb.set_label(f"Cluster GI* ({collapse})\nGreen = Low, Red = High")
 
-    # ---------- Altitude lines + OUTER BORDER (always drawn last) ----------
-    # Altitude contour lines (subtle in default; darker in pathway)
-    if gi_vals is None:
-        ax.contour(Xi, Yi, Zi_alt_masked, levels=40,
-                   colors="darkgrey", alpha=0.3, linewidths=0.5, zorder=5)
-    else:
-        ax.contour(Xi, Yi, Zi_alt_masked, levels=40,
-                   colors="darkgrey", alpha=0.3, linewidths=0.5, zorder=5)
+    # ---------- Altitude + Border ----------
+    ax.contour(Xi, Yi, Zi_alt_masked, levels=40,
+               colors="darkgrey", alpha=0.3, linewidths=0.5, zorder=5)
 
-    # Robust border from the mask itself (level 0.5 on inside_mask)
     ax.contour(Xi, Yi, inside_mask, levels=[0.5],
                colors="black", linewidths=2.5, zorder=6)
 
-    # ----------------------------------------------------------------------
+    # ---------- Cluster Annotations ----------
+    try:
+        ann_path = DATA_DIR / "annotated_clusters.csv"
+        if ann_path.exists():
+            ann = pd.read_csv(ann_path)
+            ann["cluster"] = ann["cluster"].astype(int)
+            df["cluster"] = df["cluster"].astype(int)
+
+            ann_sub = ann[ann["gene"].str.upper() == gene.upper()]
+            if not ann_sub.empty:
+                centroids = df.groupby("cluster")[["x", "y"]].mean()
+                for _, row in ann_sub.iterrows():
+                    clust = row["cluster"]
+                    label = str(row["annotation_type"])
+                    if clust in centroids.index:
+                        cx, cy = centroids.loc[clust]
+                        ax.text(
+                            cx, cy, label,
+                            ha="center", va="center",
+                            fontsize=10, fontweight="bold",
+                            color="white",
+                            path_effects=[
+                                patheffects.Stroke(linewidth=2, foreground="black"),
+                                patheffects.Normal()
+                            ],
+                            zorder=10
+                        )
+    except Exception as e:
+        print("[flatmap_image][WARN] Could not add annotations:", e)
+
+    # ------------------------------------------------------------------
     ax.set_xlim(xmn_pad, xmx_pad)
     ax.set_ylim(ymn_pad, ymx_pad)
     fig.tight_layout(pad=0)
@@ -479,6 +496,7 @@ def flatmap_image(gene: str, name: str | None = None, collapse: str = "max"):
     plt.close(fig)
     buf.seek(0)
     return StreamingResponse(buf, media_type="image/png")
+
 
 
 # =========================================================
