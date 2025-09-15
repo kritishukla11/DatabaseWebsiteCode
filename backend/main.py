@@ -446,14 +446,14 @@ def flatmap_image(gene: str, name: str | None = None, collapse: str = "max"):
                    colors="black", linewidths=1.2, alpha=0.9, zorder=4)
 
         ax.scatter(merged["x"], merged["y"], s=150,
-                   edgecolors="darkgrey", facecolors="none", linewidths=0.7, zorder=3)
+                   edgecolors="darkgrey", facecolors="none", linewidths=0, zorder=3)
 
         cb = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
         cb.set_label(f"Cluster GI* ({collapse})\nGreen = Low, Red = High")
 
     # ---------- Altitude + Border ----------
     ax.contour(Xi, Yi, Zi_alt_masked, levels=40,
-               colors="darkgrey", alpha=0.3, linewidths=0.5, zorder=5)
+               colors="darkgrey", alpha=0, linewidths=0.5, zorder=5)
 
     ax.contour(Xi, Yi, inside_mask, levels=[0.5],
                colors="black", linewidths=2.5, zorder=6)
