@@ -288,6 +288,8 @@ def get_plot(gene: str, topk: int = 10):
 # ========= PANEL 2: /flatmap endpoints (matplotlib) ======
 # =========================================================
 
+import matplotlib.patheffects as patheffects
+
 DATA_DIR = Path(__file__).resolve().parent / "data"
 
 def load_nmf(gene: str) -> pd.DataFrame:
@@ -467,11 +469,38 @@ def flatmap_image(gene: str, name: str | None = None, collapse: str = "max"):
             ann_sub = ann[ann["gene"].str.upper() == gene.upper()]
             if not ann_sub.empty:
                 centroids = df.groupby("cluster")[["x", "y"]].mean()
+
                 for _, row in ann_sub.iterrows():
                     clust = row["cluster"]
                     label = str(row["annotation_type"])
                     if clust in centroids.index:
-                        cx, cy = centroids.loc[clust]
+                        sub_points = df[df["cluster"] == clust]
+                        if len(sub_points) < 20:
+                            cx, cy = sub_points[["x", "y"]].median()
+                        else:
+                            cx, cy = centroids.loc[clust]
+
+                        cx_true, cy_true = cx, cy  # keep original centroid
+
+                        # Push labels outside if near edge
+                        margin_x = 0.03 * (xmx - xmn)
+                        margin_y = 0.03 * (ymx - ymn)
+
+                        moved = False
+                        if cx <= xmn + margin_x:
+                            cx = xmn_pad - 0.05 * (xmx - xmn); moved = True
+                        if cx >= xmx - margin_x:
+                            cx = xmx_pad + 0.05 * (xmx - xmn); moved = True
+                        if cy <= ymn + margin_y:
+                            cy = ymn_pad - 0.05 * (ymx - ymn); moved = True
+                        if cy >= ymx - margin_y:
+                            cy = ymx_pad + 0.05 * (ymx - ymn); moved = True
+
+                        # Draw leader line if label moved
+                        if moved:
+                            ax.plot([cx_true, cx], [cy_true, cy],
+                                    color="black", linewidth=0.8, zorder=998)
+
                         ax.text(
                             cx, cy, label,
                             ha="center", va="center",
@@ -481,14 +510,18 @@ def flatmap_image(gene: str, name: str | None = None, collapse: str = "max"):
                                 patheffects.Stroke(linewidth=2, foreground="black"),
                                 patheffects.Normal()
                             ],
-                            zorder=10
+                            clip_on=False,
+                            zorder=999
                         )
+
+        # Expand limits so outside labels stay visible
+        ax.set_xlim(xmn_pad - 0.1*(xmx-xmn), xmx_pad + 0.1*(xmx-xmn))
+        ax.set_ylim(ymn_pad - 0.1*(ymx-ymn), ymx_pad + 0.1*(ymx-ymn))
+
     except Exception as e:
         print("[flatmap_image][WARN] Could not add annotations:", e)
 
     # ------------------------------------------------------------------
-    ax.set_xlim(xmn_pad, xmx_pad)
-    ax.set_ylim(ymn_pad, ymx_pad)
     fig.tight_layout(pad=0)
 
     buf = io.BytesIO()
@@ -496,7 +529,6 @@ def flatmap_image(gene: str, name: str | None = None, collapse: str = "max"):
     plt.close(fig)
     buf.seek(0)
     return StreamingResponse(buf, media_type="image/png")
-
 
 
 # =========================================================

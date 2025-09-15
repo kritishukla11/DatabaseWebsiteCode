@@ -1,6 +1,6 @@
 cluster,annotation_type,gene
-1,binds to KLHL3,KEAP1
-2,binds to BAD,KEAP1
-3,binds to NFE2L2,KEAP1
-4,PTM - S-(2-succinyl)cysteine,KEAP1
-5,Sensor for electrophilic agents,KEAP1
+0,binds to KLHL3,KEAP1
+1,binds to BAD,KEAP1
+2,binds to NFE2L2,KEAP1
+3,PTM - S-(2-succinyl)cysteine,KEAP1
+4,Sensor for electrophilic agents,KEAP1
