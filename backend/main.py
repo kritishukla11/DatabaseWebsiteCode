@@ -288,8 +288,32 @@ def get_plot(gene: str, topk: int = 10):
 # ========= PANEL 2: /flatmap endpoints (matplotlib) ======
 # =========================================================
 
+from pathlib import Path
+import re, io
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from matplotlib.colors import ListedColormap
+from matplotlib import cm, patheffects
+from scipy.interpolate import griddata
+from fastapi import HTTPException
+from fastapi.responses import StreamingResponse
+
 DATA_DIR = Path(__file__).resolve().parent / "data"
 
+# ---------------- Palette (matches Panel1) ----------------
+BASE_COLORS = [
+    "#e41a1c", "#377eb8", "#4daf4a", "#984ea3",
+    "#ff7f00", "#ffff33", "#a65628", "#f781bf",
+    "#999999"
+]
+
+def make_cluster_cmap(n_clusters: int) -> ListedColormap:
+    """Return ListedColormap using the same palette as Panel1, cycling if needed."""
+    colors = [BASE_COLORS[i % len(BASE_COLORS)] for i in range(n_clusters)]
+    return ListedColormap(colors)
+
+# ---------------- Data loaders ----------------
 def load_nmf(gene: str) -> pd.DataFrame:
     """Load nmfinfo file for a given gene."""
     fn = DATA_DIR / f"{gene}_nmfinfo_final.csv"
@@ -317,6 +341,7 @@ def list_pathways_for_gene(gene: str) -> list[str]:
             paths.append(m.group(1))
     return sorted(paths)
 
+# ---------------- Endpoints ----------------
 @app.get("/flatmap/pathways")
 def flatmap_pathways(gene: str):
     return {"pathways": list_pathways_for_gene(gene)}
@@ -394,8 +419,7 @@ def flatmap_image(gene: str, name: str | None = None, collapse: str = "max"):
     if gi_vals is None:
         # --- Default cluster view ---
         n_clusters = df["cluster"].nunique()
-        base_cmap = cm.get_cmap("tab10", n_clusters)  # up to 10 unique colors
-        cmap_clusters = ListedColormap(base_cmap.colors)
+        cmap_clusters = make_cluster_cmap(n_clusters)
 
         cmap_clusters_plot = ListedColormap(list(cmap_clusters.colors))
         try:
@@ -484,12 +508,11 @@ def flatmap_image(gene: str, name: str | None = None, collapse: str = "max"):
                         else:
                             cx, cy = centroids.loc[clust]
 
-                        cx_true, cy_true = cx, cy  # keep original centroid
+                        cx_true, cy_true = cx, cy
 
                         # Push labels outside if near edge
                         margin_x = 0.03 * (xmx - xmn)
                         margin_y = 0.03 * (ymx - ymn)
-
                         moved = False
                         if cx <= xmn + margin_x:
                             cx = xmn_pad - 0.05 * (xmx - xmn); moved = True
@@ -500,7 +523,6 @@ def flatmap_image(gene: str, name: str | None = None, collapse: str = "max"):
                         if cy >= ymx - margin_y:
                             cy = ymx_pad + 0.05 * (ymx - ymn); moved = True
 
-                        # Draw leader line if label moved
                         if moved:
                             ax.plot([cx_true, cx], [cy_true, cy],
                                     color="black", linewidth=0.8, zorder=998)
@@ -518,7 +540,6 @@ def flatmap_image(gene: str, name: str | None = None, collapse: str = "max"):
                             zorder=999
                         )
 
-        # Expand limits so outside labels stay visible
         ax.set_xlim(xmn_pad - 0.1*(xmx-xmn), xmx_pad + 0.1*(xmx-xmn))
         ax.set_ylim(ymn_pad - 0.1*(ymx-ymn), ymx_pad + 0.1*(ymx-ymn))
 
