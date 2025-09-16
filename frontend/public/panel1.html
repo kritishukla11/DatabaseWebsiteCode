@@ -4,11 +4,11 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <!-- 3Dmol.js (fallback to jsDelivr if cdnjs is blocked) -->
+    <!-- 3Dmol.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/3Dmol/2.3.0/3Dmol-min.min.js"
       onerror="(function(){var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/3dmol@2.3.0/build/3Dmol-min.min.js';document.head.appendChild(s);})();"></script>
 
-    <!-- PapaParse (fallback) -->
+    <!-- PapaParse -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"
       onerror="(function(){var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js';document.head.appendChild(s);})();"></script>
 
@@ -38,7 +38,7 @@
         box-sizing: border-box;
       }
       #viewer {
-        height: 520px; /* fixed: won’t grow when table appears */
+        height: 520px;
         width: 100%;
         border: 1px solid var(--border);
         border-radius: 12px;
@@ -126,6 +126,7 @@
     </style>
   </head>
 
+  <body>
     <div class="wrap">
       <div id="viewer"></div>
 
@@ -139,7 +140,7 @@
 
         <div class="field" id="manualGeneBox" style="display:none">
           <label for="geneInput">Custom gene</label>
-          <div style="display:flex; gap:8px; align-items:center;">
+          <div style="flex; gap:8px; align-items:center;">
             <input id="geneInput" type="text" placeholder="e.g., KEAP1" class="mono" />
             <button id="btnLoadGene" type="button">Load structure</button>
           </div>
@@ -221,35 +222,29 @@
         // ---------- Global state ----------
         let viewer=null, model=null, pdbResiduesSet=null;
         let currentGene = null;
-
         let genes = [];
+        let currentResiduesSorted = [];
+        let currentClusterKeys = [];
+        let currentColorMap = new Map();
+
         const geneResidueSet = new Map();
         const geneResidueToCluster = new Map();
         const geneClusterMap = new Map();
         const genePathwaysByCluster = new Map();
         const geneToUniprotMap = new Map();
 
-        let currentResiduesSorted = [];
-        let currentClusterKeys = [];
-
-        const palette = {
-          '1':'#e53935',
-          '2':'#43a047',
-          '3':'#8e24aa',
-          '4':'#fdd835',
-          '5':'#1e88e5'
-        };
-        const fallbackColors = ['#00897b','#6d4c41','#3949ab','#fb8c00','#90a4ae'];
-        const colorForCluster = key => palette[key] ||
-          fallbackColors[Math.abs(hashCode(String(key))) % fallbackColors.length];
-
-        function hashCode(s) {
-          let h=0;
-          for(let i=0;i<s.length;i++) {
-            h=((h<<5)-h)+s.charCodeAt(i);
-            h|=0;
-          }
-          return h;
+        // ---------- Dynamic palette ----------
+        const baseColors = [
+          "#e41a1c", "#377eb8", "#4daf4a", "#984ea3",
+          "#ff7f00", "#ffff33", "#a65628", "#f781bf",
+          "#999999"
+        ];
+        function colorForClusterDynamic(keys) {
+          const map = new Map();
+          keys.forEach((k, i) => {
+            map.set(k, baseColors[i % baseColors.length]);
+          });
+          return map;
         }
 
         // ---------- Boot ----------
@@ -326,7 +321,7 @@
             populateResidueSelector(list);
             $('resiSelect').value = '';
             if(list.length) {
-              setExclusiveSticks(list, colorForCluster(key), {resi:list});
+              setExclusiveSticks(list, currentColorMap.get(key), {resi:list});
               viewer.zoomTo({resi:list});
               viewer.render();
               status(`Cluster ${key}: highlighted ${list.length} residue(s).`);
@@ -342,7 +337,7 @@
             if(!val) return;
             const r = Number(val);
             const cKey = geneResidueToCluster.get(currentGene)?.get(r);
-            const stickColor = cKey ? colorForCluster(cKey) : '#d32f2f';
+            const stickColor = cKey ? currentColorMap.get(cKey) : '#d32f2f';
             setExclusiveSticks([r], stickColor, {resi:[r]});
             viewer.zoomTo({resi:[r]});
             viewer.render();
@@ -356,7 +351,7 @@
             setResidueViewToAll();
             clearPathways();
             recolorCartoonByClusters();
-            viewer.zoomTo();       // zoom back to full structure
+            viewer.zoomTo();
             viewer.render();
             status('Cleared.');
             error('');
@@ -532,12 +527,13 @@
               return pdbResiduesSet ? Array.from(set).some(r=>pdbResiduesSet.has(r)) : set.size>0;
             }).sort((a,b)=>{
               const na=Number(a), nb=Number(b);
-              const aNum=Number.isFinite(na), bNum=Number.isFinite(nb);
+              const aNum=Number.isFinite(na), bNum=Number(b);
               if(aNum && bNum) return na-nb;
               if(aNum && !bNum) return -1;
               if(!aNum && bNum) return 1;
               return String(a).localeCompare(String(b), undefined, {numeric:true, sensitivity:'base'});
             });
+            currentColorMap = colorForClusterDynamic(currentClusterKeys);
             populateClusterSelectForGene(gene);
             setResidueViewToAll();
             disableSelectors(false);
@@ -557,6 +553,7 @@
             await loadAlphaFoldByGene(gene);
             currentResiduesSorted = [];
             currentClusterKeys = [];
+            currentColorMap = new Map();
             populateClusterSelectForGene(gene);
             populateResidueSelector([]);
             disableSelectors(true);
@@ -622,9 +619,10 @@
             const residues = Array.from(geneClusterMap.get(currentGene)?.get(key) || []);
             const present = pdbResiduesSet ? residues.filter(r=>pdbResiduesSet.has(r)) : residues;
             if(!present.length) continue;
+            const color = currentColorMap.get(key) || "#666";
             viewer.addStyle(
               { resi:present, hetflag:false },
-              { cartoon:{ color: colorForCluster(key), opacity:0.97 } }
+              { cartoon:{ color, opacity:0.97 } }
             );
           }
           viewer.render();
@@ -644,17 +642,13 @@
 
         // ---------- Pathways ----------
         function clearPathways() {
-            const panel = $('pathwaysPanel');
-            panel.hidden = true;
-            panel.style.display = "none";
-            $('pathwaysNote').textContent = '';
-            $('pathwaysTableWrap').innerHTML = '';
-
-            // 🚀 Force the parent iframe to snap height to 0
-            window.parent.postMessage({ type: "resize-panel", panel: "panel1", height: 0 }, "*");
+          const panel = $('pathwaysPanel');
+          panel.hidden = true;
+          panel.style.display = "none";
+          $('pathwaysNote').textContent = '';
+          $('pathwaysTableWrap').innerHTML = '';
+          window.parent.postMessage({ type: "resize-panel", panel: "panel1", height: 0 }, "*");
         }
-
-
 
         function renderPathwaysForResidue(gene, resi) {
           const panel = $('pathwaysPanel');
@@ -671,50 +665,42 @@
         }
 
         function renderPathwaysForCluster(gene, clusterKey, resi=null) {
-            const panel = $('pathwaysPanel');
-            panel.hidden = false;
-            panel.style.display = "block";
-            const rows = genePathwaysByCluster.get(gene)?.get(clusterKey) || [];
-              $('pathwaysNote').innerHTML = (resi!=null)
-                ? `Residue <span class="mono">${resi}</span> → cluster <strong>${escapeHtml(clusterKey)}</strong>.`
-                : `Cluster <strong>${escapeHtml(clusterKey)}</strong>.`;
-            if(!rows.length) {
-                $('pathwaysTableWrap').innerHTML = '<div class="muted">No pathways found for this cluster in the CSV.</div>';
-                notifyParentOfHeight();
-                return;
+          const panel = $('pathwaysPanel');
+          panel.hidden = false;
+          panel.style.display = "block";
+          const rows = genePathwaysByCluster.get(gene)?.get(clusterKey) || [];
+          $('pathwaysNote').innerHTML = (resi!=null)
+            ? `Residue <span class="mono">${resi}</span> → cluster <strong>${escapeHtml(clusterKey)}</strong>.`
+            : `Cluster <strong>${escapeHtml(clusterKey)}</strong>.`;
+          if(!rows.length) {
+            $('pathwaysTableWrap').innerHTML = '<div class="muted">No pathways found for this cluster in the CSV.</div>';
+            notifyParentOfHeight();
+            return;
+          }
+          const seen = new Map();
+          for (const { pathway, score } of rows) {
+            if (!pathway) continue;
+            if (!seen.has(pathway) || (Number.isFinite(score) && score > seen.get(pathway))) {
+              seen.set(pathway, score);
             }
-
-            // ✅ Deduplicate pathways and keep best score
-            const seen = new Map();
-            for (const { pathway, score } of rows) {
-                if (!pathway) continue;
-                if (!seen.has(pathway) || (Number.isFinite(score) && score > seen.get(pathway))) {
-                    seen.set(pathway, score);
-                }
-            }
-
-            // Convert back to sorted array
-            const uniqueRows = Array.from(seen.entries())
-                .map(([pathway, score]) => ({ pathway, score }))
-                .sort((a,b) => {
-                    const as = Number.isFinite(a.score) ? a.score : -Infinity;
-                    const bs = Number.isFinite(b.score) ? b.score : -Infinity;
-                    return bs - as;
-                });
-
-            // ✅ Take top 10
-            const topRows = uniqueRows.slice(0, 10);
-
-            let html = `<table class="pathways"><thead><tr><th>Pathway</th><th>Score</th></tr></thead><tbody>`;
-            for(const {pathway, score} of topRows) {
-    const s = Number.isFinite(score) ? score.toPrecision(6) : '';
-    html += `<tr><td>${escapeHtml(pathway)}</td><td>${s}</td></tr>`;
-  }
-  html += `</tbody></table>`;
-  $('pathwaysTableWrap').innerHTML = html;
-  notifyParentOfHeight();
-}
-
+          }
+          const uniqueRows = Array.from(seen.entries())
+            .map(([pathway, score]) => ({ pathway, score }))
+            .sort((a,b) => {
+              const as = Number.isFinite(a.score) ? a.score : -Infinity;
+              const bs = Number.isFinite(b.score) ? b.score : -Infinity;
+              return bs - as;
+            });
+          const topRows = uniqueRows.slice(0, 10);
+          let html = `<table class="pathways"><thead><tr><th>Pathway</th><th>Score</th></tr></thead><tbody>`;
+          for(const {pathway, score} of topRows) {
+            const s = Number.isFinite(score) ? score.toPrecision(6) : '';
+            html += `<tr><td>${escapeHtml(pathway)}</td><td>${s}</td></tr>`;
+          }
+          html += `</tbody></table>`;
+          $('pathwaysTableWrap').innerHTML = html;
+          notifyParentOfHeight();
+        }
 
         // --- Resize messaging
         function notifyParentOfHeight() {
