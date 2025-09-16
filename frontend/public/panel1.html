@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <!-- 3Dmol.js (fallback to jsDelivr if cdnjs is blocked) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/3Dmol/2.3.0/3Dmol-min.min.js"
+      onerror="(function(){var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/3dmol@2.3.0/build/3Dmol-min.min.js';document.head.appendChild(s);})();"></script>
+
+    <!-- PapaParse (fallback) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"
+      onerror="(function(){var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js';document.head.appendChild(s);})();"></script>
+
+    <style>
+      :root {
+        --border: #ddd;
+        --muted: #777;
+        --bg: #fafafa;
+      }
+      html, body {
+        height: 100%;
+        margin: 0;
+        font-family: system-ui, Segoe UI, Roboto, Ubuntu, Arial;
+      }
+      header {
+        padding: 10px 14px;
+        background: #f7f7f7;
+        border-bottom: 1px solid #ccc;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+      }
+      .wrap {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 12px;
+        box-sizing: border-box;
+      }
+      #viewer {
+        height: 520px; /* fixed: won’t grow when table appears */
+        width: 100%;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: #fff;
+        overflow: hidden;
+        position: relative;
+      }
+      @media (max-width: 900px) {
+        #viewer {
+          height: 380px;
+        }
+      }
+      .row {
+        display: flex;
+        gap: 10px;
+        align-items: flex-end;
+        flex-wrap: wrap;
+        margin: 12px 0;
+      }
+      .field {
+        flex: 1 1 220px;
+      }
+      label {
+        font-size: 12px;
+        color: #666;
+        display: block;
+        margin: 0 0 4px;
+      }
+      select, button, input[type="text"] {
+        padding: 8px 10px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: #fff;
+      }
+      button {
+        cursor: pointer;
+      }
+      .mono {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 12px;
+      }
+      #status {
+        font-size: 12px;
+        color: #0a4;
+        margin-top: 6px;
+      }
+      #error {
+        font-size: 12px;
+        color: #b00020;
+        margin-top: 4px;
+      }
+      #pathwaysPanel {
+        margin-top: 14px;
+        padding: 12px;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: var(--bg);
+      }
+      #pathwaysPanel h3 {
+        margin: 0 0 8px;
+        font-size: 16px;
+      }
+      #pathwaysPanel .note {
+        font-size: 12px;
+        color: #555;
+        margin-bottom: 8px;
+      }
+      table.pathways {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+      }
+      table.pathways th,
+      table.pathways td {
+        border-bottom: 1px solid #eee;
+        padding: 8px 10px;
+        text-align: left;
+      }
+      table.pathways th {
+        background: #f6f6f6;
+      }
+      .muted {
+        color: var(--muted);
+      }
+    </style>
+  </head>
+
+    <div class="wrap">
+      <div id="viewer"></div>
+
+      <div class="row">
+        <div class="field">
+          <label for="geneSelect">Gene</label>
+          <select id="geneSelect" disabled>
+            <option value="">— loading —</option>
+          </select>
+        </div>
+
+        <div class="field" id="manualGeneBox" style="display:none">
+          <label for="geneInput">Custom gene</label>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <input id="geneInput" type="text" placeholder="e.g., KEAP1" class="mono" />
+            <button id="btnLoadGene" type="button">Load structure</button>
+          </div>
+          <div class="muted" style="font-size:12px;margin-top:4px">
+            Loads AlphaFold even if not in the CSV. Selectors will be disabled.
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="clusterSelect">Cluster</label>
+          <select id="clusterSelect" disabled>
+            <option value="">— select gene —</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="resiSelect">Residue</label>
+          <select id="resiSelect" disabled>
+            <option value="">— select gene —</option>
+          </select>
+        </div>
+
+        <div class="field" style="flex:0 0 140px">
+          <button id="btnClear" type="button">Clear</button>
+        </div>
+      </div>
+
+      <div id="status"></div>
+      <div id="error"></div>
+
+      <div id="pathwaysPanel" hidden>
+        <h3>Related pathways</h3>
+        <div class="note" id="pathwaysNote"></div>
+        <div id="pathwaysTableWrap"></div>
+      </div>
+    </div>
+
+    <script>
+      (function() {
+        // ---------- Utilities ----------
+        const $ = id => document.getElementById(id);
+        const status = m => { $('status').textContent = m || ''; };
+        const error = m => { $('error').textContent = m || ''; };
+
+        function escapeHtml(s) {
+          return String(s)
+            .replace(/&/g,'&amp;')
+            .replace(/</g,'&lt;')
+            .replace(/>/g,'&gt;')
+            .replace(/"/g,'&quot;')
+            .replace(/'/g,'&#39;');
+        }
+
+        function findColumn(fields, candidates) {
+          const map = new Map(fields.map(f => [String(f).toLowerCase().trim(), f]));
+          for(const c of candidates) {
+            const got = map.get(c.toLowerCase());
+            if(got) return got;
+          }
+          return null;
+        }
+
+        function getQueryParam(k) {
+          const u = new URL(window.location.href);
+          return u.searchParams.get(k);
+        }
+
+        function waitForLibs(cb, tries=0) {
+          const ok3d = !!(window.$3Dmol && $3Dmol.createViewer);
+          const okCSV = !!(window.Papa && Papa.parse);
+          if(ok3d && okCSV) return cb();
+          if(tries > 60) {
+            error('Libraries failed to load (CDN blocked?)');
+            return;
+          }
+          setTimeout(()=>waitForLibs(cb, tries+1), 150);
+        }
+
+        // ---------- Global state ----------
+        let viewer=null, model=null, pdbResiduesSet=null;
+        let currentGene = null;
+
+        let genes = [];
+        const geneResidueSet = new Map();
+        const geneResidueToCluster = new Map();
+        const geneClusterMap = new Map();
+        const genePathwaysByCluster = new Map();
+        const geneToUniprotMap = new Map();
+
+        let currentResiduesSorted = [];
+        let currentClusterKeys = [];
+
+        const palette = {
+          '1':'#e53935',
+          '2':'#43a047',
+          '3':'#8e24aa',
+          '4':'#fdd835',
+          '5':'#1e88e5'
+        };
+        const fallbackColors = ['#00897b','#6d4c41','#3949ab','#fb8c00','#90a4ae'];
+        const colorForCluster = key => palette[key] ||
+          fallbackColors[Math.abs(hashCode(String(key))) % fallbackColors.length];
+
+        function hashCode(s) {
+          let h=0;
+          for(let i=0;i<s.length;i++) {
+            h=((h<<5)-h)+s.charCodeAt(i);
+            h|=0;
+          }
+          return h;
+        }
+
+        // ---------- Boot ----------
+        window.addEventListener('load', ()=>{
+          waitForLibs(async ()=>{
+            initViewer();
+            try {
+              await loadGeneMapping();
+              await loadResiduePathwayScore();
+              populateGeneSelect();
+              const urlGene = getQueryParam('gene');
+              if (urlGene) {
+                const g = urlGene.trim();
+                if (genes.includes(g)) {
+                  $('geneSelect').value = g;
+                  await handleGeneChange(g);
+                } else {
+                  $('geneSelect').value = '__custom__';
+                  showManualGene(true);
+                  $('geneInput').value = g;
+                  await loadCustomGene(g);
+                }
+              } else if (genes.length) {
+                $('geneSelect').value = genes[0];
+                await handleGeneChange(genes[0]);
+              }
+              status('Ready.');
+              error('');
+            } catch(e) {
+              error('Initialization error: '+e.message);
+            }
+          });
+        });
+
+        // ---------- Viewer ----------
+        function initViewer() {
+          const div = $('viewer');
+          viewer = $3Dmol.createViewer(div, { backgroundColor:'#ffffff' });
+          new ResizeObserver(()=>{
+            try { viewer.resize(false); viewer.render(); } catch(_) {}
+          }).observe(div);
+
+          $('geneSelect').addEventListener('change', async e=>{
+            const val = e.target.value;
+            if (val === '__custom__') {
+              showManualGene(true);
+              disableSelectors(true);
+              clearPathways();
+              status('Enter a gene symbol and click "Load structure".');
+              return;
+            } else {
+              showManualGene(false);
+              await handleGeneChange(val);
+            }
+          });
+
+          $('btnLoadGene').addEventListener('click', async ()=>{
+            const g = $('geneInput').value.trim();
+            if (!g) { error('Please enter a gene symbol.'); return; }
+            await loadCustomGene(g);
+          });
+
+          $('clusterSelect').addEventListener('change', ()=>{
+            const key = $('clusterSelect').value;
+            if(!key) {
+              setResidueViewToAll();
+              clearPathways();
+              recolorCartoonByClusters();
+              status('Cluster cleared.');
+              return;
+            }
+            const residues = Array.from((geneClusterMap.get(currentGene)?.get(key)) || []);
+            const list = pdbResiduesSet ? residues.filter(r=>pdbResiduesSet.has(r)) : residues;
+            populateResidueSelector(list);
+            $('resiSelect').value = '';
+            if(list.length) {
+              setExclusiveSticks(list, colorForCluster(key), {resi:list});
+              viewer.zoomTo({resi:list});
+              viewer.render();
+              status(`Cluster ${key}: highlighted ${list.length} residue(s).`);
+            } else {
+              recolorCartoonByClusters();
+              error('No residues for this cluster are present in the loaded PDB.');
+            }
+            renderPathwaysForCluster(currentGene, key);
+          });
+
+          $('resiSelect').addEventListener('change', ()=>{
+            const val = $('resiSelect').value;
+            if(!val) return;
+            const r = Number(val);
+            const cKey = geneResidueToCluster.get(currentGene)?.get(r);
+            const stickColor = cKey ? colorForCluster(cKey) : '#d32f2f';
+            setExclusiveSticks([r], stickColor, {resi:[r]});
+            viewer.zoomTo({resi:[r]});
+            viewer.render();
+            status(`Residue ${r} highlighted.`);
+            renderPathwaysForResidue(currentGene, r);
+          });
+
+          $('btnClear').addEventListener('click', ()=>{
+            $('clusterSelect').value = '';
+            $('resiSelect').value = '';
+            setResidueViewToAll();
+            clearPathways();
+            recolorCartoonByClusters();
+            viewer.zoomTo();       // zoom back to full structure
+            viewer.render();
+            status('Cleared.');
+            error('');
+          });
+        }
+
+        function showManualGene(show) {
+          $('manualGeneBox').style.display = show ? '' : 'none';
+        }
+
+        function disableSelectors(disabled) {
+          $('clusterSelect').disabled = disabled;
+          $('resiSelect').disabled = disabled;
+        }
+
+        // ---------- CSV loaders ----------
+        async function loadGeneMapping() {
+          try {
+            const res = await fetch('gene-to-uniprot.csv', {cache:'no-store'});
+            if(!res.ok) throw new Error('mapping not found');
+            const text = await res.text();
+            const out = Papa.parse(text, {header:true,skipEmptyLines:true});
+            const fields = out.meta?.fields || [];
+            const geneCol = findColumn(fields, ['gene']);
+            const idCol = findColumn(fields, ['uniprot','uniprot_id','accession']);
+            if(!geneCol || !idCol) throw new Error('mapping missing gene/uniprot columns');
+            for(const row of out.data) {
+              const g = row[geneCol];
+              const id = row[idCol];
+              if(g && id) geneToUniprotMap.set(String(g).trim().toUpperCase(), String(id).trim());
+            }
+            status('Gene→UniProt mapping loaded.');
+          } catch(e) {
+            status('No mapping CSV found — will query UniProt/AlphaFold at runtime.');
+          }
+        }
+
+        async function loadResiduePathwayScore() {
+          const res = await fetch('residue-pathway-score.csv', {cache:'no-store'});
+          if(!res.ok) throw new Error('residue-pathway-score.csv not found');
+          const text = await res.text();
+          const out = Papa.parse(text, {header:true, skipEmptyLines:true});
+          const fields = out.meta?.fields || [];
+          const geneCol = findColumn(fields, ['gene']);
+          const residueCol = findColumn(fields, ['residue','res']);
+          const clusterCol = findColumn(fields, ['cluster','clust']);
+          const pathwayCol = findColumn(fields, ['pathway','path']);
+          const scoreCol = findColumn(fields, ['score','value']);
+          if(!geneCol || !residueCol || !clusterCol || !pathwayCol){
+            throw new Error('CSV must include gene, residue, cluster, pathway columns.');
+          }
+          genes = [];
+          geneResidueSet.clear();
+          geneResidueToCluster.clear();
+          geneClusterMap.clear();
+          genePathwaysByCluster.clear();
+          const geneSeen = new Set();
+          for(const row of out.data) {
+            const gene = (row[geneCol] ?? '').toString().trim();
+            if(!gene) continue;
+            if(!geneSeen.has(gene)) {
+              geneSeen.add(gene);
+              genes.push(gene);
+            }
+            const resi = Number(row[residueCol]);
+            if(!Number.isFinite(resi) || resi<=0) continue;
+            let clusterKey = row[clusterCol];
+            clusterKey = (clusterKey==null) ? '' : String(clusterKey).trim();
+            if(clusterKey && clusterKey.toLowerCase()==='nan') clusterKey='';
+            if(!geneResidueSet.has(gene)) geneResidueSet.set(gene, new Set());
+            if(!geneResidueToCluster.has(gene)) geneResidueToCluster.set(gene, new Map());
+            if(!geneClusterMap.has(gene)) geneClusterMap.set(gene, new Map());
+            if(!genePathwaysByCluster.has(gene)) genePathwaysByCluster.set(gene, new Map());
+            if(clusterKey && !geneClusterMap.get(gene).has(clusterKey)) {
+              geneClusterMap.get(gene).set(clusterKey, new Set());
+            }
+            if(clusterKey && !genePathwaysByCluster.get(gene).has(clusterKey)){
+              genePathwaysByCluster.get(gene).set(clusterKey, []);
+            }
+            geneResidueSet.get(gene).add(resi);
+            if(clusterKey){
+              geneResidueToCluster.get(gene).set(resi, clusterKey);
+              geneClusterMap.get(gene).get(clusterKey).add(resi);
+            }
+            const pathway = row[pathwayCol];
+            if(clusterKey && pathway!=null && pathway!==''){
+              const score = scoreCol ? Number(row[scoreCol]) : NaN;
+              genePathwaysByCluster.get(gene).get(clusterKey).push({
+                pathway:String(pathway),
+                score: Number.isFinite(score)?score:undefined
+              });
+            }
+          }
+          for(const [gene, cmap] of genePathwaysByCluster){
+            for(const [key, arr] of cmap){
+              arr.sort((a,b)=>{
+                const as = Number.isFinite(a.score) ? a.score : -Infinity;
+                const bs = Number.isFinite(b.score) ? b.score : -Infinity;
+                return bs - as;
+              });
+            }
+          }
+        }
+
+        // ---------- UI population ----------
+        function populateGeneSelect() {
+          const gs = $('geneSelect');
+          gs.innerHTML = '';
+          genes.forEach(g=>{
+            const o=document.createElement('option');
+            o.value=g;
+            o.textContent=g;
+            gs.appendChild(o);
+          });
+          const custom = document.createElement('option');
+          custom.value='__custom__';
+          custom.textContent='Custom gene…';
+          gs.appendChild(custom);
+          gs.disabled = false;
+        }
+
+        function populateClusterSelectForGene(gene) {
+          const cs = $('clusterSelect');
+          cs.innerHTML = '<option value="" selected>— all clusters —</option>';
+          currentClusterKeys.forEach(k=>{
+            const presentCount = currentResiduesSorted.filter(r => (geneResidueToCluster.get(gene)?.get(r)===k)).length;
+            const o = document.createElement('option');
+            o.value = k;
+            o.textContent = `${k} (${presentCount})`;
+            cs.appendChild(o);
+          });
+          cs.disabled = currentClusterKeys.length===0;
+        }
+
+        function populateResidueSelector(list) {
+          const rs = $('resiSelect');
+          rs.innerHTML = '<option value="" selected>— select residue —</option>';
+          list.slice().sort((a,b)=>a-b).forEach(r=>{
+            const o=document.createElement('option');
+            o.value=String(r);
+            o.textContent=String(r);
+            rs.appendChild(o);
+          });
+          rs.disabled = list.length===0;
+        }
+
+        function setResidueViewToAll() {
+          populateResidueSelector(currentResiduesSorted);
+        }
+
+        // ---------- Gene flows ----------
+        async function handleGeneChange(gene) {
+          try {
+            currentGene = gene;
+            status(`Loading AlphaFold structure for ${gene}…`);
+            await loadAlphaFoldByGene(gene);
+            if (!geneResidueSet.has(gene)) {
+              currentResiduesSorted = [];
+              currentClusterKeys = [];
+              populateClusterSelectForGene(gene);
+              populateResidueSelector([]);
+              disableSelectors(true);
+              recolorCartoonByClusters();
+              clearPathways();
+              status(`Loaded ${gene} structure (no entries in residue-pathway-score.csv).`);
+              return;
+            }
+            const allResidues = Array.from(geneResidueSet.get(gene) || []);
+            currentResiduesSorted = pdbResiduesSet ? allResidues.filter(r=>pdbResiduesSet.has(r)).sort((a,b)=>a-b) : allResidues.sort((a,b)=>a-b);
+            const allClusterKeys = Array.from((geneClusterMap.get(gene)?.keys()) || []);
+            currentClusterKeys = allClusterKeys.filter(k=>{
+              const set = geneClusterMap.get(gene).get(k);
+              return pdbResiduesSet ? Array.from(set).some(r=>pdbResiduesSet.has(r)) : set.size>0;
+            }).sort((a,b)=>{
+              const na=Number(a), nb=Number(b);
+              const aNum=Number.isFinite(na), bNum=Number.isFinite(nb);
+              if(aNum && bNum) return na-nb;
+              if(aNum && !bNum) return -1;
+              if(!aNum && bNum) return 1;
+              return String(a).localeCompare(String(b), undefined, {numeric:true, sensitivity:'base'});
+            });
+            populateClusterSelectForGene(gene);
+            setResidueViewToAll();
+            disableSelectors(false);
+            recolorCartoonByClusters();
+            clearPathways();
+            status(`Loaded ${gene}. Residues in model: ${pdbResiduesSet?.size ?? 0}.`);
+            error('');
+          } catch(e) {
+            error(`Failed to load AlphaFold for ${gene}: ${e.message}`);
+          }
+        }
+
+        async function loadCustomGene(gene) {
+          try {
+            currentGene = gene;
+            status(`Loading AlphaFold structure for ${gene}…`);
+            await loadAlphaFoldByGene(gene);
+            currentResiduesSorted = [];
+            currentClusterKeys = [];
+            populateClusterSelectForGene(gene);
+            populateResidueSelector([]);
+            disableSelectors(true);
+            recolorCartoonByClusters();
+            clearPathways();
+            status(`Loaded ${gene} structure (no entries in residue-pathway-score.csv).`);
+            error('');
+          } catch(e) {
+            error(`Failed to load AlphaFold for ${gene}: ${e.message}`);
+          }
+        }
+
+        // ---------- AlphaFold/UniProt ----------
+        async function loadAlphaFoldByGene(gene) {
+          const id = geneToUniprotMap.get(gene.toUpperCase()) || await geneToUniprotFromAPI(gene);
+          const data = await fetchJson(`https://alphafold.ebi.ac.uk/api/prediction/${id}`);
+          const entry = Array.isArray(data) ? data[0] : null;
+          if(!entry) throw new Error('No AlphaFold entry found.');
+          const fileUrl = entry.pdbUrl || entry.cifUrl;
+          if(!fileUrl) throw new Error('No PDB/CIF URL in AlphaFold entry.');
+          const fmt = entry.pdbUrl ? 'pdb' : 'cif';
+          const text = await (await fetch(fileUrl)).text();
+          loadPDB(fmt, text, `${gene} (${id}) AlphaFold`);
+        }
+
+        async function geneToUniprotFromAPI(gene) {
+          const base = "https://rest.uniprot.org/uniprotkb/search";
+          const params = new URLSearchParams({
+            query: `${gene} AND reviewed:true`,
+            fields: "accession,gene_primary",
+            format: "json",
+            size: "1"
+          });
+          const data = await fetchJson(`${base}?${params}`);
+          const acc = data.results?.[0]?.primaryAccession;
+          if(!acc) throw new Error('UniProt accession not found via API.');
+          return acc;
+        }
+
+        async function fetchJson(url) {
+          const r = await fetch(url, {cache:'no-store'});
+          if(!r.ok) throw new Error(`HTTP ${r.status} for ${url}`);
+          return await r.json();
+        }
+
+        // ---------- 3Dmol glue ----------
+        function loadPDB(fmt, text, label) {
+          viewer.removeAllModels();
+          model = viewer.addModel(text, fmt);
+          const atoms = model.selectedAtoms({hetflag:false});
+          pdbResiduesSet = new Set(atoms.map(a=>a.resi));
+          viewer.setStyle({}, { cartoon:{ color:'#d0d0d0', opacity:0.92 } });
+          viewer.zoomTo();
+          viewer.render();
+          status(`Structure loaded: ${label}`);
+        }
+
+        function recolorCartoonByClusters() {
+          if(!model || !currentGene) return;
+          const view = viewer.getView();
+          viewer.setStyle({}, { cartoon:{ color:'#d0d0d0', opacity:0.92 } });
+          for (const key of currentClusterKeys) {
+            const residues = Array.from(geneClusterMap.get(currentGene)?.get(key) || []);
+            const present = pdbResiduesSet ? residues.filter(r=>pdbResiduesSet.has(r)) : residues;
+            if(!present.length) continue;
+            viewer.addStyle(
+              { resi:present, hetflag:false },
+              { cartoon:{ color: colorForCluster(key), opacity:0.97 } }
+            );
+          }
+          viewer.render();
+          viewer.setView(view);
+        }
+
+        function setExclusiveSticks(list, sticksColor='#e53935') {
+          if(!model) return;
+          const view = viewer.getView();
+          recolorCartoonByClusters();
+          if (list && list.length) {
+            viewer.addStyle({ resi:list, hetflag:false }, { stick:{ radius:0.5, color:sticksColor } });
+          }
+          viewer.render();
+          viewer.setView(view);
+        }
+
+        // ---------- Pathways ----------
+        function clearPathways() {
+            const panel = $('pathwaysPanel');
+            panel.hidden = true;
+            panel.style.display = "none";
+            $('pathwaysNote').textContent = '';
+            $('pathwaysTableWrap').innerHTML = '';
+
+            // 🚀 Force the parent iframe to snap height to 0
+            window.parent.postMessage({ type: "resize-panel", panel: "panel1", height: 0 }, "*");
+        }
+
+
+
+        function renderPathwaysForResidue(gene, resi) {
+          const panel = $('pathwaysPanel');
+          panel.hidden = false;
+          panel.style.display = "block";
+          const cKey = geneResidueToCluster.get(gene)?.get(resi);
+          if(!cKey) {
+            $('pathwaysNote').textContent = `Residue ${resi} has no cluster assignment.`;
+            $('pathwaysTableWrap').innerHTML = '';
+            notifyParentOfHeight();
+            return;
+          }
+          renderPathwaysForCluster(gene, cKey, resi);
+        }
+
+        function renderPathwaysForCluster(gene, clusterKey, resi=null) {
+            const panel = $('pathwaysPanel');
+            panel.hidden = false;
+            panel.style.display = "block";
+            const rows = genePathwaysByCluster.get(gene)?.get(clusterKey) || [];
+              $('pathwaysNote').innerHTML = (resi!=null)
+                ? `Residue <span class="mono">${resi}</span> → cluster <strong>${escapeHtml(clusterKey)}</strong>.`
+                : `Cluster <strong>${escapeHtml(clusterKey)}</strong>.`;
+            if(!rows.length) {
+                $('pathwaysTableWrap').innerHTML = '<div class="muted">No pathways found for this cluster in the CSV.</div>';
+                notifyParentOfHeight();
+                return;
+            }
+
+            // ✅ Deduplicate pathways and keep best score
+            const seen = new Map();
+            for (const { pathway, score } of rows) {
+                if (!pathway) continue;
+                if (!seen.has(pathway) || (Number.isFinite(score) && score > seen.get(pathway))) {
+                    seen.set(pathway, score);
+                }
+            }
+
+            // Convert back to sorted array
+            const uniqueRows = Array.from(seen.entries())
+                .map(([pathway, score]) => ({ pathway, score }))
+                .sort((a,b) => {
+                    const as = Number.isFinite(a.score) ? a.score : -Infinity;
+                    const bs = Number.isFinite(b.score) ? b.score : -Infinity;
+                    return bs - as;
+                });
+
+            // ✅ Take top 10
+            const topRows = uniqueRows.slice(0, 10);
+
+            let html = `<table class="pathways"><thead><tr><th>Pathway</th><th>Score</th></tr></thead><tbody>`;
+            for(const {pathway, score} of topRows) {
+    const s = Number.isFinite(score) ? score.toPrecision(6) : '';
+    html += `<tr><td>${escapeHtml(pathway)}</td><td>${s}</td></tr>`;
+  }
+  html += `</tbody></table>`;
+  $('pathwaysTableWrap').innerHTML = html;
+  notifyParentOfHeight();
+}
+
+
+        // --- Resize messaging
+        function notifyParentOfHeight() {
+          const height = document.body.scrollHeight;
+          window.parent.postMessage({ type: "resize-panel", panel: "panel1", height }, "*");
+        }
+        window.addEventListener("load", notifyParentOfHeight);
+        window.addEventListener("resize", notifyParentOfHeight);
+      })();
+    </script>
+  </body>
+</html>
