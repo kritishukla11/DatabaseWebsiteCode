@@ -288,8 +288,6 @@ def get_plot(gene: str, topk: int = 10):
 # ========= PANEL 2: /flatmap endpoints (matplotlib) ======
 # =========================================================
 
-import matplotlib.patheffects as patheffects
-
 DATA_DIR = Path(__file__).resolve().parent / "data"
 
 def load_nmf(gene: str) -> pd.DataFrame:
@@ -378,7 +376,6 @@ def flatmap_image(gene: str, name: str | None = None, collapse: str = "max"):
     Xi, Yi = np.meshgrid(xi, yi)
 
     # Cluster grid (categorical)
-    cmap_clusters = ListedColormap(["#e74c3c","#8e44ad","#1f77b4","#f1c40f","#2ecc71"])
     Zi_cluster = griddata((df["x"], df["y"]), df["cluster"], (Xi, Yi), method="nearest")
 
     # Altitude grid
@@ -396,7 +393,11 @@ def flatmap_image(gene: str, name: str | None = None, collapse: str = "max"):
 
     if gi_vals is None:
         # --- Default cluster view ---
-        cmap_clusters_plot = ListedColormap(list(getattr(cmap_clusters, "colors", [])))
+        n_clusters = df["cluster"].nunique()
+        base_cmap = cm.get_cmap("tab10", n_clusters)  # up to 10 unique colors
+        cmap_clusters = ListedColormap(base_cmap.colors)
+
+        cmap_clusters_plot = ListedColormap(list(cmap_clusters.colors))
         try:
             cmap_clusters_plot.set_bad(alpha=0.0)
         except Exception:
@@ -410,13 +411,16 @@ def flatmap_image(gene: str, name: str | None = None, collapse: str = "max"):
         ax.contour(Xi, Yi, Zi_cluster_masked, levels=np.unique(df["cluster"]),
                    colors="black", linewidths=0.8, alpha=0.6, zorder=4)
 
-        sm = plt.cm.ScalarMappable(cmap=cmap_clusters, norm=plt.Normalize(vmin=0, vmax=4))
+        sm = plt.cm.ScalarMappable(
+            cmap=cmap_clusters,
+            norm=plt.Normalize(vmin=0, vmax=n_clusters - 1)
+        )
         cbar = plt.colorbar(sm, ax=ax, fraction=0.046, pad=0.04,
-                            ticks=[0.5,1.5,2.5,3.5,4.5])
+                            ticks=np.arange(n_clusters) + 0.5)
         cbar.ax.set_yticklabels([])
         cbar.set_label("Clusters")
 
-        colors = [cmap_clusters(c % cmap_clusters.N) for c in df["cluster"].to_numpy()]
+        colors = cmap_clusters(df["cluster"].to_numpy())
         ax.scatter(df["x"], df["y"], c=colors, s=150,
                    edgecolors="black", linewidths=0.2, alpha=0.95, zorder=3)
 
@@ -529,6 +533,7 @@ def flatmap_image(gene: str, name: str | None = None, collapse: str = "max"):
     plt.close(fig)
     buf.seek(0)
     return StreamingResponse(buf, media_type="image/png")
+
 
 
 # =========================================================
