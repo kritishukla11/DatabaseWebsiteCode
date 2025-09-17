@@ -218,7 +218,6 @@ def _plot_network(query: str, nbrs_df: pd.DataFrame, nn_edge_threshold: float = 
 
     fig = go.Figure([e_q2n, e_nn, n_nbrs, n_query])
     fig.update_layout(
-        title=f"Top {len(nbrs_df)} Nearest Neighbors of {query}",
         height=650,
         xaxis=dict(visible=False, showgrid=False, zeroline=False),
         yaxis=dict(visible=False, showgrid=False, zeroline=False),

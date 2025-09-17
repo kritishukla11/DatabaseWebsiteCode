@@ -140,7 +140,7 @@ export default function SearchPage() {
       <div className="panel full panel5">
         <h2 className="panel-title">Pathway Network</h2>
         {groupLabel && (
-          <p className="group-label">Group Label: {groupLabel}</p>
+          <p className="group-label">Group Annotation: {groupLabel}</p>
         )}
         <div className="network-container">
           <div className="plot-area">
