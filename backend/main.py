@@ -283,6 +283,18 @@ def get_plot(gene: str, topk: int = 10):
         print("[/plot][ERROR]", e)
         traceback.print_exc()
         return JSONResponse(content={"error": f"Internal error: {str(e)}"}, status_code=500)
+    
+@app.get("/group_label")
+def get_group_label(gene: str):
+    try:
+        df = pd.read_csv("llm_group_labels.csv")  # keep file in backend directory
+        row = df[df["gene"].str.upper() == gene.upper()]
+        if row.empty:
+            return {"group_label": None}
+        return {"group_label": row.iloc[0]["llm_output"]}
+    except Exception as e:
+        return {"error": str(e)}
+
 
 # =========================================================
 # ========= PANEL 2: /flatmap endpoints (matplotlib) ======

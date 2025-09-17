@@ -17,27 +17,37 @@ export default function SearchPage() {
   const [sharedPathways, setSharedPathways] = useState<any[]>([]);
   const [selectedGene, setSelectedGene] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
+  const [groupLabel, setGroupLabel] = useState<string | null>(null);
 
   const [iframeHeights, setIframeHeights] = useState<Record<string, number>>({});
 
- useEffect(() => {
-  function handleMessage(event: MessageEvent) {
-    if (event.data?.type === "resize-panel") {
-      if (event.data.panel === "panel1") {
-        setIframeHeights((prev) => ({
-          ...prev,
-          [event.data.panel]: event.data.height || 600,
-        }));
+  // Effect 1: listen for resize messages from iframe
+  useEffect(() => {
+    function handleMessage(event: MessageEvent) {
+      if (event.data?.type === "resize-panel") {
+        if (event.data.panel === "panel1") {
+          setIframeHeights((prev) => ({
+            ...prev,
+            [event.data.panel]: event.data.height || 600,
+          }));
+        }
       }
     }
-  }
 
-  window.addEventListener("message", handleMessage);
-  return () => window.removeEventListener("message", handleMessage);
-}, []);
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, []);
 
+  // Effect 2: fetch group label
+  useEffect(() => {
+    if (!gene) return;
+    fetch(`http://127.0.0.1:8001/group_label?gene=${encodeURIComponent(gene)}`)
+      .then((res) => res.json())
+      .then((data) => setGroupLabel(data.group_label || null))
+      .catch(() => setGroupLabel(null));
+  }, [gene]);
 
-
+  // Effect 3: fetch network plot + neighbors
   useEffect(() => {
     if (!gene) return;
     fetch(`http://127.0.0.1:8001/plot?gene=${encodeURIComponent(gene)}`)
@@ -86,23 +96,23 @@ export default function SearchPage() {
       <div className="panel-row">
         <div className="panel half">
           <h2 className="panel-title">Interactive Protein Structure</h2>
-            {gene ? (
-             <iframe
-                src={`/panel1.html?gene=${encodeURIComponent(gene)}`}
-                id="panel1-iframe"
-                style={{
-                  width: "100%",
-                  height: `${iframeHeights["panel1"] ?? 600}px`,
-                  border: "1px solid #ddd",
-                  borderRadius: "12px",
-                  background: "white"
-                }}
-              />
-
-            ) : (
-              <p>No gene selected.</p>
-            )}
-          </div>
+          {gene ? (
+            <iframe
+              src={`/panel1.html?gene=${encodeURIComponent(gene)}`}
+              id="panel1-iframe"
+              title="3D Protein Viewer"
+              style={{
+                width: "100%",
+                height: `${iframeHeights["panel1"] ?? 600}px`,
+                border: "1px solid #ddd",
+                borderRadius: "12px",
+                background: "white",
+              }}
+            />
+          ) : (
+            <p>No gene selected.</p>
+          )}
+        </div>
 
         <div className="panel half">
           <h2 className="panel-title">2D Protein Flatmap</h2>
@@ -112,7 +122,10 @@ export default function SearchPage() {
 
       {/* Row 2: Panel 3 + Panel 4 */}
       <div className="panel-row">
-        <div className="panel half" style={{ minHeight: "600px", display: "flex", flexDirection: "column" }}>
+        <div
+          className="panel half"
+          style={{ minHeight: "600px", display: "flex", flexDirection: "column" }}
+        >
           <h2 className="panel-title">Empirical Calibration Plot - Protein/Pathway</h2>
           <Panel3Calibration gene={gene} />
         </div>
@@ -126,6 +139,9 @@ export default function SearchPage() {
       {/* Panel 5 full-width */}
       <div className="panel full panel5">
         <h2 className="panel-title">Pathway Network</h2>
+        {groupLabel && (
+          <p className="group-label">Group Label: {groupLabel}</p>
+        )}
         <div className="network-container">
           <div className="plot-area">
             {error ? (
@@ -158,6 +174,7 @@ export default function SearchPage() {
               className="dropdown"
               value={selectedGene}
               onChange={(e) => setSelectedGene(e.target.value)}
+              aria-label="Select neighbor gene"
             >
               <option value="">Select gene</option>
               {neighbors.map((n) => (
@@ -234,6 +251,13 @@ export default function SearchPage() {
           font-size: 1.5rem;
           font-weight: 700;
           margin-bottom: 0.5rem;
+        }
+
+        .group-label {
+          font-size: 1.1rem;
+          font-weight: 600;
+          color: #333;
+          margin-bottom: 0.75rem;
         }
 
         .panel-row {
@@ -323,7 +347,6 @@ export default function SearchPage() {
           #panel1-iframe {
             transition: none !important; /* 🚫 disable smooth height animations */
           }
-
         }
       `}</style>
     </main>
