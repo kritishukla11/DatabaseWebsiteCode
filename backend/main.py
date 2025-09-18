@@ -595,3 +595,37 @@ def calibration_image(gene: str):
 
     return Response(content=buf.read(), media_type="image/png")
 
+# =========================================================
+# =============== PANEL 1: structures endpoint ============
+# =========================================================
+
+@app.get("/structures")
+def get_structures(gene: str):
+    """
+    Returns available structure sources for a given gene.
+    Always includes AlphaFold (default).
+    Optionally includes PDB IDs if gene_to_pdb.csv is present.
+    """
+    try:
+        default = "alphafold"
+        pdb_ids: list[str] = []
+
+        csv_path = Path("gene_to_pdb.csv")
+        if csv_path.exists():
+            df = pd.read_csv(csv_path)
+            # normalize colnames
+            cols = [c.lower().strip() for c in df.columns]
+            if "gene" in cols and "pdb_id" in cols:
+                gcol, pcol = cols.index("gene"), cols.index("pdb_id")
+                # select rows for this gene (case-insensitive)
+                sub = df[df.iloc[:, gcol].str.upper() == gene.upper()]
+                pdb_ids = [str(x).strip() for x in sub.iloc[:, pcol] if pd.notna(x)]
+
+        return {"default": default, "pdb_ids": pdb_ids}
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"error": f"Failed to load structures for {gene}: {e}"}
+        )
+
+
