@@ -13,116 +13,28 @@
       onerror="(function(){var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js';document.head.appendChild(s);})();"></script>
 
     <style>
-      :root {
-        --border: #ddd;
-        --muted: #777;
-        --bg: #fafafa;
-      }
-      html, body {
-        height: 100%;
-        margin: 0;
-        font-family: system-ui, Segoe UI, Roboto, Ubuntu, Arial;
-      }
-      header {
-        padding: 10px 14px;
-        background: #f7f7f7;
-        border-bottom: 1px solid #ccc;
-        position: sticky;
-        top: 0;
-        z-index: 10;
-      }
-      .wrap {
-        max-width: 1200px;
-        margin: 0 auto;
-        padding: 12px;
-        box-sizing: border-box;
-      }
-      #viewer {
-        height: 520px;
-        width: 100%;
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        background: #fff;
-        overflow: hidden;
-        position: relative;
-      }
-      @media (max-width: 900px) {
-        #viewer {
-          height: 380px;
-        }
-      }
-      .row {
-        display: flex;
-        gap: 10px;
-        align-items: flex-end;
-        flex-wrap: wrap;
-        margin: 12px 0;
-      }
-      .field {
-        flex: 1 1 220px;
-      }
-      label {
-        font-size: 12px;
-        color: #666;
-        display: block;
-        margin: 0 0 4px;
-      }
-      select, button, input[type="text"] {
-        padding: 8px 10px;
-        border: 1px solid var(--border);
-        border-radius: 8px;
-        background: #fff;
-      }
-      button {
-        cursor: pointer;
-      }
-      .mono {
-        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-        font-size: 12px;
-      }
-      #status {
-        font-size: 12px;
-        color: #0a4;
-        margin-top: 6px;
-      }
-      #error {
-        font-size: 12px;
-        color: #b00020;
-        margin-top: 4px;
-      }
-      #pathwaysPanel {
-        margin-top: 14px;
-        padding: 12px;
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        background: var(--bg);
-      }
-      #pathwaysPanel h3 {
-        margin: 0 0 8px;
-        font-size: 16px;
-      }
-      #pathwaysPanel .note {
-        font-size: 12px;
-        color: #555;
-        margin-bottom: 8px;
-      }
-      table.pathways {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 14px;
-      }
-      table.pathways th,
-      table.pathways td {
-        border-bottom: 1px solid #eee;
-        padding: 8px 10px;
-        text-align: left;
-      }
-      table.pathways th {
-        background: #f6f6f6;
-      }
-      .muted {
-        color: var(--muted);
-      }
+      :root { --border:#ddd; --muted:#777; --bg:#fafafa; }
+      html, body { height:100%; margin:0; font-family:system-ui, Segoe UI, Roboto, Ubuntu, Arial; }
+      header { padding:10px 14px; background:#f7f7f7; border-bottom:1px solid #ccc; position:sticky; top:0; z-index:10; }
+      .wrap { max-width:1200px; margin:0 auto; padding:12px; box-sizing:border-box; }
+      #viewer { height:520px; width:100%; border:1px solid var(--border); border-radius:12px; background:#fff; overflow:hidden; position:relative; }
+      @media (max-width:900px){ #viewer{ height:380px; } }
+      .row { display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; margin:12px 0; }
+      .field { flex:1 1 220px; }
+      label { font-size:12px; color:#666; display:block; margin:0 0 4px; }
+      select, button, input[type="text"] { padding:8px 10px; border:1px solid var(--border); border-radius:8px; background:#fff; }
+      button { cursor:pointer; }
+      .mono { font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:12px; }
+      #status { font-size:12px; color:#0a4; margin-top:6px; }
+      #error { font-size:12px; color:#b00020; margin-top:4px; white-space:pre-line; }
+      #warn { font-size:12px; color:#b36b00; margin-top:4px; white-space:pre-line; }
+      #pathwaysPanel { margin-top:14px; padding:12px; border:1px solid var(--border); border-radius:12px; background:var(--bg); }
+      #pathwaysPanel h3 { margin:0 0 8px; font-size:16px; }
+      #pathwaysPanel .note { font-size:12px; color:#555; margin-bottom:8px; }
+      table.pathways { width:100%; border-collapse:collapse; font-size:14px; }
+      table.pathways th, table.pathways td { border-bottom:1px solid #eee; padding:8px 10px; text-align:left; }
+      table.pathways th { background:#f6f6f6; }
+      .muted { color:var(--muted); }
     </style>
   </head>
 
@@ -140,13 +52,20 @@
 
         <div class="field" id="manualGeneBox" style="display:none">
           <label for="geneInput">Custom gene</label>
-          <div style="flex; gap:8px; align-items:center;">
+          <div style="display:flex; gap:8px; align-items:center;">
             <input id="geneInput" type="text" placeholder="e.g., KEAP1" class="mono" />
             <button id="btnLoadGene" type="button">Load structure</button>
           </div>
           <div class="muted" style="font-size:12px;margin-top:4px">
             Loads AlphaFold even if not in the CSV. Selectors will be disabled.
           </div>
+        </div>
+
+        <div class="field">
+          <label for="structureSelect">Structure Source</label>
+          <select id="structureSelect" disabled>
+            <option value="">— select gene —</option>
+          </select>
         </div>
 
         <div class="field">
@@ -169,6 +88,7 @@
       </div>
 
       <div id="status"></div>
+      <div id="warn"></div>
       <div id="error"></div>
 
       <div id="pathwaysPanel" hidden>
@@ -179,59 +99,60 @@
     </div>
 
     <script>
-      (function() {
+      (function () {
         // ---------- Utilities ----------
-        const $ = id => document.getElementById(id);
-        const status = m => { $('status').textContent = m || ''; };
-        const error = m => { $('error').textContent = m || ''; };
+        const $ = (id) => document.getElementById(id);
+        const status = (m) => { $("status").textContent = m || ""; };
+        const error = (m) => { $("error").textContent = m || ""; };
+        const warn  = (m) => { $("warn").textContent  = m || ""; };
 
         function escapeHtml(s) {
           return String(s)
-            .replace(/&/g,'&amp;')
-            .replace(/</g,'&lt;')
-            .replace(/>/g,'&gt;')
-            .replace(/"/g,'&quot;')
-            .replace(/'/g,'&#39;');
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#39;");
         }
-
         function findColumn(fields, candidates) {
-          const map = new Map(fields.map(f => [String(f).toLowerCase().trim(), f]));
-          for(const c of candidates) {
+          const map = new Map(fields.map((f) => [String(f).toLowerCase().trim(), f]));
+          for (const c of candidates) {
             const got = map.get(c.toLowerCase());
-            if(got) return got;
+            if (got) return got;
           }
           return null;
         }
-
         function getQueryParam(k) {
           const u = new URL(window.location.href);
           return u.searchParams.get(k);
         }
-
-        function waitForLibs(cb, tries=0) {
+        function waitForLibs(cb, tries = 0) {
           const ok3d = !!(window.$3Dmol && $3Dmol.createViewer);
           const okCSV = !!(window.Papa && Papa.parse);
-          if(ok3d && okCSV) return cb();
-          if(tries > 60) {
-            error('Libraries failed to load (CDN blocked?)');
+          if (ok3d && okCSV) return cb();
+          if (tries > 60) {
+            error("Libraries failed to load (CDN blocked?)");
             return;
           }
-          setTimeout(()=>waitForLibs(cb, tries+1), 150);
+          setTimeout(() => waitForLibs(cb, tries + 1), 150);
         }
 
         // ---------- Global state ----------
-        let viewer=null, model=null, pdbResiduesSet=null;
+        let viewer = null, model = null, pdbResiduesSet = null;
         let currentGene = null;
+        let currentStructure = "alphafold"; // "alphafold" or PDB ID
+        let structureOptions = [];          // ["alphafold","1XYZ","2ABC",...]
+
         let genes = [];
         let currentResiduesSorted = [];
         let currentClusterKeys = [];
         let currentColorMap = new Map();
 
-        const geneResidueSet = new Map();
-        const geneResidueToCluster = new Map();
-        const geneClusterMap = new Map();
-        const genePathwaysByCluster = new Map();
-        const geneToUniprotMap = new Map();
+        const geneResidueSet = new Map();      // gene -> Set(resi)
+        const geneResidueToCluster = new Map();// gene -> Map(resi -> clusterKey)
+        const geneClusterMap = new Map();      // gene -> Map(clusterKey -> Set(resi))
+        const genePathwaysByCluster = new Map();// gene -> Map(clusterKey -> [{pathway,score}])
+        const geneToUniprotMap = new Map();    // gene(symbol) -> UniProt accession
 
         // ---------- Dynamic palette ----------
         const baseColors = [
@@ -241,58 +162,62 @@
         ];
         function colorForClusterDynamic(keys) {
           const map = new Map();
-          keys.forEach((k, i) => {
-            map.set(k, baseColors[i % baseColors.length]);
-          });
+          keys.forEach((k, i) => { map.set(k, baseColors[i % baseColors.length]); });
           return map;
         }
 
         // ---------- Boot ----------
-        window.addEventListener('load', ()=>{
-          waitForLibs(async ()=>{
+        window.addEventListener("load", () => {
+          waitForLibs(async () => {
             initViewer();
             try {
               await loadGeneMapping();
               await loadResiduePathwayScore();
               populateGeneSelect();
-              const urlGene = getQueryParam('gene');
+
+              const urlGene = getQueryParam("gene");
+              const urlStructure = getQueryParam("structure");
+
               if (urlGene) {
                 const g = urlGene.trim();
                 if (genes.includes(g)) {
-                  $('geneSelect').value = g;
-                  await handleGeneChange(g);
+                  $("geneSelect").value = g;
+                  await handleGeneChange(g, urlStructure);
                 } else {
-                  $('geneSelect').value = '__custom__';
+                  // Custom gene mode
+                  $("geneSelect").value = "__custom__";
                   showManualGene(true);
-                  $('geneInput').value = g;
-                  await loadCustomGene(g);
+                  $("geneInput").value = g;
+                  await loadCustomGene(g); // loads AlphaFold only
                 }
               } else if (genes.length) {
-                $('geneSelect').value = genes[0];
+                $("geneSelect").value = genes[0];
                 await handleGeneChange(genes[0]);
               }
-              status('Ready.');
-              error('');
-            } catch(e) {
-              error('Initialization error: '+e.message);
+
+              status("Ready.");
+              error("");
+            } catch (e) {
+              error("Initialization error: " + e.message);
             }
           });
         });
 
-        // ---------- Viewer ----------
+        // ---------- Viewer / UI wiring ----------
         function initViewer() {
-          const div = $('viewer');
-          viewer = $3Dmol.createViewer(div, { backgroundColor:'#ffffff' });
-          new ResizeObserver(()=>{
-            try { viewer.resize(false); viewer.render(); } catch(_) {}
+          const div = $("viewer");
+          viewer = $3Dmol.createViewer(div, { backgroundColor: "#ffffff" });
+          new ResizeObserver(() => {
+            try { viewer.resize(false); viewer.render(); } catch (_) {}
           }).observe(div);
 
-          $('geneSelect').addEventListener('change', async e=>{
+          $("geneSelect").addEventListener("change", async (e) => {
             const val = e.target.value;
-            if (val === '__custom__') {
+            if (val === "__custom__") {
               showManualGene(true);
               disableSelectors(true);
               clearPathways();
+              structureSelectDisable(true);
               status('Enter a gene symbol and click "Load structure".');
               return;
             } else {
@@ -301,153 +226,165 @@
             }
           });
 
-          $('btnLoadGene').addEventListener('click', async ()=>{
-            const g = $('geneInput').value.trim();
-            if (!g) { error('Please enter a gene symbol.'); return; }
+          $("structureSelect").addEventListener("change", async (e) => {
+            currentStructure = e.target.value || "alphafold";
+            await loadStructureForCurrentSelection();
+            // After structure changes, recompute residue availability & recolor
+            refreshResidueAndClusterUIAfterStructure();
+          });
+
+          $("btnLoadGene").addEventListener("click", async () => {
+            const g = $("geneInput").value.trim();
+            if (!g) { error("Please enter a gene symbol."); return; }
             await loadCustomGene(g);
           });
 
-          $('clusterSelect').addEventListener('change', ()=>{
-            const key = $('clusterSelect').value;
-            if(!key) {
+          $("clusterSelect").addEventListener("change", () => {
+            const key = $("clusterSelect").value;
+            if (!key) {
               setResidueViewToAll();
               clearPathways();
               recolorCartoonByClusters();
-              status('Cluster cleared.');
+              status("Cluster cleared.");
               return;
             }
             const residues = Array.from((geneClusterMap.get(currentGene)?.get(key)) || []);
-            const list = pdbResiduesSet ? residues.filter(r=>pdbResiduesSet.has(r)) : residues;
+            const list = pdbResiduesSet ? residues.filter((r) => pdbResiduesSet.has(r)) : residues;
             populateResidueSelector(list);
-            $('resiSelect').value = '';
-            if(list.length) {
-              setExclusiveSticks(list, currentColorMap.get(key), {resi:list});
-              viewer.zoomTo({resi:list});
+            $("resiSelect").value = "";
+            if (list.length) {
+              setExclusiveSticks(list, currentColorMap.get(key));
+              viewer.zoomTo({ resi: list });
               viewer.render();
               status(`Cluster ${key}: highlighted ${list.length} residue(s).`);
             } else {
               recolorCartoonByClusters();
-              error('No residues for this cluster are present in the loaded PDB.');
+              error("No residues for this cluster are present in the loaded structure.");
             }
             renderPathwaysForCluster(currentGene, key);
           });
 
-          $('resiSelect').addEventListener('change', ()=>{
-            const val = $('resiSelect').value;
-            if(!val) return;
+          $("resiSelect").addEventListener("change", () => {
+            const val = $("resiSelect").value;
+            if (!val) return;
             const r = Number(val);
             const cKey = geneResidueToCluster.get(currentGene)?.get(r);
-            const stickColor = cKey ? currentColorMap.get(cKey) : '#d32f2f';
-            setExclusiveSticks([r], stickColor, {resi:[r]});
-            viewer.zoomTo({resi:[r]});
+            const stickColor = cKey ? currentColorMap.get(cKey) : "#d32f2f";
+            setExclusiveSticks([r], stickColor);
+            viewer.zoomTo({ resi: [r] });
             viewer.render();
             status(`Residue ${r} highlighted.`);
             renderPathwaysForResidue(currentGene, r);
           });
 
-          $('btnClear').addEventListener('click', ()=>{
-            $('clusterSelect').value = '';
-            $('resiSelect').value = '';
+          $("btnClear").addEventListener("click", () => {
+            $("clusterSelect").value = "";
+            $("resiSelect").value = "";
             setResidueViewToAll();
             clearPathways();
             recolorCartoonByClusters();
             viewer.zoomTo();
             viewer.render();
-            status('Cleared.');
-            error('');
+            status("Cleared.");
+            warn("");
+            error("");
           });
         }
 
-        function showManualGene(show) {
-          $('manualGeneBox').style.display = show ? '' : 'none';
-        }
-
+        function showManualGene(show) { $("manualGeneBox").style.display = show ? "" : "none"; }
         function disableSelectors(disabled) {
-          $('clusterSelect').disabled = disabled;
-          $('resiSelect').disabled = disabled;
+          $("clusterSelect").disabled = disabled;
+          $("resiSelect").disabled = disabled;
         }
+        function structureSelectDisable(disabled) { $("structureSelect").disabled = disabled; }
 
         // ---------- CSV loaders ----------
         async function loadGeneMapping() {
           try {
-            const res = await fetch('gene-to-uniprot.csv', {cache:'no-store'});
-            if(!res.ok) throw new Error('mapping not found');
+            const res = await fetch("gene-to-uniprot.csv", { cache: "no-store" });
+            if (!res.ok) throw new Error("mapping not found");
             const text = await res.text();
-            const out = Papa.parse(text, {header:true,skipEmptyLines:true});
+            const out = Papa.parse(text, { header: true, skipEmptyLines: true });
             const fields = out.meta?.fields || [];
-            const geneCol = findColumn(fields, ['gene']);
-            const idCol = findColumn(fields, ['uniprot','uniprot_id','accession']);
-            if(!geneCol || !idCol) throw new Error('mapping missing gene/uniprot columns');
-            for(const row of out.data) {
+            const geneCol = findColumn(fields, ["gene"]);
+            const idCol = findColumn(fields, ["uniprot", "uniprot_id", "accession"]);
+            if (!geneCol || !idCol) throw new Error("mapping missing gene/uniprot columns");
+            for (const row of out.data) {
               const g = row[geneCol];
               const id = row[idCol];
-              if(g && id) geneToUniprotMap.set(String(g).trim().toUpperCase(), String(id).trim());
+              if (g && id) geneToUniprotMap.set(String(g).trim().toUpperCase(), String(id).trim());
             }
-            status('Gene→UniProt mapping loaded.');
-          } catch(e) {
-            status('No mapping CSV found — will query UniProt/AlphaFold at runtime.');
+            status("Gene→UniProt mapping loaded.");
+          } catch (e) {
+            status("No mapping CSV found — will query UniProt/AlphaFold at runtime.");
           }
         }
 
         async function loadResiduePathwayScore() {
-          const res = await fetch('residue-pathway-score.csv', {cache:'no-store'});
-          if(!res.ok) throw new Error('residue-pathway-score.csv not found');
+          const res = await fetch("residue-pathway-score.csv", { cache: "no-store" });
+          if (!res.ok) throw new Error("residue-pathway-score.csv not found");
           const text = await res.text();
-          const out = Papa.parse(text, {header:true, skipEmptyLines:true});
+          const out = Papa.parse(text, { header: true, skipEmptyLines: true });
           const fields = out.meta?.fields || [];
-          const geneCol = findColumn(fields, ['gene']);
-          const residueCol = findColumn(fields, ['residue','res']);
-          const clusterCol = findColumn(fields, ['cluster','clust']);
-          const pathwayCol = findColumn(fields, ['pathway','path']);
-          const scoreCol = findColumn(fields, ['score','value']);
-          if(!geneCol || !residueCol || !clusterCol || !pathwayCol){
-            throw new Error('CSV must include gene, residue, cluster, pathway columns.');
+          const geneCol = findColumn(fields, ["gene"]);
+          const residueCol = findColumn(fields, ["residue", "res"]);
+          const clusterCol = findColumn(fields, ["cluster", "clust"]);
+          const pathwayCol = findColumn(fields, ["pathway", "path"]);
+          const scoreCol = findColumn(fields, ["score", "value"]);
+          if (!geneCol || !residueCol || !clusterCol || !pathwayCol) {
+            throw new Error("CSV must include gene, residue, cluster, pathway columns.");
           }
+
           genes = [];
           geneResidueSet.clear();
           geneResidueToCluster.clear();
           geneClusterMap.clear();
           genePathwaysByCluster.clear();
           const geneSeen = new Set();
-          for(const row of out.data) {
-            const gene = (row[geneCol] ?? '').toString().trim();
-            if(!gene) continue;
-            if(!geneSeen.has(gene)) {
-              geneSeen.add(gene);
-              genes.push(gene);
-            }
+
+          for (const row of out.data) {
+            const gene = (row[geneCol] ?? "").toString().trim();
+            if (!gene) continue;
+            if (!geneSeen.has(gene)) { geneSeen.add(gene); genes.push(gene); }
+
             const resi = Number(row[residueCol]);
-            if(!Number.isFinite(resi) || resi<=0) continue;
+            if (!Number.isFinite(resi) || resi <= 0) continue;
+
             let clusterKey = row[clusterCol];
-            clusterKey = (clusterKey==null) ? '' : String(clusterKey).trim();
-            if(clusterKey && clusterKey.toLowerCase()==='nan') clusterKey='';
-            if(!geneResidueSet.has(gene)) geneResidueSet.set(gene, new Set());
-            if(!geneResidueToCluster.has(gene)) geneResidueToCluster.set(gene, new Map());
-            if(!geneClusterMap.has(gene)) geneClusterMap.set(gene, new Map());
-            if(!genePathwaysByCluster.has(gene)) genePathwaysByCluster.set(gene, new Map());
-            if(clusterKey && !geneClusterMap.get(gene).has(clusterKey)) {
+            clusterKey = (clusterKey == null) ? "" : String(clusterKey).trim();
+            if (clusterKey && clusterKey.toLowerCase() === "nan") clusterKey = "";
+
+            if (!geneResidueSet.has(gene)) geneResidueSet.set(gene, new Set());
+            if (!geneResidueToCluster.has(gene)) geneResidueToCluster.set(gene, new Map());
+            if (!geneClusterMap.has(gene)) geneClusterMap.set(gene, new Map());
+            if (!genePathwaysByCluster.has(gene)) genePathwaysByCluster.set(gene, new Map());
+
+            if (clusterKey && !geneClusterMap.get(gene).has(clusterKey)) {
               geneClusterMap.get(gene).set(clusterKey, new Set());
             }
-            if(clusterKey && !genePathwaysByCluster.get(gene).has(clusterKey)){
+            if (clusterKey && !genePathwaysByCluster.get(gene).has(clusterKey)) {
               genePathwaysByCluster.get(gene).set(clusterKey, []);
             }
+
             geneResidueSet.get(gene).add(resi);
-            if(clusterKey){
+            if (clusterKey) {
               geneResidueToCluster.get(gene).set(resi, clusterKey);
               geneClusterMap.get(gene).get(clusterKey).add(resi);
             }
+
             const pathway = row[pathwayCol];
-            if(clusterKey && pathway!=null && pathway!==''){
+            if (clusterKey && pathway != null && pathway !== "") {
               const score = scoreCol ? Number(row[scoreCol]) : NaN;
               genePathwaysByCluster.get(gene).get(clusterKey).push({
-                pathway:String(pathway),
-                score: Number.isFinite(score)?score:undefined
+                pathway: String(pathway),
+                score: Number.isFinite(score) ? score : undefined,
               });
             }
           }
-          for(const [gene, cmap] of genePathwaysByCluster){
-            for(const [key, arr] of cmap){
-              arr.sort((a,b)=>{
+
+          for (const [gene, cmap] of genePathwaysByCluster) {
+            for (const [key, arr] of cmap) {
+              arr.sort((a, b) => {
                 const as = Number.isFinite(a.score) ? a.score : -Infinity;
                 const bs = Number.isFinite(b.score) ? b.score : -Infinity;
                 return bs - as;
@@ -458,56 +395,95 @@
 
         // ---------- UI population ----------
         function populateGeneSelect() {
-          const gs = $('geneSelect');
-          gs.innerHTML = '';
-          genes.forEach(g=>{
-            const o=document.createElement('option');
-            o.value=g;
-            o.textContent=g;
+          const gs = $("geneSelect");
+          gs.innerHTML = "";
+          genes.forEach((g) => {
+            const o = document.createElement("option");
+            o.value = g;
+            o.textContent = g;
             gs.appendChild(o);
           });
-          const custom = document.createElement('option');
-          custom.value='__custom__';
-          custom.textContent='Custom gene…';
+          const custom = document.createElement("option");
+          custom.value = "__custom__";
+          custom.textContent = "Custom gene…";
           gs.appendChild(custom);
           gs.disabled = false;
         }
 
+        function populateStructureSelect(opts, selected = "alphafold") {
+          const ss = $("structureSelect");
+          ss.innerHTML = "";
+          (opts || ["alphafold"]).forEach((s) => {
+            const o = document.createElement("option");
+            o.value = s;
+            o.textContent = s === "alphafold" ? "AlphaFold (default)" : s;
+            ss.appendChild(o);
+          });
+          ss.value = selected;
+          ss.disabled = false;
+        }
+
         function populateClusterSelectForGene(gene) {
-          const cs = $('clusterSelect');
+          const cs = $("clusterSelect");
           cs.innerHTML = '<option value="" selected>— all clusters —</option>';
-          currentClusterKeys.forEach(k=>{
-            const presentCount = currentResiduesSorted.filter(r => (geneResidueToCluster.get(gene)?.get(r)===k)).length;
-            const o = document.createElement('option');
+          currentClusterKeys.forEach((k) => {
+            const presentCount = currentResiduesSorted.filter(
+              (r) => geneResidueToCluster.get(gene)?.get(r) === k
+            ).length;
+            const o = document.createElement("option");
             o.value = k;
             o.textContent = `${k} (${presentCount})`;
             cs.appendChild(o);
           });
-          cs.disabled = currentClusterKeys.length===0;
+          cs.disabled = currentClusterKeys.length === 0;
         }
 
         function populateResidueSelector(list) {
-          const rs = $('resiSelect');
+          const rs = $("resiSelect");
           rs.innerHTML = '<option value="" selected>— select residue —</option>';
-          list.slice().sort((a,b)=>a-b).forEach(r=>{
-            const o=document.createElement('option');
-            o.value=String(r);
-            o.textContent=String(r);
+          list.slice().sort((a, b) => a - b).forEach((r) => {
+            const o = document.createElement("option");
+            o.value = String(r);
+            o.textContent = String(r);
             rs.appendChild(o);
           });
-          rs.disabled = list.length===0;
+          rs.disabled = list.length === 0;
         }
 
         function setResidueViewToAll() {
           populateResidueSelector(currentResiduesSorted);
         }
 
-        // ---------- Gene flows ----------
-        async function handleGeneChange(gene) {
+        // ---------- Backend structures ----------
+        async function fetchStructuresForGene(gene) {
+          // Ask FastAPI which PDB IDs exist for this gene
+          const url = `http://127.0.0.1:8001/structures?gene=${encodeURIComponent(gene)}`;
+          const res = await fetch(url, { cache: "no-store" });
+          if (!res.ok) throw new Error("structures endpoint failed");
+          const data = await res.json();
+          structureOptions = [data.default || "alphafold", ...(data.pdb_ids || [])];
+          currentStructure = data.default || "alphafold";
+          populateStructureSelect(structureOptions, currentStructure);
+        }
+
+        async function handleGeneChange(gene, preferredStructure = null) {
           try {
+            warn(""); error(""); status(`Loading sources for ${gene}…`);
             currentGene = gene;
-            status(`Loading AlphaFold structure for ${gene}…`);
-            await loadAlphaFoldByGene(gene);
+
+            // Populate structure options
+            await fetchStructuresForGene(gene);
+
+            // honor incoming structure param if valid
+            if (preferredStructure && structureOptions.includes(preferredStructure)) {
+              currentStructure = preferredStructure;
+              $("structureSelect").value = preferredStructure;
+            }
+
+            // Load current structure
+            await loadStructureForCurrentSelection();
+
+            // If no CSV entries for this gene
             if (!geneResidueSet.has(gene)) {
               currentResiduesSorted = [];
               currentClusterKeys = [];
@@ -519,38 +495,60 @@
               status(`Loaded ${gene} structure (no entries in residue-pathway-score.csv).`);
               return;
             }
-            const allResidues = Array.from(geneResidueSet.get(gene) || []);
-            currentResiduesSorted = pdbResiduesSet ? allResidues.filter(r=>pdbResiduesSet.has(r)).sort((a,b)=>a-b) : allResidues.sort((a,b)=>a-b);
-            const allClusterKeys = Array.from((geneClusterMap.get(gene)?.keys()) || []);
-            currentClusterKeys = allClusterKeys.filter(k=>{
-              const set = geneClusterMap.get(gene).get(k);
-              return pdbResiduesSet ? Array.from(set).some(r=>pdbResiduesSet.has(r)) : set.size>0;
-            }).sort((a,b)=>{
-              const na=Number(a), nb=Number(b);
-              const aNum=Number.isFinite(na), bNum=Number(b);
-              if(aNum && bNum) return na-nb;
-              if(aNum && !bNum) return -1;
-              if(!aNum && bNum) return 1;
-              return String(a).localeCompare(String(b), undefined, {numeric:true, sensitivity:'base'});
-            });
-            currentColorMap = colorForClusterDynamic(currentClusterKeys);
-            populateClusterSelectForGene(gene);
-            setResidueViewToAll();
-            disableSelectors(false);
-            recolorCartoonByClusters();
-            clearPathways();
+
+            // Compute intersection of CSV residues with residues present in model
+            refreshResidueAndClusterUIAfterStructure();
+
             status(`Loaded ${gene}. Residues in model: ${pdbResiduesSet?.size ?? 0}.`);
-            error('');
-          } catch(e) {
-            error(`Failed to load AlphaFold for ${gene}: ${e.message}`);
+            error("");
+          } catch (e) {
+            error(`Failed to load ${gene}: ${e.message}`);
           }
         }
 
+        function refreshResidueAndClusterUIAfterStructure() {
+          // residues present in the structure
+          const allResidues = Array.from(geneResidueSet.get(currentGene) || []);
+          currentResiduesSorted = pdbResiduesSet
+            ? allResidues.filter((r) => pdbResiduesSet.has(r)).sort((a, b) => a - b)
+            : allResidues.sort((a, b) => a - b);
+
+          // cluster keys that have at least one present residue
+          const allClusterKeys = Array.from((geneClusterMap.get(currentGene)?.keys()) || []);
+          currentClusterKeys = allClusterKeys
+            .filter((k) => {
+              const set = geneClusterMap.get(currentGene).get(k);
+              return pdbResiduesSet
+                ? Array.from(set).some((r) => pdbResiduesSet.has(r))
+                : set.size > 0;
+            })
+            .sort((a, b) => {
+              const na = Number(a), nb = Number(b);
+              const aNum = Number.isFinite(na), bNum = Number.isFinite(nb);
+              if (aNum && bNum) return na - nb;
+              if (aNum && !bNum) return -1;
+              if (!aNum && bNum) return 1;
+              return String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: "base" });
+            });
+
+          currentColorMap = colorForClusterDynamic(currentClusterKeys);
+          populateClusterSelectForGene(currentGene);
+          setResidueViewToAll();
+          disableSelectors(currentResiduesSorted.length === 0);
+          recolorCartoonByClusters();
+          clearPathways();
+
+          // overlap warning
+          checkResidueOverlapAndWarn();
+        }
+
+        // ---------- Manual gene (AlphaFold only) ----------
         async function loadCustomGene(gene) {
           try {
+            warn(""); error(""); status(`Loading AlphaFold structure for ${gene}…`);
             currentGene = gene;
-            status(`Loading AlphaFold structure for ${gene}…`);
             await loadAlphaFoldByGene(gene);
+            // In custom mode, selectors disabled (no CSV mapping guaranteed)
             currentResiduesSorted = [];
             currentClusterKeys = [];
             currentColorMap = new Map();
@@ -559,24 +557,50 @@
             disableSelectors(true);
             recolorCartoonByClusters();
             clearPathways();
-            status(`Loaded ${gene} structure (no entries in residue-pathway-score.csv).`);
-            error('');
-          } catch(e) {
+            // structure source locked to AlphaFold
+            populateStructureSelect(["alphafold"], "alphafold");
+            structureSelectDisable(true);
+            status(`Loaded ${gene} (custom) AlphaFold.`);
+            error("");
+          } catch (e) {
             error(`Failed to load AlphaFold for ${gene}: ${e.message}`);
           }
         }
 
-        // ---------- AlphaFold/UniProt ----------
+        function showManualGene(show) {
+          $("manualGeneBox").style.display = show ? "" : "none";
+        }
+
+        // ---------- Structure loading ----------
+        async function loadStructureForCurrentSelection() {
+          if (!currentGene) return;
+          if (currentStructure === "alphafold") {
+            await loadAlphaFoldByGene(currentGene);
+          } else {
+            await loadPdbById(currentStructure);
+          }
+        }
+
         async function loadAlphaFoldByGene(gene) {
           const id = geneToUniprotMap.get(gene.toUpperCase()) || await geneToUniprotFromAPI(gene);
+          status(`Loading AlphaFold for ${gene} (${id})…`);
           const data = await fetchJson(`https://alphafold.ebi.ac.uk/api/prediction/${id}`);
           const entry = Array.isArray(data) ? data[0] : null;
-          if(!entry) throw new Error('No AlphaFold entry found.');
+          if (!entry) throw new Error("No AlphaFold entry found.");
           const fileUrl = entry.pdbUrl || entry.cifUrl;
-          if(!fileUrl) throw new Error('No PDB/CIF URL in AlphaFold entry.');
-          const fmt = entry.pdbUrl ? 'pdb' : 'cif';
+          if (!fileUrl) throw new Error("No PDB/CIF URL in AlphaFold entry.");
+          const fmt = entry.pdbUrl ? "pdb" : "cif";
           const text = await (await fetch(fileUrl)).text();
           loadPDB(fmt, text, `${gene} (${id}) AlphaFold`);
+        }
+
+        async function loadPdbById(pdbId) {
+          status(`Loading PDB ${pdbId}…`);
+          const url = `https://files.rcsb.org/download/${pdbId}.pdb`;
+          const resp = await fetch(url, { cache: "no-store" });
+          if (!resp.ok) throw new Error(`RCSB fetch failed: HTTP ${resp.status}`);
+          const text = await resp.text();
+          loadPDB("pdb", text, `PDB ${pdbId}`);
         }
 
         async function geneToUniprotFromAPI(gene) {
@@ -585,95 +609,94 @@
             query: `${gene} AND reviewed:true`,
             fields: "accession,gene_primary",
             format: "json",
-            size: "1"
+            size: "1",
           });
           const data = await fetchJson(`${base}?${params}`);
           const acc = data.results?.[0]?.primaryAccession;
-          if(!acc) throw new Error('UniProt accession not found via API.');
+          if (!acc) throw new Error("UniProt accession not found via API.");
           return acc;
         }
 
         async function fetchJson(url) {
-          const r = await fetch(url, {cache:'no-store'});
-          if(!r.ok) throw new Error(`HTTP ${r.status} for ${url}`);
+          const r = await fetch(url, { cache: "no-store" });
+          if (!r.ok) throw new Error(`HTTP ${r.status} for ${url}`);
           return await r.json();
         }
 
-        // ---------- 3Dmol glue ----------
         function loadPDB(fmt, text, label) {
           viewer.removeAllModels();
           model = viewer.addModel(text, fmt);
-          const atoms = model.selectedAtoms({hetflag:false});
-          pdbResiduesSet = new Set(atoms.map(a=>a.resi));
-          viewer.setStyle({}, { cartoon:{ color:'#d0d0d0', opacity:0.92 } });
+          const atoms = model.selectedAtoms({ hetflag: false });
+          pdbResiduesSet = new Set(atoms.map((a) => a.resi));
+          viewer.setStyle({}, { cartoon: { color: "#d0d0d0", opacity: 0.92 } });
           viewer.zoomTo();
           viewer.render();
-          status(`Structure loaded: ${label}`);
+          status(`Structure loaded: ${label}. Residues present: ${pdbResiduesSet.size}`);
         }
 
         function recolorCartoonByClusters() {
-          if(!model || !currentGene) return;
+          if (!model || !currentGene) return;
           const view = viewer.getView();
-          viewer.setStyle({}, { cartoon:{ color:'#d0d0d0', opacity:0.92 } });
+          viewer.setStyle({}, { cartoon: { color: "#d0d0d0", opacity: 0.92 } });
+
           for (const key of currentClusterKeys) {
             const residues = Array.from(geneClusterMap.get(currentGene)?.get(key) || []);
-            const present = pdbResiduesSet ? residues.filter(r=>pdbResiduesSet.has(r)) : residues;
-            if(!present.length) continue;
+            const present = pdbResiduesSet ? residues.filter((r) => pdbResiduesSet.has(r)) : residues;
+            if (!present.length) continue;
             const color = currentColorMap.get(key) || "#666";
-            viewer.addStyle(
-              { resi:present, hetflag:false },
-              { cartoon:{ color, opacity:0.97 } }
-            );
+            viewer.addStyle({ resi: present, hetflag: false }, { cartoon: { color, opacity: 0.97 } });
           }
+
           viewer.render();
           viewer.setView(view);
         }
 
-        function setExclusiveSticks(list, sticksColor='#e53935') {
-          if(!model) return;
+        function setExclusiveSticks(list, sticksColor = "#e53935") {
+          if (!model) return;
           const view = viewer.getView();
-          recolorCartoonByClusters();
+          recolorCartoonByClusters(); // redraw base
           if (list && list.length) {
-            viewer.addStyle({ resi:list, hetflag:false }, { stick:{ radius:0.5, color:sticksColor } });
+            viewer.addStyle({ resi: list, hetflag: false }, { stick: { radius: 0.5, color: sticksColor } });
           }
           viewer.render();
           viewer.setView(view);
         }
 
-        // ---------- Pathways ----------
+        // ---------- Pathways panel ----------
         function clearPathways() {
-          const panel = $('pathwaysPanel');
+          const panel = $("pathwaysPanel");
           panel.hidden = true;
           panel.style.display = "none";
-          $('pathwaysNote').textContent = '';
-          $('pathwaysTableWrap').innerHTML = '';
+          $("pathwaysNote").textContent = "";
+          $("pathwaysTableWrap").innerHTML = "";
           window.parent.postMessage({ type: "resize-panel", panel: "panel1", height: 0 }, "*");
         }
 
         function renderPathwaysForResidue(gene, resi) {
-          const panel = $('pathwaysPanel');
+          const panel = $("pathwaysPanel");
           panel.hidden = false;
           panel.style.display = "block";
           const cKey = geneResidueToCluster.get(gene)?.get(resi);
-          if(!cKey) {
-            $('pathwaysNote').textContent = `Residue ${resi} has no cluster assignment.`;
-            $('pathwaysTableWrap').innerHTML = '';
+          if (!cKey) {
+            $("pathwaysNote").textContent = `Residue ${resi} has no cluster assignment.`;
+            $("pathwaysTableWrap").innerHTML = "";
             notifyParentOfHeight();
             return;
           }
           renderPathwaysForCluster(gene, cKey, resi);
         }
 
-        function renderPathwaysForCluster(gene, clusterKey, resi=null) {
-          const panel = $('pathwaysPanel');
+        function renderPathwaysForCluster(gene, clusterKey, resi = null) {
+          const panel = $("pathwaysPanel");
           panel.hidden = false;
           panel.style.display = "block";
           const rows = genePathwaysByCluster.get(gene)?.get(clusterKey) || [];
-          $('pathwaysNote').innerHTML = (resi!=null)
-            ? `Residue <span class="mono">${resi}</span> → cluster <strong>${escapeHtml(clusterKey)}</strong>.`
-            : `Cluster <strong>${escapeHtml(clusterKey)}</strong>.`;
-          if(!rows.length) {
-            $('pathwaysTableWrap').innerHTML = '<div class="muted">No pathways found for this cluster in the CSV.</div>';
+          $("pathwaysNote").innerHTML =
+            resi != null
+              ? `Residue <span class="mono">${resi}</span> → cluster <strong>${escapeHtml(clusterKey)}</strong>.`
+              : `Cluster <strong>${escapeHtml(clusterKey)}</strong>.`;
+          if (!rows.length) {
+            $("pathwaysTableWrap").innerHTML = '<div class="muted">No pathways found for this cluster in the CSV.</div>';
             notifyParentOfHeight();
             return;
           }
@@ -686,20 +709,39 @@
           }
           const uniqueRows = Array.from(seen.entries())
             .map(([pathway, score]) => ({ pathway, score }))
-            .sort((a,b) => {
+            .sort((a, b) => {
               const as = Number.isFinite(a.score) ? a.score : -Infinity;
               const bs = Number.isFinite(b.score) ? b.score : -Infinity;
               return bs - as;
             });
           const topRows = uniqueRows.slice(0, 10);
           let html = `<table class="pathways"><thead><tr><th>Pathway</th><th>Score</th></tr></thead><tbody>`;
-          for(const {pathway, score} of topRows) {
-            const s = Number.isFinite(score) ? score.toPrecision(6) : '';
+          for (const { pathway, score } of topRows) {
+            const s = Number.isFinite(score) ? score.toPrecision(6) : "";
             html += `<tr><td>${escapeHtml(pathway)}</td><td>${s}</td></tr>`;
           }
           html += `</tbody></table>`;
-          $('pathwaysTableWrap').innerHTML = html;
+          $("pathwaysTableWrap").innerHTML = html;
           notifyParentOfHeight();
+        }
+
+        // ---------- Overlap warning ----------
+        function checkResidueOverlapAndWarn() {
+          warn("");
+          if (!currentGene || !pdbResiduesSet || !geneResidueSet.has(currentGene)) return;
+          const csvResidues = geneResidueSet.get(currentGene);
+          if (!csvResidues || csvResidues.size === 0) return;
+
+          let present = 0;
+          for (const r of csvResidues) if (pdbResiduesSet.has(r)) present += 1;
+          const frac = present / csvResidues.size;
+
+          if (frac < 0.3) {
+            warn(
+              `⚠️ Only ${(frac * 100).toFixed(1)}% (${present}/${csvResidues.size}) of CSV residues are present in this ` +
+              `structure (${currentStructure}). Cluster coloring may be incomplete due to residue numbering/coverage.`
+            );
+          }
         }
 
         // --- Resize messaging
