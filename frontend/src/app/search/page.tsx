@@ -229,8 +229,13 @@ export default function SearchPage() {
                             </button>
                             {expandedGroup === g.Group10 && (
                               <ul className="pathway-list">
-                                {g.pathway_id.map((pw: string, j: number) => (
-                                  <li key={j}>{pw}</li>
+                                {g.pathways.map((p: any, j: number) => (
+                                  <li key={j}>
+                                    {p.pathway_id} —{" "}
+                                    <span className="score">
+                                      {p.joint_score.toFixed(3)}
+                                    </span>
+                                  </li>
                                 ))}
                               </ul>
                             )}
@@ -258,9 +263,6 @@ export default function SearchPage() {
           margin: 0;
           padding: 12px;
           box-sizing: border-box;
-        }
-        body {
-          background: #f5f6fa;
         }
         .title {
           color: #7bafd4;
@@ -307,9 +309,6 @@ export default function SearchPage() {
           gap: 1.5rem;
           margin-bottom: 2rem;
         }
-        .panel.half {
-          width: 100%;
-        }
         .panel.full {
           width: 100%;
           margin-bottom: 2rem;
@@ -322,14 +321,10 @@ export default function SearchPage() {
           display: flex;
           gap: 1.25rem;
           align-items: stretch;
-          overflow: visible;
         }
         .plot-area {
           flex: 1;
           min-width: 0;
-          overflow: visible;
-          background: white;
-          border-radius: 8px;
         }
         .sidebar {
           width: 300px;
@@ -381,8 +376,16 @@ export default function SearchPage() {
         .group-block ul {
           margin: 0.5rem 1rem;
           padding-left: 1rem;
-          list-style: disc;
+          list-style: none;
           color: black;
+        }
+        .pathway-list li {
+          display: flex;
+          justify-content: space-between;
+        }
+        .pathway-list .score {
+          color: #555;
+          font-weight: 500;
         }
         .no-pathways {
           color: black;
@@ -410,11 +413,9 @@ export default function SearchPage() {
           .pathway-box {
             max-height: 240px;
           }
-          #panel1-iframe {
-            transition: none !important;
-          }
         }
       `}</style>
     </main>
   );
 }
+
