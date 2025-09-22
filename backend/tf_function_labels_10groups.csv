@@ -1,20 +1,20 @@
 TF,Family/Class,Function label,Supporting terms,Confidence,Group10
-E2F2,E2F,Cell cycle,Proliferation,10,General/core transcription
-E2F5,E2F,Cell cycle / DNA replication,G1/S control; replication genes,10,General/core transcription
-IRF5,IRF,Interferon/antiviral response,Type I/II IFN pathways,10,General/core transcription
-PPARA,Nuclear receptor,Lipid metabolism / fatty acid oxidation,Peroxisomal β-oxidation; fasting response,10,General/core transcription
+E2F2,E2F,Cell cycle,Proliferation,10,Development & differentiation
+E2F5,E2F,Cell cycle / DNA replication,G1/S control; replication genes,10,Development & differentiation
+IRF5,IRF,Interferon/antiviral response,Type I/II IFN pathways,10,Development & differentiation
+PPARA,Nuclear receptor,Lipid metabolism / fatty acid oxidation,Peroxisomal β-oxidation; fasting response,10,Development & differentiation
 NR1I2,Nuclear receptor (PXR),Xenobiotic detoxification,CYP3A; drug metabolism,10,Stress responses (oxidative/UPR/ER/proteostasis)
 AHRR,bHLH-PAS,Xenobiotic response (repressor),AHR repressor; feedback on xenobiotic signaling,10,Stress responses (oxidative/UPR/ER/proteostasis)
-MXD1,bHLH-ZIP,MYC antagonist / repression,MAX competitor; differentiation,10,General/core transcription
+MXD1,bHLH-ZIP,MYC antagonist / repression,MAX competitor; differentiation,10,Development & differentiation
 NRF2,bZIP (Cap'n'collar),Oxidative stress / xenobiotic detox,"ARE-driven detox genes (GSTM, NQO1)",10,Stress responses (oxidative/UPR/ER/proteostasis)
-TEAD2,TEAD,Hippo signaling / growth control,YAP/TAZ coactivation,9,General/core transcription
-NFE2L1,bZIP,Proteostasis / mitochondrial biogenesis,Proteasome genes; stress,9,General/core transcription
+TEAD2,TEAD,Hippo signaling / growth control,YAP/TAZ coactivation,9,Development & differentiation
+NFE2L1,bZIP,Proteostasis / mitochondrial biogenesis,Proteasome genes; stress,9,Development & differentiation
 ATF5,bZIP (AP-1/ATF/MAF),Stress response / differentiation,AP-1; MAPK signaling,9,Stress responses (oxidative/UPR/ER/proteostasis)
 ATF6,bZIP (AP-1/ATF/MAF),Stress response / differentiation,AP-1; MAPK signaling,9,Stress responses (oxidative/UPR/ER/proteostasis)
 MAFG,bZIP (AP-1/ATF/MAF),Stress response / differentiation,AP-1; MAPK signaling,9,Stress responses (oxidative/UPR/ER/proteostasis)
-CEBPE,bZIP (CEBP),Inflammation / myeloid differentiation,Acute phase; macrophage,9,General/core transcription
-CEBPZ,bZIP (CEBP),Inflammation / myeloid differentiation,Acute phase; macrophage,9,General/core transcription
-SNAI1,EMT TFs,Epithelial–mesenchymal transition,Invasion/metastasis; development,8,General/core transcription
+CEBPE,bZIP (CEBP),Inflammation / myeloid differentiation,Acute phase; macrophage,9,Development & differentiation
+CEBPZ,bZIP (CEBP),Inflammation / myeloid differentiation,Acute phase; macrophage,9,Development & differentiation
+SNAI1,EMT TFs,Epithelial–mesenchymal transition,Invasion/metastasis; development,8,Development & differentiation
 HOXA1,Homeobox (HOX),Body patterning / development,Anterior-posterior identity,8,Developmental homeobox/lineage TFs
 HOXA10,Homeobox (HOX),Body patterning / development,Anterior-posterior identity,8,Developmental homeobox/lineage TFs
 HOXA13,Homeobox (HOX),Body patterning / development,Anterior-posterior identity,8,Developmental homeobox/lineage TFs
@@ -27,27 +27,27 @@ HOXC13,Homeobox (HOX),Body patterning / development,Anterior-posterior identity,
 HOXC6,Homeobox (HOX),Body patterning / development,Anterior-posterior identity,8,Developmental homeobox/lineage TFs
 HOXD1,Homeobox (HOX),Body patterning / development,Anterior-posterior identity,8,Developmental homeobox/lineage TFs
 HOXD11,Homeobox (HOX),Body patterning / development,Anterior-posterior identity,8,Developmental homeobox/lineage TFs
-MEF2C,MADS-box,Muscle differentiation / activity-dependent,Cardiac/skeletal muscle genes,8,General/core transcription
-MEF2D,MADS-box,Muscle differentiation / activity-dependent,Cardiac/skeletal muscle genes,8,General/core transcription
-HES2,bHLH (Notch effectors),Notch signaling / differentiation,Lateral inhibition,8,General/core transcription
-HES4,bHLH (Notch effectors),Notch signaling / differentiation,Lateral inhibition,8,General/core transcription
-HEY2,bHLH (Notch effectors),Notch signaling / differentiation,Lateral inhibition,8,General/core transcription
-FOXO4,Forkhead (FOX),Stress/cell cycle/differentiation (FOX-specific),FOXO stress; FOXM1 mitosis; FOXA pioneer,7,General/core transcription
-SOX10,HMG (SOX),Stemness / development,Neural/chondrogenic differentiation,7,General/core transcription
-SOX11,HMG (SOX),Stemness / development,Neural/chondrogenic differentiation,7,General/core transcription
-SOX15,HMG (SOX),Stemness / development,Neural/chondrogenic differentiation,7,General/core transcription
-SOX3,HMG (SOX),Stemness / development,Neural/chondrogenic differentiation,7,General/core transcription
-RORA,Nuclear receptor (ROR),Circadian / immune differentiation,Th17 (RORγt); clock genes,7,General/core transcription
+MEF2C,MADS-box,Muscle differentiation / activity-dependent,Cardiac/skeletal muscle genes,8,Development & differentiation
+MEF2D,MADS-box,Muscle differentiation / activity-dependent,Cardiac/skeletal muscle genes,8,Development & differentiation
+HES2,bHLH (Notch effectors),Notch signaling / differentiation,Lateral inhibition,8,Development & differentiation
+HES4,bHLH (Notch effectors),Notch signaling / differentiation,Lateral inhibition,8,Development & differentiation
+HEY2,bHLH (Notch effectors),Notch signaling / differentiation,Lateral inhibition,8,Development & differentiation
+FOXO4,Forkhead (FOX),Stress/cell cycle/differentiation (FOX-specific),FOXO stress; FOXM1 mitosis; FOXA pioneer,7,FOXO/FOXA/FOXP (Forkhead)
+SOX10,HMG (SOX),Stemness / development,Neural/chondrogenic differentiation,7,Development & differentiation
+SOX11,HMG (SOX),Stemness / development,Neural/chondrogenic differentiation,7,Development & differentiation
+SOX15,HMG (SOX),Stemness / development,Neural/chondrogenic differentiation,7,Development & differentiation
+SOX3,HMG (SOX),Stemness / development,Neural/chondrogenic differentiation,7,Development & differentiation
+RORA,Nuclear receptor (ROR),Circadian / immune differentiation,Th17 (RORγt); clock genes,7,Development & differentiation
 PAX3,Paired box (PAX),Development / organogenesis,Eye/kidney/muscle specification,7,Developmental homeobox/lineage TFs
 PAX6,Paired box (PAX),Development / organogenesis,Eye/kidney/muscle specification,7,Developmental homeobox/lineage TFs
 PAX7,Paired box (PAX),Development / organogenesis,Eye/kidney/muscle specification,7,Developmental homeobox/lineage TFs
 PAX8,Paired box (PAX),Development / organogenesis,Eye/kidney/muscle specification,7,Developmental homeobox/lineage TFs
-TBX1,T-box,Development / cardiac/neural,Lineage specification,7,General/core transcription
-TBX3,T-box,Development / cardiac/neural,Lineage specification,7,General/core transcription
-ID1,bHLH inhibitors (ID),Inhibit differentiation,Dominant-negative HLH proteins,7,General/core transcription
-ID2,bHLH inhibitors (ID),Inhibit differentiation,Dominant-negative HLH proteins,7,General/core transcription
-KLF14,C2H2 zinc finger (SP/KLF),Vascular/epithelial differentiation,Shear stress; barrier function,6,General/core transcription
-KLF7,C2H2 zinc finger (SP/KLF),Vascular/epithelial differentiation,Shear stress; barrier function,6,General/core transcription
+TBX1,T-box,Development / cardiac/neural,Lineage specification,7,Developmental homeobox/lineage TFs
+TBX3,T-box,Development / cardiac/neural,Lineage specification,7,Developmental homeobox/lineage TFs
+ID1,bHLH inhibitors (ID),Inhibit differentiation,Dominant-negative HLH proteins,7,Development & differentiation
+ID2,bHLH inhibitors (ID),Inhibit differentiation,Dominant-negative HLH proteins,7,Development & differentiation
+KLF14,C2H2 zinc finger (SP/KLF),Vascular/epithelial differentiation,Shear stress; barrier function,6,Development & differentiation
+KLF7,C2H2 zinc finger (SP/KLF),Vascular/epithelial differentiation,Shear stress; barrier function,6,Development & differentiation
 FOXC1,Forkhead (FOX),Development / lineage specification,Pioneer factors; endocrine/neuronal,6,FOXO/FOXA/FOXP (Forkhead)
 FOXD2,Forkhead (FOX),Development / lineage specification,Pioneer factors; endocrine/neuronal,6,FOXO/FOXA/FOXP (Forkhead)
 FOXD3,Forkhead (FOX),Development / lineage specification,Pioneer factors; endocrine/neuronal,6,FOXO/FOXA/FOXP (Forkhead)
@@ -74,7 +74,7 @@ NR1H4,Nuclear receptor,Metabolism / development (context-dependent),Ligand-activ
 NR2E3,Nuclear receptor,Metabolism / development (context-dependent),Ligand-activated transcription,5,Nuclear receptors & metabolism
 NR4A2,Nuclear receptor,Metabolism / development (context-dependent),Ligand-activated transcription,5,Nuclear receptors & metabolism
 NR5A1,Nuclear receptor,Metabolism / development (context-dependent),Ligand-activated transcription,5,Nuclear receptors & metabolism
-SALL4,Zinc finger (SALL),Development / repression,Embryogenesis; chromatin,5,General/core transcription
+SALL4,Zinc finger (SALL),Development / repression,Embryogenesis; chromatin,5,Development & differentiation
 ZBTB1,C2H2 zinc finger,General transcriptional regulation (context-dependent),Sequence-specific repression/activation,3,KRAB/C2H2 zinc-finger repressors
 ZBTB12,C2H2 zinc finger,General transcriptional regulation (context-dependent),Sequence-specific repression/activation,3,KRAB/C2H2 zinc-finger repressors
 ZBTB18,C2H2 zinc finger,General transcriptional regulation (context-dependent),Sequence-specific repression/activation,3,KRAB/C2H2 zinc-finger repressors
@@ -221,282 +221,282 @@ ZNF837,C2H2 zinc finger,General transcriptional regulation (context-dependent),S
 ZNF843,C2H2 zinc finger,General transcriptional regulation (context-dependent),Sequence-specific repression/activation,3,KRAB/C2H2 zinc-finger repressors
 ZNF85,C2H2 zinc finger,General transcriptional regulation (context-dependent),Sequence-specific repression/activation,3,KRAB/C2H2 zinc-finger repressors
 ZNF92,C2H2 zinc finger,General transcriptional regulation (context-dependent),Sequence-specific repression/activation,3,KRAB/C2H2 zinc-finger repressors
-0,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-ADA2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-ADCYAP1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-ADNP,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-AEBP2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-ALKBH3,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-ALX4,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-ARHGAP35,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-ARID3B,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-ARID5B,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-ARNT2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-ASH1L,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-ASXL2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-ATM,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-ATOH8,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-ATXN7L3,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-AUTS2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-BAHD1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-BANP,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-BARHL1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-BARX1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-BARX2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-BCL6B,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-BDP1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-BPTF,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-BRCA2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-BRF1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-BRF2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-CARM1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-CASP3,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-CASP8AP2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-CAVIN1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-CBX5,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-CBX7,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-CC2D1A,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-CDC5L,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-CDC73,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-CDH4,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-CDX1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-CENPT,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-CHAF1A,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-CHAF1B,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-CHAMP1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-CIC,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-CIITA,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-COBLL1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-COIL,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-CREB3,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-CREB3L2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-CREB3L4,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-CREBL2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-CSHL1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-CTR9,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-CUX1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-DACH1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-DBP,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-DICER1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-DIDO1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-DMRT1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-DNMT1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-DNMT3A,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-DPPA3,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-DROSHA,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-DYRK1A,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-EBNA1BP2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-EGFR,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-ELF2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-ELF5,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-EMX1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-EPC1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-ERCC8,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-EWSR1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-F10,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-FEV,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-FXR1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-GLI1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-GLI3,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-GLI4,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-GREB1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-GTF2A2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-GTF2E2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-GTF3A,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-GTF3C1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-GUCY1B1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-H1_6,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-HAND1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-HBZ,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-HDAC4,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-HDAC8,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-HDGF,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-HHEX,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-HJURP,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-HMCES,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-HMG20B,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-HMGA1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-HMGB2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-HSD17B8,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-HSF2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-HSF4,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-IGF1R,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-IGLV5_37,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-ILK,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-INSM2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-IRX2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-IRX3,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-KAT2A,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-KAT5,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-KDM1B,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-KMT2D,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-LAMB3,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-LCORL,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-LMNB2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-LMTK3,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-LMX1B,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-MAML1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-MAP2K1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-MAPK3,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-MCM2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-MCM3,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-MCM5,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-MDM2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-MED16,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-MED25,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-METHYLCYTOSINE_DIOXYGENASE_TET_UNIPROT_A0A023HHK9_UNREVIEWED,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-METTL14,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-MIER1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-MNX1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-MPHOSPH8,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-MSX1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-MSX2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-MTHFD1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-MYBL1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-MYF6,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-MYOCD,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-MZF1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-NAB2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-NCOA2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-NCOA4,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-NCOA6,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-NEUROD2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-NEUROG3,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-NFE2L3,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-NFKBIA,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-NFXL1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
+0,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+ADA2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+ADCYAP1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+ADNP,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+AEBP2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+ALKBH3,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+ALX4,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+ARHGAP35,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+ARID3B,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+ARID5B,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+ARNT2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+ASH1L,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+ASXL2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+ATM,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+ATOH8,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+ATXN7L3,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+AUTS2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+BAHD1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+BANP,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+BARHL1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+BARX1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+BARX2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+BCL6B,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+BDP1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+BPTF,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+BRCA2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+BRF1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+BRF2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+CARM1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+CASP3,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+CASP8AP2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+CAVIN1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+CBX5,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+CBX7,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+CC2D1A,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+CDC5L,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+CDC73,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+CDH4,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+CDX1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+CENPT,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+CHAF1A,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+CHAF1B,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+CHAMP1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+CIC,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+CIITA,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+COBLL1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+COIL,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+CREB3,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+CREB3L2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+CREB3L4,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+CREBL2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+CSHL1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+CTR9,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+CUX1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+DACH1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+DBP,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+DICER1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+DIDO1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+DMRT1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+DNMT1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+DNMT3A,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+DPPA3,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+DROSHA,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+DYRK1A,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+EBNA1BP2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+EGFR,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+ELF2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+ELF5,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+EMX1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+EPC1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+ERCC8,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+EWSR1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+F10,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+FEV,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+FXR1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+GLI1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+GLI3,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+GLI4,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+GREB1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+GTF2A2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+GTF2E2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+GTF3A,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+GTF3C1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+GUCY1B1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+H1_6,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+HAND1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+HBZ,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+HDAC4,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+HDAC8,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+HDGF,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+HHEX,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+HJURP,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+HMCES,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+HMG20B,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+HMGA1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+HMGB2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+HSD17B8,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+HSF2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+HSF4,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+IGF1R,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+IGLV5_37,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+ILK,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+INSM2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+IRX2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+IRX3,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+KAT2A,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+KAT5,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+KDM1B,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+KMT2D,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+LAMB3,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+LCORL,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+LMNB2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+LMTK3,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+LMX1B,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+MAML1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+MAP2K1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+MAPK3,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+MCM2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+MCM3,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+MCM5,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+MDM2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+MED16,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+MED25,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+METHYLCYTOSINE_DIOXYGENASE_TET_UNIPROT_A0A023HHK9_UNREVIEWED,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+METTL14,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+MIER1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+MNX1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+MPHOSPH8,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+MSX1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+MSX2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+MTHFD1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+MYBL1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+MYF6,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+MYOCD,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+MZF1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+NAB2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+NCOA2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+NCOA4,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+NCOA6,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+NEUROD2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+NEUROG3,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+NFE2L3,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+NFKBIA,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+NFXL1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
 NKX2_2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Developmental homeobox/lineage TFs
 NKX2_3,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Developmental homeobox/lineage TFs
 NKX2_5,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Developmental homeobox/lineage TFs
 NKX2_8,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Developmental homeobox/lineage TFs
 NKX6_1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Developmental homeobox/lineage TFs
-NME2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-NOTCH3,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-NPAT,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-NPM1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-NUFIP1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-NUP214,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-OVOL3,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-PAF1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-PBRM1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-PBXIP1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-PCGF1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-PER1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-PGBD5,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-PGM3,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-PHB2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-PHF21A,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-PIAS4,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-PITX1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-POU2AF1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
+NME2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+NOTCH3,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+NPAT,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+NPM1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+NUFIP1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+NUP214,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+OVOL3,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+PAF1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+PBRM1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+PBXIP1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+PCGF1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+PER1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+PGBD5,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+PGM3,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+PHB2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+PHF21A,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+PIAS4,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+PITX1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+POU2AF1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
 PPARGC1A,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Nuclear receptors & metabolism
-PRDM12,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-PRDM4,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-PRDM5,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-PRKDC,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-PRMT5,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-PSIP1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-PSMB5,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-PTPRA,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-PTTG1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-RAG1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-RARB,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-RAX2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-RBL1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-RBM15,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-RBM17,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-RBM34,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-RBMX,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-REPIN1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-RFX7,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-RLF,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-RPA1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-RPA2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-RUVBL1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-RUVBL2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-RYBP,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-SAFB2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-SETBP1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-SETD1A,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-SETD7,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-SFMBT1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-SIGMAR1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-SIPA1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-SIRT3,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-SKIL,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-SKP2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-SMARCA1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-SMCHD1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-SMN1_SMN2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-SNAPC2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-SNAPC4,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-SNIP1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-SNRNP70,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-SQSTM1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-SRPK1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-SRPK2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-SRSF9,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-SS18_SSX1_FUSION_UNIPROT_Q8IZH1_UNREVIEWED,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-STN1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-SUMO1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-SUPT16H,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-SUPT20H,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-SVIL,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-SYNCRIP,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-TAF9B,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-TAFAZZIN,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-TASOR,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-TBPL1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-TCOF1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-TDRD3,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-TERF1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-TERF2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-TERT,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-TET1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-TFAM,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-TFCP2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-TFDP2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-TFEB,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-THRA,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-THRAP3,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-TOP2B,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-TOX4,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-TRIP13,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-TSHZ1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-TUBG1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-UBE2I,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-UBN1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-VRTN,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-WDHD1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-WIZ,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-WRN,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-WRNIP1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-XPO1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-YBX1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-YBX3,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-ZA_UNIPROT_Q9UM89_UNREVIEWED_GENES,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-ZBED4,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-ZBED5,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-ZC3H11A,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-ZFHX3,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-ZFP28,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-ZFP3,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-ZFP36L1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-ZFP37,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-ZFP82,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-ZFP91,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-ZIM3,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-ZMYM2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-ZMYND11,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-ZSCAN18,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-ZSCAN2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-ZSCAN21,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-ZSCAN23,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-ZSCAN26,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-ZSCAN30,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-ZSCAN31,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-ZSCAN4,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-ZSCAN5B,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-ZSCAN5C,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-ZSCAN5DP,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
-ZZZ3,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,General/core transcription
+PRDM12,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+PRDM4,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+PRDM5,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+PRKDC,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+PRMT5,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+PSIP1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+PSMB5,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+PTPRA,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+PTTG1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+RAG1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+RARB,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+RAX2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+RBL1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+RBM15,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+RBM17,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+RBM34,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+RBMX,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+REPIN1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+RFX7,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+RLF,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+RPA1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+RPA2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+RUVBL1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+RUVBL2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+RYBP,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+SAFB2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+SETBP1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+SETD1A,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+SETD7,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+SFMBT1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+SIGMAR1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+SIPA1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+SIRT3,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+SKIL,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+SKP2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+SMARCA1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+SMCHD1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+SMN1_SMN2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+SNAPC2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+SNAPC4,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+SNIP1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+SNRNP70,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+SQSTM1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+SRPK1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+SRPK2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+SRSF9,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+SS18_SSX1_FUSION_UNIPROT_Q8IZH1_UNREVIEWED,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+STN1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+SUMO1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+SUPT16H,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+SUPT20H,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+SVIL,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+SYNCRIP,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+TAF9B,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+TAFAZZIN,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+TASOR,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+TBPL1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+TCOF1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+TDRD3,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+TERF1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+TERF2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+TERT,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+TET1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+TFAM,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+TFCP2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+TFDP2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+TFEB,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+THRA,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+THRAP3,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+TOP2B,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+TOX4,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+TRIP13,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+TSHZ1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+TUBG1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+UBE2I,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+UBN1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+VRTN,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+WDHD1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+WIZ,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+WRN,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+WRNIP1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+XPO1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+YBX1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+YBX3,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+ZA_UNIPROT_Q9UM89_UNREVIEWED_GENES,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+ZBED4,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+ZBED5,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+ZC3H11A,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+ZFHX3,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+ZFP28,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+ZFP3,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+ZFP36L1,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+ZFP37,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+ZFP82,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+ZFP91,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+ZIM3,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+ZMYM2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+ZMYND11,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+ZSCAN18,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+ZSCAN2,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+ZSCAN21,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+ZSCAN23,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+ZSCAN26,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+ZSCAN30,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+ZSCAN31,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+ZSCAN4,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+ZSCAN5B,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+ZSCAN5C,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+ZSCAN5DP,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
+ZZZ3,Uncertain / other regulator,Context-dependent / insufficient info,Could be non-DNA-binding cofactor or peptide,1,Development & differentiation
