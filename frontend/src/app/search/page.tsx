@@ -14,12 +14,13 @@ export default function SearchPage() {
 
   const [plotJson, setPlotJson] = useState<any>(null);
   const [neighbors, setNeighbors] = useState<any[]>([]);
-  const [sharedPathways, setSharedPathways] = useState<any[]>([]);
   const [selectedGene, setSelectedGene] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [groupLabel, setGroupLabel] = useState<string | null>(null);
 
   const [iframeHeights, setIframeHeights] = useState<Record<string, number>>({});
+  const [sharedGroups, setSharedGroups] = useState<any[]>([]);
+  const [expandedGroup, setExpandedGroup] = useState<string | null>(null);
 
   // Effect 1: listen for resize messages from iframe
   useEffect(() => {
@@ -33,7 +34,6 @@ export default function SearchPage() {
         }
       }
     }
-
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
   }, []);
@@ -61,8 +61,9 @@ export default function SearchPage() {
           (a: any, b: any) => (b.cosine_sim ?? 0) - (a.cosine_sim ?? 0)
         );
         setNeighbors(sorted);
-        setSharedPathways(data.shared_pathways || []);
         setSelectedGene("");
+        setSharedGroups([]);
+        setExpandedGroup(null);
         setError(null);
       })
       .catch((e) => {
@@ -70,18 +71,28 @@ export default function SearchPage() {
         setError("No data available for this gene.");
         setPlotJson(null);
         setNeighbors([]);
-        setSharedPathways([]);
         setSelectedGene("");
+        setSharedGroups([]);
+        setExpandedGroup(null);
       });
   }, [gene]);
 
-  const pathwaysForSelected =
-    selectedGene
-      ? sharedPathways
-          .filter((r) => r.other_protein === selectedGene)
-          .map((r) => r.pathway_id)
-          .sort()
-      : [];
+  // Effect 4: fetch shared pathway groups when neighbor selected
+  useEffect(() => {
+    if (!gene || !selectedGene) {
+      setSharedGroups([]);
+      setExpandedGroup(null);
+      return;
+    }
+    fetch(
+      `http://127.0.0.1:8001/shared_pathway_groups?query=${encodeURIComponent(
+        gene
+      )}&neighbor=${encodeURIComponent(selectedGene)}`
+    )
+      .then((res) => res.json())
+      .then((data) => setSharedGroups(data.groups || []))
+      .catch(() => setSharedGroups([]));
+  }, [gene, selectedGene]);
 
   return (
     <main className="container">
@@ -169,7 +180,9 @@ export default function SearchPage() {
             )}
           </div>
           <aside className="sidebar">
-            <h3 className="sidebar-title">Pathways in Common</h3>
+            <h3 className="sidebar-title">Shared Pathways</h3>
+
+            {/* Neighbor dropdown */}
             <select
               className="dropdown"
               value={selectedGene}
@@ -183,14 +196,36 @@ export default function SearchPage() {
                 </option>
               ))}
             </select>
+
+            {/* Functional group buttons */}
             <div className="pathway-box">
               {selectedGene ? (
-                pathwaysForSelected.length ? (
-                  <ul className="pathway-list">
-                    {pathwaysForSelected.map((pw, i) => (
-                      <li key={i}>{pw}</li>
+                sharedGroups.length ? (
+                  <div className="group-buttons">
+                    {sharedGroups.map((g, i) => (
+                      <div key={i} className="group-block">
+                        <button
+                          className={`group-btn ${
+                            expandedGroup === g.Group10 ? "active" : ""
+                          }`}
+                          onClick={() =>
+                            setExpandedGroup(
+                              expandedGroup === g.Group10 ? null : g.Group10
+                            )
+                          }
+                        >
+                          {g.Group10}
+                        </button>
+                        {expandedGroup === g.Group10 && (
+                          <ul className="pathway-list">
+                            {g.pathway_id.map((pw: string, j: number) => (
+                              <li key={j}>{pw}</li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
                     ))}
-                  </ul>
+                  </div>
                 ) : (
                   <p className="no-pathways">No shared pathways found.</p>
                 )
@@ -204,33 +239,29 @@ export default function SearchPage() {
 
       <style jsx>{`
         .container {
-          background: #f5f6fa; /* page light grey */
+          background: #f5f6fa;
           min-height: 100vh;
           width: 100%;
           margin: 0;
           padding: 12px;
           box-sizing: border-box;
         }
-
         body {
           background: #f5f6fa;
         }
-
         .title {
-          color: #7BAFD4;
+          color: #7bafd4;
           font-size: 2.5rem;
           font-weight: 800;
           text-align: center;
           margin-bottom: 1rem;
         }
-
         .back-home {
           text-align: center;
           margin-bottom: 2rem;
         }
-
         .home-link {
-          color: #7BAFD4;
+          color: #7bafd4;
           font-weight: 700;
           font-size: 1.1rem;
           text-decoration: none;
@@ -238,28 +269,25 @@ export default function SearchPage() {
         .home-link:hover {
           text-decoration: underline;
         }
-
         .panel {
-          background: white; /* panels forced white */
-          border: 2px solid #7BAFD4;
+          background: white;
+          border: 2px solid #7bafd4;
           border-radius: 12px;
           padding: 1.5rem;
           box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
         .panel-title {
-          color: #7BAFD4;
+          color: #7bafd4;
           font-size: 1.5rem;
           font-weight: 700;
           margin-bottom: 0.5rem;
         }
-
         .group-label {
           font-size: 1.1rem;
           font-weight: 600;
           color: #333;
           margin-bottom: 0.75rem;
         }
-
         .panel-row {
           display: grid;
           grid-template-columns: 1fr 1fr;
@@ -269,22 +297,19 @@ export default function SearchPage() {
         .panel.half {
           width: 100%;
         }
-
         .panel.full {
           width: 100%;
           margin-bottom: 2rem;
         }
-
         .panel5 {
           padding: 2rem;
           overflow: visible;
         }
-
         .network-container {
           display: flex;
           gap: 1.25rem;
           align-items: stretch;
-          overflow: visible; /* no clipping */
+          overflow: visible;
         }
         .plot-area {
           flex: 1;
@@ -293,11 +318,10 @@ export default function SearchPage() {
           background: white;
           border-radius: 8px;
         }
-
         .sidebar {
           width: 300px;
           background: #f1f9ff;
-          border: 1px solid #7BAFD4;
+          border: 1px solid #7bafd4;
           border-radius: 8px;
           padding: 1rem;
           display: flex;
@@ -317,9 +341,34 @@ export default function SearchPage() {
           overflow-y: auto;
           max-height: 560px;
         }
-        .pathway-list {
+        .group-buttons {
+          display: flex;
+          flex-direction: column;
+          gap: 0.5rem;
+        }
+        .group-btn {
+          width: 100%;
+          padding: 0.5rem 0.75rem;
+          text-align: left;
+          font-weight: 600;
+          border: 1px solid #7bafd4;
+          border-radius: 6px;
+          background: #f1f9ff;
+          color: #333;
+          cursor: pointer;
+          transition: background 0.2s;
+        }
+        .group-btn:hover {
+          background: #dcefff;
+        }
+        .group-btn.active {
+          background: #7bafd4;
+          color: white;
+        }
+        .group-block ul {
+          margin: 0.5rem 1rem;
+          padding-left: 1rem;
           list-style: disc;
-          margin-left: 1.2rem;
           color: black;
         }
         .no-pathways {
@@ -329,7 +378,6 @@ export default function SearchPage() {
           color: red;
           text-align: center;
         }
-
         @media (max-width: 900px) {
           .panel-row {
             grid-template-columns: 1fr;
@@ -345,10 +393,11 @@ export default function SearchPage() {
             max-height: 240px;
           }
           #panel1-iframe {
-            transition: none !important; /* 🚫 disable smooth height animations */
+            transition: none !important;
           }
         }
       `}</style>
     </main>
   );
 }
+

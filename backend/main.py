@@ -293,6 +293,43 @@ def get_group_label(gene: str):
         return {"group_label": row.iloc[0]["llm_output"]}
     except Exception as e:
         return {"error": str(e)}
+    
+@app.get("/shared_pathway_groups")
+def shared_pathway_groups(query: str, neighbor: str):
+    """
+    Returns functional groups and shared pathways between query and neighbor.
+    Only groups with ≥1 shared pathway are included.
+    """
+    try:
+        # get shared pathways for query vs neighbor
+        shared_df = _shared_pathways(query, [neighbor])
+        if shared_df.empty:
+            return {"groups": []}
+
+        # load group labels
+        labels = pd.read_csv("tf_function_labels_10groups.csv")
+
+        # merge shared pathways with functional groups
+        merged = pd.merge(
+            shared_df,
+            labels,
+            left_on="pathway_id",
+            right_on="TF",   # TF column in your CSV
+            how="inner"
+        )
+
+        grouped = (
+            merged.groupby("Group10")["pathway_id"]
+            .apply(list)
+            .reset_index()
+            .to_dict(orient="records")
+        )
+
+        return {"groups": grouped}
+
+    except Exception as e:
+        return {"error": str(e)}
+
 
 
 # =========================================================
