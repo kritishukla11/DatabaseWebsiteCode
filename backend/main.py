@@ -323,10 +323,30 @@ def shared_pathway_groups(query: str, neighbor: str):
     """
     Returns functional groups and shared pathways between query and neighbor.
     Each group includes pathways sorted by joint_score (highest first).
+    - Drops joint_score <= 0
+    - Normalizes scores so top score = 1
+    - Filters out anything < 0.5 after normalization
     """
     try:
         # get shared pathways for query vs neighbor
         shared_df = _shared_pathways(query, [neighbor])
+        if shared_df.empty:
+            return {"groups": []}
+
+        # drop joint_score <= 0
+        shared_df = shared_df[shared_df["joint_score"] > 0].copy()
+        if shared_df.empty:
+            return {"groups": []}
+
+        # normalize so top score = 1
+        max_val = shared_df["joint_score"].max()
+        if max_val > 0:
+            shared_df["joint_score"] = shared_df["joint_score"] / max_val
+        else:
+            return {"groups": []}
+
+        # filter out anything < 0.5 after normalization
+        shared_df = shared_df[shared_df["joint_score"] >= 0.5]
         if shared_df.empty:
             return {"groups": []}
 
@@ -357,6 +377,9 @@ def shared_pathway_groups(query: str, neighbor: str):
 
     except Exception as e:
         return {"error": str(e)}
+
+
+
 
 
 
