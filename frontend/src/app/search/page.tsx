@@ -51,11 +51,17 @@ export default function SearchPage() {
   useEffect(() => {
     if (!gene) return;
     fetch(`http://127.0.0.1:8001/plot?gene=${encodeURIComponent(gene)}`)
-      .then((res) => {
-        if (!res.ok) throw new Error("Fetch failed");
-        return res.json();
-      })
+      .then((res) => res.json())
       .then((data) => {
+        if (data.error) {
+          setError(data.error); // show backend error message
+          setPlotJson(null);
+          setNeighbors([]);
+          setSelectedGene("");
+          setSharedGroups([]);
+          setExpandedGroup(null);
+          return;
+        }
         setPlotJson(data.plot);
         const sorted = (data.neighbors || []).sort(
           (a: any, b: any) => (b.cosine_sim ?? 0) - (a.cosine_sim ?? 0)
@@ -66,8 +72,7 @@ export default function SearchPage() {
         setExpandedGroup(null);
         setError(null);
       })
-      .catch((e) => {
-        console.error(e);
+      .catch(() => {
         setError("No data available for this gene.");
         setPlotJson(null);
         setNeighbors([]);
@@ -96,146 +101,154 @@ export default function SearchPage() {
 
   return (
     <main className="container">
-      <h1 className="title">Results for: {gene}</h1>
-      <div className="back-home">
-        <a href="/" className="home-link">
-          ← Back to Home
-        </a>
-      </div>
-
-      {/* Row 1: Panel 1 + Panel 2 */}
-      <div className="panel-row">
-        <div className="panel half">
-          <h2 className="panel-title">Interactive Protein Structure</h2>
-          {gene ? (
-            <iframe
-              src={`/panel1.html?gene=${encodeURIComponent(gene)}`}
-              id="panel1-iframe"
-              title="3D Protein Viewer"
-              style={{
-                width: "100%",
-                height: `${iframeHeights["panel1"] ?? 600}px`,
-                border: "1px solid #ddd",
-                borderRadius: "12px",
-                background: "white",
-              }}
-            />
-          ) : (
-            <p>No gene selected.</p>
-          )}
-        </div>
-
-        <div className="panel half">
-          <h2 className="panel-title">2D Protein Flatmap</h2>
-          <Panel2Flatmap gene={gene} />
-        </div>
-      </div>
-
-      {/* Row 2: Panel 3 + Panel 4 */}
-      <div className="panel-row">
-        <div
-          className="panel half"
-          style={{ minHeight: "600px", display: "flex", flexDirection: "column" }}
-        >
-          <h2 className="panel-title">Empirical Calibration Plot - Protein/Pathway</h2>
-          <Panel3Calibration gene={gene} />
-        </div>
-
-        <div className="panel half">
-          <h2 className="panel-title">Panel 4</h2>
-          <p>Content for Panel 4 will go here later...</p>
-        </div>
-      </div>
-
-      {/* Panel 5 full-width */}
-      <div className="panel full panel5">
-        <h2 className="panel-title">Pathway Network</h2>
-        {groupLabel && (
-          <p className="group-label">Group Annotation: {groupLabel}</p>
-        )}
-        <div className="network-container">
-          <div className="plot-area">
-            {error ? (
-              <p className="error">{error}</p>
-            ) : plotJson ? (
-              <Plot
-                data={plotJson.data}
-                layout={{
-                  ...plotJson.layout,
-                  autosize: true,
-                  margin: {
-                    ...(plotJson.layout?.margin || {}),
-                    l: 40,
-                    r: 100,
-                    t: 60,
-                    b: 60,
-                  },
-                }}
-                useResizeHandler
-                style={{ width: "100%", height: "650px" }}
-                config={{ responsive: true, displayModeBar: false }}
-              />
-            ) : (
-              <p>Loading network...</p>
-            )}
+      {error ? (
+        <div className="error-page">
+          <h1 className="title">Results for: {gene}</h1>
+          <p className="error">{error}</p>
+          <div className="back-home">
+            <a href="/" className="home-link">← Back to Home</a>
           </div>
-          <aside className="sidebar">
-            <h3 className="sidebar-title">Shared Pathways</h3>
+        </div>
+      ) : (
+        <>
+          <h1 className="title">Results for: {gene}</h1>
+          <div className="back-home">
+            <a href="/" className="home-link">← Back to Home</a>
+          </div>
 
-            {/* Neighbor dropdown */}
-            <select
-              className="dropdown"
-              value={selectedGene}
-              onChange={(e) => setSelectedGene(e.target.value)}
-              aria-label="Select neighbor gene"
-            >
-              <option value="">Select gene</option>
-              {neighbors.map((n) => (
-                <option key={n.protein_id} value={n.protein_id}>
-                  {n.protein_id}
-                </option>
-              ))}
-            </select>
-
-            {/* Functional group buttons */}
-            <div className="pathway-box">
-              {selectedGene ? (
-                sharedGroups.length ? (
-                  <div className="group-buttons">
-                    {sharedGroups.map((g, i) => (
-                      <div key={i} className="group-block">
-                        <button
-                          className={`group-btn ${
-                            expandedGroup === g.Group10 ? "active" : ""
-                          }`}
-                          onClick={() =>
-                            setExpandedGroup(
-                              expandedGroup === g.Group10 ? null : g.Group10
-                            )
-                          }
-                        >
-                          {g.Group10}
-                        </button>
-                        {expandedGroup === g.Group10 && (
-                          <ul className="pathway-list">
-                            {g.pathway_id.map((pw: string, j: number) => (
-                              <li key={j}>{pw}</li>
-                            ))}
-                          </ul>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="no-pathways">No shared pathways found.</p>
-                )
+          {/* Row 1: Panel 1 + Panel 2 */}
+          <div className="panel-row">
+            <div className="panel half">
+              <h2 className="panel-title">Interactive Protein Structure</h2>
+              {gene ? (
+                <iframe
+                  src={`/panel1.html?gene=${encodeURIComponent(gene)}`}
+                  id="panel1-iframe"
+                  title="3D Protein Viewer"
+                  style={{
+                    width: "100%",
+                    height: `${iframeHeights["panel1"] ?? 600}px`,
+                    border: "1px solid #ddd",
+                    borderRadius: "12px",
+                    background: "white",
+                  }}
+                />
               ) : (
-                <p className="no-pathways">Select a neighbor gene</p>
+                <p>No gene selected.</p>
               )}
             </div>
-          </aside>
-        </div>
-      </div>
+
+            <div className="panel half">
+              <h2 className="panel-title">2D Protein Flatmap</h2>
+              <Panel2Flatmap gene={gene} />
+            </div>
+          </div>
+
+          {/* Row 2: Panel 3 + Panel 4 */}
+          <div className="panel-row">
+            <div
+              className="panel half"
+              style={{ minHeight: "600px", display: "flex", flexDirection: "column" }}
+            >
+              <h2 className="panel-title">Empirical Calibration Plot - Protein/Pathway</h2>
+              <Panel3Calibration gene={gene} />
+            </div>
+
+            <div className="panel half">
+              <h2 className="panel-title">Panel 4</h2>
+              <p>Content for Panel 4 will go here later...</p>
+            </div>
+          </div>
+
+          {/* Panel 5 full-width */}
+          <div className="panel full panel5">
+            <h2 className="panel-title">Pathway Network</h2>
+            {groupLabel && (
+              <p className="group-label">Group Annotation: {groupLabel}</p>
+            )}
+            <div className="network-container">
+              <div className="plot-area">
+                {plotJson ? (
+                  <Plot
+                    data={plotJson.data}
+                    layout={{
+                      ...plotJson.layout,
+                      autosize: true,
+                      margin: {
+                        ...(plotJson.layout?.margin || {}),
+                        l: 40,
+                        r: 100,
+                        t: 60,
+                        b: 60,
+                      },
+                    }}
+                    useResizeHandler
+                    style={{ width: "100%", height: "650px" }}
+                    config={{ responsive: true, displayModeBar: false }}
+                  />
+                ) : (
+                  <p>Loading network...</p>
+                )}
+              </div>
+              <aside className="sidebar">
+                <h3 className="sidebar-title">Shared Pathways</h3>
+
+                {/* Neighbor dropdown */}
+                <select
+                  className="dropdown"
+                  value={selectedGene}
+                  onChange={(e) => setSelectedGene(e.target.value)}
+                  aria-label="Select neighbor gene"
+                >
+                  <option value="">Select gene</option>
+                  {neighbors.map((n) => (
+                    <option key={n.protein_id} value={n.protein_id}>
+                      {n.protein_id}
+                    </option>
+                  ))}
+                </select>
+
+                {/* Functional group buttons */}
+                <div className="pathway-box">
+                  {selectedGene ? (
+                    sharedGroups.length ? (
+                      <div className="group-buttons">
+                        {sharedGroups.map((g, i) => (
+                          <div key={i} className="group-block">
+                            <button
+                              className={`group-btn ${
+                                expandedGroup === g.Group10 ? "active" : ""
+                              }`}
+                              onClick={() =>
+                                setExpandedGroup(
+                                  expandedGroup === g.Group10 ? null : g.Group10
+                                )
+                              }
+                            >
+                              {g.Group10}
+                            </button>
+                            {expandedGroup === g.Group10 && (
+                              <ul className="pathway-list">
+                                {g.pathway_id.map((pw: string, j: number) => (
+                                  <li key={j}>{pw}</li>
+                                ))}
+                              </ul>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="no-pathways">No shared pathways found.</p>
+                    )
+                  ) : (
+                    <p className="no-pathways">Select a neighbor gene</p>
+                  )}
+                </div>
+              </aside>
+            </div>
+          </div>
+        </>
+      )}
 
       <style jsx>{`
         .container {
@@ -376,7 +389,12 @@ export default function SearchPage() {
         }
         .error {
           color: red;
+          font-size: 1.2rem;
           text-align: center;
+        }
+        .error-page {
+          text-align: center;
+          padding: 4rem 1rem;
         }
         @media (max-width: 900px) {
           .panel-row {
@@ -400,4 +418,3 @@ export default function SearchPage() {
     </main>
   );
 }
-
