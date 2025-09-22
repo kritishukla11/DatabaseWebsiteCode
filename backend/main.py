@@ -281,7 +281,7 @@ def get_plot(gene: str, topk: int = 10):
         # ✅ Case 2: gene exists but no nonzero pathway values
         if not has_annotations(gene):
             return JSONResponse(
-                content={"error": f"Sorry, we don't have pathway info for {gene}."},
+                content={"error": f"Sorry, we don't have info for {gene}."},
                 status_code=404
             )
 
@@ -322,7 +322,7 @@ def get_group_label(gene: str):
 def shared_pathway_groups(query: str, neighbor: str):
     """
     Returns functional groups and shared pathways between query and neighbor.
-    Only groups with ≥1 shared pathway are included.
+    Each group includes pathways sorted by joint_score (highest first).
     """
     try:
         # get shared pathways for query vs neighbor
@@ -338,14 +338,18 @@ def shared_pathway_groups(query: str, neighbor: str):
             shared_df,
             labels,
             left_on="pathway_id",
-            right_on="TF",   # TF column in your CSV
+            right_on="TF",   # adjust if column name differs
             how="inner"
         )
 
+        # group and include both pathway + joint_score
         grouped = (
-            merged.groupby("Group10")["pathway_id"]
-            .apply(list)
+            merged.groupby("Group10")
+            .apply(lambda g: g.sort_values("joint_score", ascending=False)[
+                ["pathway_id", "joint_score"]
+            ].to_dict(orient="records"))
             .reset_index()
+            .rename(columns={0: "pathways"})
             .to_dict(orient="records")
         )
 
@@ -353,6 +357,7 @@ def shared_pathway_groups(query: str, neighbor: str):
 
     except Exception as e:
         return {"error": str(e)}
+
 
 
 
