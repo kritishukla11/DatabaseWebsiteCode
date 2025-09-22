@@ -236,6 +236,15 @@ def _plot_network(query: str, nbrs_df: pd.DataFrame, nn_edge_threshold: float = 
     )
     return fig
 
+def has_annotations(protein: str) -> bool:
+    """
+    Returns True if the protein has at least one nonzero pathway score.
+    """
+    if protein not in _VECS_DF.index:
+        return False
+    row = _VECS_DF.loc[protein]
+    return (row > 0).any()
+
 
 @app.get("/plot_ping", response_class=PlainTextResponse)
 def plot_ping(gene: str = "KEAP1"):
@@ -262,9 +271,21 @@ def get_plot(gene: str, topk: int = 10):
         if _V_NORM.size == 0 or _VECS_DF.empty:
             raise RuntimeError("Embeddings not loaded. See server logs for load errors.")
 
+        # ✅ Case 1: gene not in dataset
         if gene not in _VECS_DF.index:
-            raise KeyError(f"Gene '{gene}' not found in vectors index.")
+            return JSONResponse(
+                content={"error": f"Sorry, we don't have info for {gene}."},
+                status_code=404
+            )
 
+        # ✅ Case 2: gene exists but no nonzero pathway values
+        if not has_annotations(gene):
+            return JSONResponse(
+                content={"error": f"Sorry, we don't have pathway info for {gene}."},
+                status_code=404
+            )
+
+        # Normal case: build network + shared pathways
         nbrs_df = _topk_cosine(gene, k=topk)
         shared_pw = _shared_pathways(gene, nbrs_df["protein_id"].tolist())
         fig = _plot_network(gene, nbrs_df)
@@ -273,15 +294,18 @@ def get_plot(gene: str, topk: int = 10):
             "plot": fig.to_plotly_json(),
             "neighbors": nbrs_df.to_dict(orient="records"),
             "shared_pathways": shared_pw.to_dict(orient="records"),
-            "elapsed_sec": round(time.time()-t0, 3),
+            "elapsed_sec": round(time.time() - t0, 3),
         }
         return JSONResponse(content=out)
-    except KeyError as e:
-        return JSONResponse(content={"error": str(e)}, status_code=404)
+
     except Exception as e:
         print("[/plot][ERROR]", e)
         traceback.print_exc()
-        return JSONResponse(content={"error": f"Internal error: {str(e)}"}, status_code=500)
+        return JSONResponse(
+            content={"error": f"Internal error: {str(e)}"},
+            status_code=500
+        )
+
     
 @app.get("/group_label")
 def get_group_label(gene: str):
