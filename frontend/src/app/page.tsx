@@ -6,11 +6,18 @@ import { useState } from "react";
 export default function HomePage() {
   const router = useRouter();
   const [query, setQuery] = useState("");
+  const [searchType, setSearchType] = useState("protein"); // default = protein
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    if (query.trim()) {
+    if (!query.trim()) return;
+
+    if (searchType === "protein") {
       router.push(`/search?gene=${encodeURIComponent(query.trim())}`);
+    } else if (searchType === "pathway") {
+      router.push(`/pathway?pathway=${encodeURIComponent(query.trim())}`);
+    } else if (searchType === "drug") {
+      router.push(`/drug?drug=${encodeURIComponent(query.trim())}`);
     }
   };
 
@@ -18,9 +25,18 @@ export default function HomePage() {
     <main className="container">
       <h1 className="title">Welcome to the Brunk Lab Protein Database!</h1>
       <form onSubmit={handleSearch} className="search-form">
+        <select
+          value={searchType}
+          onChange={(e) => setSearchType(e.target.value)}
+          className="search-select"
+        >
+          <option value="protein">Protein</option>
+          <option value="pathway">Pathway</option>
+          <option value="drug">Drug</option>
+        </select>
         <input
           type="text"
-          placeholder="Enter protein name"
+          placeholder={`Enter ${searchType} name`}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           className="search-input"
@@ -43,7 +59,7 @@ export default function HomePage() {
 
         .title {
           color: #7BAFD4; /* UNC blue */
-          font-size: 3.5rem; /* larger font */
+          font-size: 3.5rem;
           font-weight: 900;
           text-align: center;
           margin-bottom: 2.5rem;
@@ -54,19 +70,29 @@ export default function HomePage() {
           gap: 0.5rem;
         }
 
-        .search-input {
-          background: white;       /* force white background */
+        .search-select {
           padding: 0.75rem 1rem;
           font-size: 1rem;
           border: 2px solid #7BAFD4;
           border-radius: 8px;
-          width: 300px;
+          background: white;
+          color: black;
+          cursor: pointer;
+        }
+
+        .search-input {
+          background: white;
+          padding: 0.75rem 1rem;
+          font-size: 1rem;
+          border: 2px solid #7BAFD4;
+          border-radius: 8px;
+          width: 250px;
           outline: none;
-          color: black;           /* ensure text inside is black */
+          color: black;
         }
 
         .search-input:focus {
-          border-color: #005A9C; /* darker UNC blue */
+          border-color: #005A9C;
         }
 
         .search-button {
@@ -88,4 +114,3 @@ export default function HomePage() {
     </main>
   );
 }
-
