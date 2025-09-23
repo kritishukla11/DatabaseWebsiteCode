@@ -27,11 +27,29 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
         {/* Sticky Header */}
-        <header className="sticky top-0 z-50 bg-[#7BAFD4] text-white p-4 flex gap-6 font-semibold shadow-md">
-          <Link href="/" className="hover:underline">Home</Link>
-          <Link href="/about" className="hover:underline">About</Link>
-          <Link href="/downloads" className="hover:underline">Downloads</Link>
-          <Link href="/user-guide" className="hover:underline">User Guide</Link>
+        <header className="sticky top-0 z-50 bg-white shadow-md">
+          <nav className="max-w-6xl mx-auto flex flex-wrap justify-center gap-6 p-4">
+            <Link href="/" legacyBehavior>
+              <a className="px-4 py-2 rounded-lg border-2 border-[#7BAFD4] text-[#005A9C] font-semibold hover:bg-[#7BAFD4] hover:text-white transition">
+                Home
+              </a>
+            </Link>
+            <Link href="/about" legacyBehavior>
+              <a className="px-4 py-2 rounded-lg border-2 border-[#7BAFD4] text-[#005A9C] font-semibold hover:bg-[#7BAFD4] hover:text-white transition">
+                About
+              </a>
+            </Link>
+            <Link href="/downloads" legacyBehavior>
+              <a className="px-4 py-2 rounded-lg border-2 border-[#7BAFD4] text-[#005A9C] font-semibold hover:bg-[#7BAFD4] hover:text-white transition">
+                Downloads
+              </a>
+            </Link>
+            <Link href="/user-guide" legacyBehavior>
+              <a className="px-4 py-2 rounded-lg border-2 border-[#7BAFD4] text-[#005A9C] font-semibold hover:bg-[#7BAFD4] hover:text-white transition">
+                User Guide
+              </a>
+            </Link>
+          </nav>
         </header>
 
         {/* Page content */}
@@ -40,3 +58,4 @@ export default function RootLayout({
     </html>
   );
 }
+
