@@ -131,16 +131,10 @@ export default function SearchPage() {
         <div className="error-page">
           <h1 className="title">Results for: {gene}</h1>
           <p className="error">{error}</p>
-          <div className="back-home">
-            <a href="/" className="home-link">← Back to Home</a>
-          </div>
         </div>
       ) : (
         <>
           <h1 className="title">Results for: {gene}</h1>
-          <div className="back-home">
-            <a href="/" className="home-link">← Back to Home</a>
-          </div>
 
           {/* Row 1: Panel 1 + Panel 2 */}
           <div className="panel-row">
@@ -334,7 +328,7 @@ export default function SearchPage() {
 
       <style jsx>{`
         .container {
-          background: #f5f6fa;
+          background: #ffffff;
           min-height: 100vh;
           width: 100%;
           margin: 0;
@@ -342,7 +336,7 @@ export default function SearchPage() {
           box-sizing: border-box;
         }
         body {
-          background: #f5f6fa;
+          background: #ffffff;
         }
         .title {
           color: #7bafd4;
@@ -350,10 +344,6 @@ export default function SearchPage() {
           font-weight: 800;
           text-align: center;
           margin-bottom: 1rem;
-        }
-        .back-home {
-          text-align: center;
-          margin-bottom: 2rem;
         }
         .home-link {
           color: #7bafd4;
