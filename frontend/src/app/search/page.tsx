@@ -22,6 +22,11 @@ export default function SearchPage() {
   const [sharedGroups, setSharedGroups] = useState<any[]>([]);
   const [expandedGroup, setExpandedGroup] = useState<string | null>(null);
 
+  // ✅ new state for gene info
+  const [geneInfo, setGeneInfo] = useState<Record<string, string[]> | null>(null);
+  const [selectedInfoGene, setSelectedInfoGene] = useState<string>("");
+  const [expandedInfoGroup, setExpandedInfoGroup] = useState<string | null>(null);
+
   // Effect 1: listen for resize messages from iframe
   useEffect(() => {
     function handleMessage(event: MessageEvent) {
@@ -54,12 +59,15 @@ export default function SearchPage() {
       .then((res) => res.json())
       .then((data) => {
         if (data.error) {
-          setError(data.error); // show backend error message
+          setError(data.error);
           setPlotJson(null);
           setNeighbors([]);
           setSelectedGene("");
           setSharedGroups([]);
           setExpandedGroup(null);
+          setSelectedInfoGene("");
+          setGeneInfo(null);
+          setExpandedInfoGroup(null);
           return;
         }
         setPlotJson(data.plot);
@@ -70,6 +78,7 @@ export default function SearchPage() {
         setSelectedGene("");
         setSharedGroups([]);
         setExpandedGroup(null);
+        setSelectedInfoGene(gene); // default Gene Info = query gene
         setError(null);
       })
       .catch(() => {
@@ -79,6 +88,8 @@ export default function SearchPage() {
         setSelectedGene("");
         setSharedGroups([]);
         setExpandedGroup(null);
+        setSelectedInfoGene("");
+        setGeneInfo(null);
       });
   }, [gene]);
 
@@ -98,6 +109,19 @@ export default function SearchPage() {
       .then((data) => setSharedGroups(data.groups || []))
       .catch(() => setSharedGroups([]));
   }, [gene, selectedGene]);
+
+  // ✅ Effect 5: fetch gene info when dropdown changes
+  useEffect(() => {
+    if (!selectedInfoGene) {
+      setGeneInfo(null);
+      setExpandedInfoGroup(null);
+      return;
+    }
+    fetch(`http://127.0.0.1:8001/gene_info?gene=${encodeURIComponent(selectedInfoGene)}`)
+      .then((res) => res.json())
+      .then((data) => setGeneInfo(data.info || null))
+      .catch(() => setGeneInfo(null));
+  }, [selectedInfoGene]);
 
   return (
     <main className="container">
@@ -190,26 +214,75 @@ export default function SearchPage() {
                   <p>Loading network...</p>
                 )}
               </div>
+
               <aside className="sidebar">
-                <h3 className="sidebar-title">Shared Pathways</h3>
+                {/* ✅ Gene Info box */}
+                <div className="info-box">
+                  <h3 className="sidebar-title">Gene Info</h3>
+                  <select
+                    className="dropdown"
+                    value={selectedInfoGene}
+                    onChange={(e) => setSelectedInfoGene(e.target.value)}
+                  >
+                    <option value="">Select gene</option>
+                    <option value={gene}>{gene}</option>
+                    {neighbors.map((n) => (
+                      <option key={n.protein_id} value={n.protein_id}>
+                        {n.protein_id}
+                      </option>
+                    ))}
+                  </select>
 
-                {/* Neighbor dropdown */}
-                <select
-                  className="dropdown"
-                  value={selectedGene}
-                  onChange={(e) => setSelectedGene(e.target.value)}
-                  aria-label="Select neighbor gene"
-                >
-                  <option value="">Select gene</option>
-                  {neighbors.map((n) => (
-                    <option key={n.protein_id} value={n.protein_id}>
-                      {n.protein_id}
-                    </option>
-                  ))}
-                </select>
+                  {geneInfo && Object.keys(geneInfo).length > 0 ? (
+                    <div className="group-buttons">
+                      {Object.entries(geneInfo).map(([category, values], i) => (
+                        <div key={i} className="group-block">
+                          <button
+                            className={`group-btn ${
+                              expandedInfoGroup === category ? "active" : ""
+                            }`}
+                            onClick={() =>
+                              setExpandedInfoGroup(
+                                expandedInfoGroup === category ? null : category
+                              )
+                            }
+                          >
+                            {category}
+                          </button>
+                          {expandedInfoGroup === category && (
+                            <ul className="info-list">
+                              {(values as string[]).map((v, j) => (
+                                <li key={j}>{v}</li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="no-info">No info available</p>
+                  )}
+                </div>
 
-                {/* Functional group buttons */}
+                {/* Shared Pathways box */}
                 <div className="pathway-box">
+                  <h3 className="sidebar-title">Shared Pathways</h3>
+                  {/* Neighbor dropdown */}
+                  <select
+                    className="dropdown"
+                    value={selectedGene}
+                    onChange={(e) => setSelectedGene(e.target.value)}
+                    aria-label="Select neighbor gene"
+                  >
+                    <option value="">Select gene</option>
+                    {neighbors.map((n) => (
+                      <option key={n.protein_id} value={n.protein_id}>
+                        {n.protein_id}
+                      </option>
+                    ))}
+                  </select>
+
+                  {/* Functional group buttons */}
                   {selectedGene ? (
                     sharedGroups.length ? (
                       <div className="group-buttons">
@@ -328,12 +401,16 @@ export default function SearchPage() {
         }
         .sidebar {
           width: 300px;
+          display: flex;
+          flex-direction: column;
+          gap: 1rem;
+        }
+        .info-box,
+        .pathway-box {
           background: #f1f9ff;
           border: 1px solid #7bafd4;
           border-radius: 8px;
           padding: 1rem;
-          display: flex;
-          flex-direction: column;
         }
         .sidebar-title {
           color: black;
@@ -343,11 +420,6 @@ export default function SearchPage() {
           width: 100%;
           padding: 0.5rem;
           margin-bottom: 0.75rem;
-        }
-        .pathway-box {
-          flex: 1;
-          overflow-y: auto;
-          max-height: 560px;
         }
         .group-buttons {
           display: flex;
@@ -379,6 +451,10 @@ export default function SearchPage() {
           list-style: none;
           color: black;
         }
+        .info-list li,
+        .pathway-list li {
+          margin-bottom: 0.25rem;
+        }
         .pathway-list li {
           display: flex;
           justify-content: space-between;
@@ -387,8 +463,10 @@ export default function SearchPage() {
           color: #555;
           font-weight: 500;
         }
+        .no-info,
         .no-pathways {
           color: black;
+          font-style: italic;
         }
         .error {
           color: red;
@@ -408,14 +486,11 @@ export default function SearchPage() {
           }
           .sidebar {
             width: 100%;
-            max-height: 320px;
-          }
-          .pathway-box {
-            max-height: 240px;
           }
         }
       `}</style>
     </main>
   );
 }
+
 

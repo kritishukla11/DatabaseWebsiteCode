@@ -387,10 +387,30 @@ def shared_pathway_groups(query: str, neighbor: str):
     except Exception as e:
         return {"error": str(e)}
 
+@app.get("/gene_info")
+def gene_info(gene: str):
+    try:
+        df = pd.read_csv("cleaned_mappings_2.csv")
 
+        df["Gene Names"] = df["Gene Names"].astype(str).str.strip().str.upper()
+        g = gene.strip().upper()
 
+        row = df[df["Gene Names"] == g]
+        if row.empty:
+            return {"info": {}}
 
+        record = row.iloc[0].to_dict()
+        record.pop("Gene Names", None)
 
+        # split values on semicolons for lists
+        for k, v in record.items():
+            if isinstance(v, str):
+                record[k] = [x.strip() for x in v.split(";") if x.strip()]
+
+        return {"info": record}
+
+    except Exception as e:
+        return {"error": str(e)}
 
 
 
