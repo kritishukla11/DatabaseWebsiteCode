@@ -20,40 +20,27 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+}: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
-        {/* Sticky Header */}
-        <header className="sticky top-0 z-50 bg-white shadow-md">
-          <nav className="max-w-6xl mx-auto flex flex-wrap justify-center gap-6 p-4">
-            <Link href="/" legacyBehavior>
-              <a className="px-4 py-2 rounded-lg border-2 border-[#7BAFD4] text-[#005A9C] font-semibold hover:bg-[#7BAFD4] hover:text-white transition">
-                Home
-              </a>
-            </Link>
-            <Link href="/about" legacyBehavior>
-              <a className="px-4 py-2 rounded-lg border-2 border-[#7BAFD4] text-[#005A9C] font-semibold hover:bg-[#7BAFD4] hover:text-white transition">
-                About
-              </a>
-            </Link>
-            <Link href="/downloads" legacyBehavior>
-              <a className="px-4 py-2 rounded-lg border-2 border-[#7BAFD4] text-[#005A9C] font-semibold hover:bg-[#7BAFD4] hover:text-white transition">
-                Downloads
-              </a>
-            </Link>
-            <Link href="/user-guide" legacyBehavior>
-              <a className="px-4 py-2 rounded-lg border-2 border-[#7BAFD4] text-[#005A9C] font-semibold hover:bg-[#7BAFD4] hover:text-white transition">
-                User Guide
-              </a>
-            </Link>
+        <header>
+          <nav className="toolbar">
+            {/* Left side */}
+            <div className="toolbar-left">
+              <Link href="/">Home</Link>
+            </div>
+
+            {/* Right side */}
+            <div className="toolbar-right">
+              <Link href="/about">About</Link>
+              <Link href="/downloads">Downloads</Link>
+              <Link href="/user-guide">User Guide</Link>
+            </div>
           </nav>
         </header>
 
-        {/* Page content */}
-        <main className="p-6">{children}</main>
+        <main style={{ padding: "1.5rem" }}>{children}</main>
       </body>
     </html>
   );

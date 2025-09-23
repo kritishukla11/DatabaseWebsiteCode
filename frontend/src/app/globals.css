@@ -1,10 +1,16 @@
+/* ================================
+   Global Variables (UNC Palette)
+   ================================ */
 :root {
-  --unc-blue: #7BAFD4;  /* main UNC blue */
-  --unc-navy: #005A9C;  /* darker UNC blue for hover/focus */
+  --unc-blue: #7BAFD4;  /* light UNC blue */
+  --unc-navy: #005A9C;  /* darker UNC navy */
   --bg: #ffffff;        /* page background */
-  --text: #171717;      /* default text color */
+  --text: #171717;      /* default text */
 }
 
+/* ================================
+   Base Reset
+   ================================ */
 html,
 body {
   max-width: 100vw;
@@ -22,28 +28,61 @@ body {
   margin: 0;
 }
 
-/* Links */
-a {
-  color: var(--unc-navy);
-  text-decoration: none;
+/* ================================
+   Toolbar / Navigation
+   ================================ */
+header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: var(--unc-blue); /* toolbar background */
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+nav.toolbar {
+  display: flex;
+  justify-content: space-between; /* Home left, others right */
+  align-items: center;
+  padding: 1rem 2rem;
+}
+
+.toolbar-left a,
+.toolbar-right a {
+  display: inline-block;
+  padding: 0.75rem 1.5rem;
+  font-size: 1.1rem;
   font-weight: 600;
-  transition: color 0.2s ease, background-color 0.2s ease;
+  color: white; /* default = white */
+  border: 2px solid white;
+  border-radius: 9999px; /* pill shape */
+  text-decoration: none;
+  transition: all 0.2s ease-in-out;
+  background: transparent;
 }
 
-a:hover {
-  color: white;
-  background: var(--unc-blue);
-  border-radius: 6px;
-  padding: 0.1rem 0.25rem;
+.toolbar-right {
+  display: flex;
+  gap: 2rem;
 }
 
-/* Headings */
+.toolbar-left a:hover,
+.toolbar-right a:hover {
+  background: white;
+  color: var(--unc-blue);
+}
+
+/* ================================
+   Headings
+   ================================ */
 h1, h2, h3, h4, h5, h6 {
   color: var(--unc-blue);
   font-weight: 900;
+  margin-bottom: 1rem;
 }
 
-/* Forms (inputs, selects, textareas) */
+/* ================================
+   Forms
+   ================================ */
 input,
 select,
 textarea {
@@ -62,7 +101,9 @@ textarea:focus {
   outline: none;
 }
 
-/* Buttons */
+/* ================================
+   Buttons
+   ================================ */
 button {
   background: var(--unc-blue);
   color: white;
@@ -78,5 +119,3 @@ button {
 button:hover {
   background: var(--unc-navy);
 }
-
-
