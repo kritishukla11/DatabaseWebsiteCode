@@ -8,16 +8,19 @@ export default function HomePage() {
   const [query, setQuery] = useState("");
   const [searchType, setSearchType] = useState("protein"); // default = protein
 
+  // ✅ Updated to normalize to uppercase
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (!query.trim()) return;
 
+    const normalized = query.trim().toUpperCase(); // 👈 convert to uppercase
+
     if (searchType === "protein") {
-      router.push(`/search?gene=${encodeURIComponent(query.trim())}`);
+      router.push(`/search?gene=${encodeURIComponent(normalized)}`);
     } else if (searchType === "pathway") {
-      router.push(`/pathway?pathway=${encodeURIComponent(query.trim())}`);
+      router.push(`/pathway?pathway=${encodeURIComponent(normalized)}`);
     } else if (searchType === "drug") {
-      router.push(`/drug?drug=${encodeURIComponent(query.trim())}`);
+      router.push(`/drug?drug=${encodeURIComponent(normalized)}`);
     }
   };
 
@@ -114,3 +117,4 @@ export default function HomePage() {
     </main>
   );
 }
+
