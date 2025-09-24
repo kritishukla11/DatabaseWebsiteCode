@@ -19,6 +19,11 @@ export default function PathwaySearchPage() {
   >([]);
   const [stringError, setStringError] = useState<string | null>(null);
 
+  // state for description panel
+  const [description, setDescription] = useState<string | null>(null);
+  const [pubmed, setPubmed] = useState<string | null>(null);
+  const [authors, setAuthors] = useState<string | null>(null);
+
   // fetch proteins
   useEffect(() => {
     if (!pathway) return;
@@ -35,6 +40,8 @@ export default function PathwaySearchPage() {
             "Sorry, we don't have information for this transcription regulatory network"
           );
           setProteins([]);
+          setStringError(null);
+          setInteractions([]);
         } else {
           setError(null);
           setProteins(
@@ -75,6 +82,34 @@ export default function PathwaySearchPage() {
         setInteractions([]);
       });
   }, [pathway, threshold]);
+
+  // fetch pathway description
+  useEffect(() => {
+    if (!pathway) return;
+
+    fetch(
+      `http://127.0.0.1:8001/pathway/description?pathway=${encodeURIComponent(
+        pathway
+      )}`
+    )
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.error) {
+          setDescription(null);
+          setPubmed(null);
+          setAuthors(null);
+        } else {
+          setDescription(data.description || null);
+          setPubmed(data.pubmed || null);
+          setAuthors(data.authors || null);
+        }
+      })
+      .catch(() => {
+        setDescription(null);
+        setPubmed(null);
+        setAuthors(null);
+      });
+  }, [pathway]);
 
   return (
     <main className="container">
@@ -123,17 +158,42 @@ export default function PathwaySearchPage() {
             )}
           </div>
 
-          {/* Row 1: full-width top panel */}
+          {/* Row 1: full-width description panel */}
           <div className="panel full">
-            <h2 className="panel-title">Top Pathway Panel</h2>
-            <p>This full-width panel will take up the top row.</p>
+            <h2 className="panel-title">{pathway} Gene Set Description</h2>
+            {description ? (
+              <>
+                <p>{description}</p>
+                {authors && (
+                  <p>
+                    <strong>Authors:</strong> {authors}
+                  </p>
+                )}
+                {pubmed && (
+                  <p>
+                    <strong>Publication:</strong>{" "}
+                    <a
+                      href={`https://pubmed.ncbi.nlm.nih.gov/${pubmed}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      PubMed {pubmed}
+                    </a>
+                  </p>
+                )}
+              </>
+            ) : (
+              <p>No description available for this gene set.</p>
+            )}
           </div>
 
           {/* Row 2: two half-width panels */}
           <div className="panel-row">
             {/* Left: proteins above threshold */}
             <div className="panel half">
-              <h2 className="panel-title">Proteins in {pathway}</h2>
+              <h2 className="panel-title">
+                Proteins with strong association scores with the {pathway} TRN
+              </h2>
 
               <label>
                 Minimum Association Score:{" "}
@@ -297,5 +357,6 @@ export default function PathwaySearchPage() {
     </main>
   );
 }
+
 
 

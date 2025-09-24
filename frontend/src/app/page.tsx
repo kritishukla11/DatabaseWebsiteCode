@@ -10,15 +10,21 @@ export default function HomePage() {
 
   // state for autocomplete
   const [allPathways, setAllPathways] = useState<string[]>([]);
+  const [allProteins, setAllProteins] = useState<string[]>([]);
   const [suggestions, setSuggestions] = useState<string[]>([]);
 
-  // load pathway list only if pathway search is selected
+  // load data when search type changes
   useEffect(() => {
     if (searchType === "pathway") {
       fetch("http://127.0.0.1:8001/pathways/list")
         .then((res) => res.json())
         .then((data) => setAllPathways(data.pathways || []))
         .catch(() => setAllPathways([]));
+    } else if (searchType === "protein") {
+      fetch("http://127.0.0.1:8001/proteins/list")
+        .then((res) => res.json())
+        .then((data) => setAllProteins(data.proteins || []))
+        .catch(() => setAllProteins([]));
     }
   }, [searchType]);
 
@@ -41,6 +47,7 @@ export default function HomePage() {
 
   const getPlaceholder = () => {
     if (searchType === "pathway") return "Enter transcriptional regulatory network name";
+    if (searchType === "protein") return "Enter protein name";
     return `Enter ${searchType} name`;
   };
 
@@ -51,6 +58,11 @@ export default function HomePage() {
       const lowerVal = val.toLowerCase();
       setSuggestions(
         allPathways.filter((p) => p.toLowerCase().startsWith(lowerVal))
+      );
+    } else if (searchType === "protein") {
+      const upperVal = val.toUpperCase();
+      setSuggestions(
+        allProteins.filter((p) => p.startsWith(upperVal))
       );
     } else {
       setSuggestions([]);
@@ -80,10 +92,16 @@ export default function HomePage() {
               onChange={(e) => handleInputChange(e.target.value)}
               className="search-input"
             />
-            {searchType === "pathway" && suggestions.length > 0 && (
+            {suggestions.length > 0 && (
               <ul className="suggestions">
                 {suggestions.map((s) => (
-                  <li key={s} onClick={() => { setQuery(s); setSuggestions([]); }}>
+                  <li
+                    key={s}
+                    onClick={() => {
+                      setQuery(s);
+                      setSuggestions([]);
+                    }}
+                  >
                     {s}
                   </li>
                 ))}

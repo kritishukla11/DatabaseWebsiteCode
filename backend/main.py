@@ -855,4 +855,55 @@ def list_pathways():
     except Exception as e:
         return {"error": str(e)}
 
+@app.get("/proteins/list")
+def list_proteins():
+    try:
+        if _VECS_DF.empty:
+            return {"proteins": []}
+        return {"proteins": _VECS_DF.index.tolist()}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+from io import StringIO
+
+@app.get("/pathway/description")
+def pathway_description(pathway: str):
+    try:
+        # Handle NRF2 separately
+        if pathway.upper() == "NRF2":
+            url = "https://www.gsea-msigdb.org/gsea/msigdb/human/download_geneset.jsp?geneSetName=SINGH_NFE2L2_TARGETS&fileType=TSV"
+        else:
+            url = f"https://www.gsea-msigdb.org/gsea/msigdb/human/download_geneset.jsp?geneSetName={pathway.upper()}_TARGET_GENES&fileType=TSV"
+
+        r = requests.get(url, timeout=10)
+        r.raise_for_status()
+
+        # Load TSV into dataframe
+        df = pd.read_csv(io.StringIO(r.text), sep="\t")
+
+        # Convert first two columns (key, value) into dictionary
+        if df.shape[1] >= 2:
+            meta = pd.Series(df.iloc[:, 1].values, index=df.iloc[:, 0]).to_dict()
+        else:
+            return {"error": f"Unexpected TSV format for {pathway}"}
+
+        desc = meta.get("DESCRIPTION_BRIEF")
+        pubmed = meta.get("PMID")
+        authors = meta.get("AUTHORS")
+
+        return {
+            "pathway": pathway.upper(),
+            "description": desc,
+            "pubmed": pubmed,
+            "authors": authors,
+        }
+
+    except Exception as e:
+        return {"error": f"Could not fetch description for {pathway}: {e}"}
+
+
+
+
+
 
