@@ -903,6 +903,51 @@ def pathway_description(pathway: str):
         return {"error": f"Could not fetch description for {pathway}: {e}"}
 
 
+# =========================================================
+# =============== DOWNLOADS ENDPOINT ======================
+# =========================================================
+
+# =========================================================
+# =============== DOWNLOADS ENDPOINT ======================
+# =========================================================
+
+from fastapi.responses import FileResponse
+
+DOWNLOADABLES = {
+    "all_proteins_max_score_matrix_cleaned.csv": "Protein–Pathway association scores (max scores per protein–pathway)",
+    "calibration.csv": "Calibration curves for computational ranking confidence",
+    "cleaned_mappings_2.csv": "Gene metadata and aliases used for protein lookup",
+    "gene_to_pdb.csv": "Protein ↔ PDB mapping for structure visualization",
+    "llm_group_labels.csv": "Functional groups assigned to TFs by language model curation",
+    "tf_function_labels_10groups.csv": "10-group functional categorization of transcription factor pathways",
+    "annotated_clusters.csv": "Annotated NMF clusters per gene (structure-space regions)",
+    "residue-pathway-score.csv": "Residue-level association scores with pathways",
+    "data/gsea_gdf_files.zip": "All GSEA pathway results (*.gdf.csv) bundled into a ZIP archive",
+}
+
+@app.get("/downloads/list")
+def list_downloads():
+    """List all downloadable files with descriptions."""
+    return [
+        {"filename": fname, "description": desc}
+        for fname, desc in DOWNLOADABLES.items()
+    ]
+
+@app.get("/downloads/get/{filename}")
+def get_download(filename: str):
+    """Serve a file for download if it exists in DOWNLOADABLES."""
+    if filename not in DOWNLOADABLES:
+        raise HTTPException(status_code=404, detail="File not found.")
+
+    fpath = Path(filename)
+    if not fpath.exists():
+        # If relative path, resolve from backend folder
+        fpath = Path(__file__).resolve().parent / filename
+
+    if not fpath.exists():
+        raise HTTPException(status_code=404, detail=f"File {filename} missing on server.")
+
+    return FileResponse(path=fpath, filename=fpath.name, media_type="application/octet-stream")
 
 
 
