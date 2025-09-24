@@ -787,6 +787,9 @@ def stringdb_pathway_interactions(pathway: str, threshold: float = 0.5, species:
     Check STRING interactions between:
       - proteins above threshold for this pathway
       - proteins listed in geneset_files/<pathway>_geneset.csv
+
+    Handles large input lists by batching threshold proteins, 
+    while always including all geneset proteins in each batch.
     """
     try:
         # 1. Get threshold proteins
@@ -804,40 +807,48 @@ def stringdb_pathway_interactions(pathway: str, threshold: float = 0.5, species:
         geneset_df = pd.read_csv(geneset_file)
         geneset_proteins = geneset_df.iloc[:, 0].dropna().astype(str).tolist()
 
-        # 3. Query STRING with combined list
-        query_proteins = list(set(threshold_proteins) | set(geneset_proteins))
-        identifiers = "%0d".join(query_proteins)  # STRING expects %0d as delimiter
-
         STRING_API_URL = "https://string-db.org/api/json/network"
-        params = {
-            "identifiers": identifiers,
-            "species": species,
-            "caller_identity": "my_app"
-        }
-        r = requests.get(STRING_API_URL, params=params)
-        r.raise_for_status()
-        data = r.json()
+        all_data = []
 
-        # 4. Keep only edges where one protein is in threshold_proteins
-        #    and the other is in geneset_proteins
-        interactions = [
-            {
-                "protein1": d["preferredName_A"],
-                "protein2": d["preferredName_B"],
-                "score": d["score"],
-                "escore": d.get("escore"),
-                "dscore": d.get("dscore"),
-                "tscore": d.get("tscore"),
+        # --- Batch only threshold proteins, always include geneset proteins ---
+        batch_size = 20  # adjust if needed
+        for i in range(0, len(threshold_proteins), batch_size):
+            batch_threshold = threshold_proteins[i:i+batch_size]
+            batch_query = list(set(batch_threshold) | set(geneset_proteins))
+            identifiers = "%0d".join(batch_query)
+
+            params = {
+                "identifiers": identifiers,
+                "species": species,
+                "caller_identity": "my_app"
             }
-            for d in data
-            if (
-                (d["preferredName_A"] in threshold_proteins and d["preferredName_B"] in geneset_proteins)
-                or
-                (d["preferredName_B"] in threshold_proteins and d["preferredName_A"] in geneset_proteins)
-            )
-        ]
+            r = requests.get(STRING_API_URL, params=params)
+            r.raise_for_status()
+            all_data.extend(r.json())
+
+        # 3. Filter interactions (prediction ↔ geneset only)
+        interactions = []
+        for d in all_data:
+            a, b = d["preferredName_A"], d["preferredName_B"]
+            if a in threshold_proteins and b in geneset_proteins:
+                interactions.append({
+                    "prediction_protein": a,
+                    "geneset_protein": b,
+                    "score": d["score"]
+                })
+            elif b in threshold_proteins and a in geneset_proteins:
+                interactions.append({
+                    "prediction_protein": b,
+                    "geneset_protein": a,
+                    "score": d["score"]
+                })
 
         return {"interactions": interactions}
 
     except Exception as e:
         return {"error": str(e)}
+
+
+
+
+
