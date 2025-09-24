@@ -747,4 +747,32 @@ def get_structures(gene: str):
             content={"error": f"Failed to load structures for {gene}: {e}"}
         )
 
+# =========================================================
+# =============== PATHWAY ENDPOINT ========================
+# =========================================================
+
+# Load once at startup
+PATHWAY_MATRIX = pd.read_csv("all_proteins_max_score_matrix_cleaned.csv", index_col=0)
+
+@app.get("/pathway/proteins")
+def pathway_proteins(pathway: str, threshold: float = 0.1):
+    """
+    Return all proteins associated with a pathway above a score threshold.
+    """
+    try:
+        if pathway not in PATHWAY_MATRIX.columns:
+            return {"error": f"Pathway '{pathway}' not found."}
+
+        col = PATHWAY_MATRIX[pathway]
+        sel = col[col > threshold].sort_values(ascending=False)
+
+        return {
+            "pathway": pathway,
+            "threshold": threshold,
+            "proteins": sel.index.tolist(),
+            "scores": sel.tolist()
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
 

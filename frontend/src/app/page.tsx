@@ -8,12 +8,11 @@ export default function HomePage() {
   const [query, setQuery] = useState("");
   const [searchType, setSearchType] = useState("protein"); // default = protein
 
-  // ✅ Updated to normalize to uppercase
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (!query.trim()) return;
 
-    const normalized = query.trim().toUpperCase(); // 👈 convert to uppercase
+    const normalized = query.trim().toUpperCase();
 
     if (searchType === "protein") {
       router.push(`/search?gene=${encodeURIComponent(normalized)}`);
@@ -24,53 +23,62 @@ export default function HomePage() {
     }
   };
 
+  const getPlaceholder = () => {
+    if (searchType === "pathway") return "Enter transcription factor network name";
+    return `Enter ${searchType} name`;
+  };
+
   return (
     <main className="container">
-      <h1 className="title">Welcome to the Brunk Lab Protein Database!</h1>
-      <form onSubmit={handleSearch} className="search-form">
-        <select
-          value={searchType}
-          onChange={(e) => setSearchType(e.target.value)}
-          className="search-select"
-        >
-          <option value="protein">Protein</option>
-          <option value="pathway">Pathway</option>
-          <option value="drug">Drug</option>
-        </select>
-        <input
-          type="text"
-          placeholder={`Enter ${searchType} name`}
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          className="search-input"
-        />
-        <button type="submit" className="search-button">
-          Search
-        </button>
-      </form>
+      <div className="content">
+        <h1 className="title">Welcome to the Brunk Lab Protein Database!</h1>
+        <form onSubmit={handleSearch} className="search-form">
+          <select
+            value={searchType}
+            onChange={(e) => setSearchType(e.target.value)}
+            className="search-select"
+          >
+            <option value="protein">Protein</option>
+            <option value="pathway">Transcription Factor Network</option>
+            <option value="drug">Drug</option>
+          </select>
+          <input
+            type="text"
+            placeholder={getPlaceholder()}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="search-input"
+          />
+          <button type="submit" className="search-button">
+            Search
+          </button>
+        </form>
+      </div>
 
       <style jsx>{`
         .container {
           background: white;
-          min-height: 100vh;
+          min-height: 100vh; /* full browser height */
           display: flex;
-          flex-direction: column;
-          justify-content: center;
-          align-items: center;
-          padding: 2rem;
+          justify-content: center; /* center vertically */
+          align-items: center; /* center horizontally */
+        }
+
+        .content {
+          text-align: center;
         }
 
         .title {
           color: #7BAFD4; /* UNC blue */
           font-size: 3.5rem;
           font-weight: 900;
-          text-align: center;
           margin-bottom: 2.5rem;
         }
 
         .search-form {
           display: flex;
           gap: 0.5rem;
+          justify-content: center;
         }
 
         .search-select {
@@ -89,7 +97,7 @@ export default function HomePage() {
           font-size: 1rem;
           border: 2px solid #7BAFD4;
           border-radius: 8px;
-          width: 250px;
+          width: 400px; /* ✅ wider search bar */
           outline: none;
           color: black;
         }
@@ -117,4 +125,5 @@ export default function HomePage() {
     </main>
   );
 }
+
 
