@@ -776,3 +776,68 @@ def pathway_proteins(pathway: str, threshold: float = 0.1):
         return {"error": str(e)}
 
 
+import os
+import requests
+
+GENESET_DIR = Path("geneset_files")
+
+@app.get("/stringdb/pathway_interactions")
+def stringdb_pathway_interactions(pathway: str, threshold: float = 0.5, species: int = 9606):
+    """
+    Check STRING interactions between:
+      - proteins above threshold for this pathway
+      - proteins listed in geneset_files/<pathway>_geneset.csv
+    """
+    try:
+        # 1. Get threshold proteins
+        if pathway not in PATHWAY_MATRIX.columns:
+            return {"error": f"Pathway '{pathway}' not found."}
+        col = PATHWAY_MATRIX[pathway]
+        threshold_proteins = col[col > threshold].index.tolist()
+        if not threshold_proteins:
+            return {"interactions": []}
+
+        # 2. Load geneset proteins from file
+        geneset_file = GENESET_DIR / f"{pathway}_geneset.csv"
+        if not geneset_file.exists():
+            return {"error": f"Geneset file not found for pathway '{pathway}'"}
+        geneset_df = pd.read_csv(geneset_file)
+        geneset_proteins = geneset_df.iloc[:, 0].dropna().astype(str).tolist()
+
+        # 3. Query STRING with combined list
+        query_proteins = list(set(threshold_proteins) | set(geneset_proteins))
+        identifiers = "%0d".join(query_proteins)  # STRING expects %0d as delimiter
+
+        STRING_API_URL = "https://string-db.org/api/json/network"
+        params = {
+            "identifiers": identifiers,
+            "species": species,
+            "caller_identity": "my_app"
+        }
+        r = requests.get(STRING_API_URL, params=params)
+        r.raise_for_status()
+        data = r.json()
+
+        # 4. Keep only edges where one protein is in threshold_proteins
+        #    and the other is in geneset_proteins
+        interactions = [
+            {
+                "protein1": d["preferredName_A"],
+                "protein2": d["preferredName_B"],
+                "score": d["score"],
+                "escore": d.get("escore"),
+                "dscore": d.get("dscore"),
+                "tscore": d.get("tscore"),
+            }
+            for d in data
+            if (
+                (d["preferredName_A"] in threshold_proteins and d["preferredName_B"] in geneset_proteins)
+                or
+                (d["preferredName_B"] in threshold_proteins and d["preferredName_A"] in geneset_proteins)
+            )
+        ]
+
+        return {"interactions": interactions}
+
+    except Exception as e:
+        return {"error": str(e)}

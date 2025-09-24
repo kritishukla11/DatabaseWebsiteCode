@@ -13,6 +13,12 @@ export default function PathwaySearchPage() {
   const [proteins, setProteins] = useState<{ id: string; score: number }[]>([]);
   const [error, setError] = useState<string | null>(null);
 
+  // state for STRING evidence panel
+  const [interactions, setInteractions] = useState<
+    { protein1: string; protein2: string; score: number }[]
+  >([]);
+  const [stringError, setStringError] = useState<string | null>(null);
+
   // fetch proteins whenever pathway or threshold changes
   useEffect(() => {
     if (!pathway) return;
@@ -43,6 +49,31 @@ export default function PathwaySearchPage() {
       });
   }, [pathway, threshold]);
 
+  // fetch STRING interactions whenever pathway or threshold changes
+  useEffect(() => {
+    if (!pathway) return;
+
+    fetch(
+      `http://127.0.0.1:8001/stringdb/pathway_interactions?pathway=${encodeURIComponent(
+        pathway
+      )}&threshold=${threshold}`
+    )
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.error) {
+          setStringError(data.error);
+          setInteractions([]);
+        } else {
+          setStringError(null);
+          setInteractions(data.interactions || []);
+        }
+      })
+      .catch(() => {
+        setStringError("Failed to fetch STRING interactions.");
+        setInteractions([]);
+      });
+  }, [pathway, threshold]);
+
   return (
     <main className="container">
       <h1 className="title">
@@ -55,34 +86,36 @@ export default function PathwaySearchPage() {
         onClick={() => setShowExplanation(!showExplanation)}
       >
         <h2 className="panel-title clickable">
-          {showExplanation ? "▼" : "▶"} Click here for an explanation of how the genes
-          in the Transcription Factor Networks are curated
+          {showExplanation ? "▼" : "▶"} Click here for an explanation of how the
+          genes in the Transcription Factor Networks are curated
         </h2>
         {showExplanation && (
           <div className="explanation-text">
             <p>
-              The Molecular Signatures Database (MSigDB) is a curated resource of gene
-              sets used for gene set enrichment analysis and related approaches. Gene
-              sets in MSigDB are organized into collections that capture different
-              types of biological knowledge, including canonical pathways, Gene
-              Ontology terms, oncogenic and immunologic signatures, and transcription
-              factor targets. These curated and standardized collections provide a
-              consistent framework for interpreting high-throughput data, linking
-              gene-level measurements to higher-order biological processes, regulatory
-              programs, and disease contexts.
+              The Molecular Signatures Database (MSigDB) is a curated resource
+              of gene sets used for gene set enrichment analysis and related
+              approaches. Gene sets in MSigDB are organized into collections
+              that capture different types of biological knowledge, including
+              canonical pathways, Gene Ontology terms, oncogenic and immunologic
+              signatures, and transcription factor targets. These curated and
+              standardized collections provide a consistent framework for
+              interpreting high-throughput data, linking gene-level measurements
+              to higher-order biological processes, regulatory programs, and
+              disease contexts.
             </p>
 
             <p>
-              Within MSigDB, the Transcription Factor Targets (TFT) collection derived
-              from the Gene Transcription Regulation Database (GTRD) represents gene
-              sets defined by transcription factor binding profiles. These sets are
-              constructed by aggregating and uniformly processing large-scale ChIP-seq
-              experiments from public repositories such as GEO, ENCODE, and SRA. For
-              each transcription factor, genes with high-confidence binding sites are
-              grouped into a non-redundant target set. The resulting TFT:GTRD pathways
-              thus provide experimentally supported maps of regulatory programs,
-              enabling the identification of transcription factors that may drive
-              observed gene expression changes in a dataset.
+              Within MSigDB, the Transcription Factor Targets (TFT) collection
+              derived from the Gene Transcription Regulation Database (GTRD)
+              represents gene sets defined by transcription factor binding
+              profiles. These sets are constructed by aggregating and uniformly
+              processing large-scale ChIP-seq experiments from public
+              repositories such as GEO, ENCODE, and SRA. For each transcription
+              factor, genes with high-confidence binding sites are grouped into
+              a non-redundant target set. The resulting TFT:GTRD pathways thus
+              provide experimentally supported maps of regulatory programs,
+              enabling the identification of transcription factors that may
+              drive observed gene expression changes in a dataset.
             </p>
           </div>
         )}
@@ -132,10 +165,24 @@ export default function PathwaySearchPage() {
           )}
         </div>
 
-        {/* Right: placeholder for now */}
+        {/* Right: STRING interactions */}
         <div className="panel half">
-          <h2 className="panel-title">Pathway Panel 2</h2>
-          <p>Content for Pathway Panel 2 will go here later...</p>
+          <h2 className="panel-title">STRING Evidence</h2>
+
+          {stringError ? (
+            <p className="error">{stringError}</p>
+          ) : interactions.length ? (
+            <ul>
+              {interactions.map((i, idx) => (
+                <li key={idx}>
+                  {i.protein1} ↔ {i.protein2} —{" "}
+                  <span className="score">{i.score.toFixed(2)}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p>No STRING interactions found for this set.</p>
+          )}
         </div>
       </div>
 
