@@ -848,5 +848,11 @@ def stringdb_pathway_interactions(pathway: str, threshold: float = 0.5, species:
     except Exception as e:
         return {"error": str(e)}
 
+@app.get("/pathways/list")
+def list_pathways():
+    try:
+        return {"pathways": PATHWAY_MATRIX.columns.tolist()}
+    except Exception as e:
+        return {"error": str(e)}
 
 
