@@ -19,7 +19,7 @@ export default function PathwaySearchPage() {
   >([]);
   const [stringError, setStringError] = useState<string | null>(null);
 
-  // fetch proteins whenever pathway or threshold changes
+  // fetch proteins
   useEffect(() => {
     if (!pathway) return;
 
@@ -31,7 +31,9 @@ export default function PathwaySearchPage() {
       .then((res) => res.json())
       .then((data) => {
         if (data.error) {
-          setError(data.error);
+          setError(
+            "Sorry, we don't have information for this transcription regulatory network"
+          );
           setProteins([]);
         } else {
           setError(null);
@@ -49,7 +51,7 @@ export default function PathwaySearchPage() {
       });
   }, [pathway, threshold]);
 
-  // fetch STRING interactions whenever pathway or threshold changes
+  // fetch STRING interactions
   useEffect(() => {
     if (!pathway) return;
 
@@ -77,124 +79,125 @@ export default function PathwaySearchPage() {
   return (
     <main className="container">
       <h1 className="title">
-        Results for: {pathway} Transcription Factor Network
+        Results for: {pathway} Transcriptional Regulatory Network
       </h1>
 
-      {/* Expandable Explanation Panel */}
-      <div
-        className="panel full expandable"
-        onClick={() => setShowExplanation(!showExplanation)}
-      >
-        <h2 className="panel-title clickable">
-          {showExplanation ? "▼" : "▶"} Click here for an explanation of how the
-          genes in the Transcription Factor Networks are curated
-        </h2>
-        {showExplanation && (
-          <div className="explanation-text">
-            <p>
-              The Molecular Signatures Database (MSigDB) is a curated resource
-              of gene sets used for gene set enrichment analysis and related
-              approaches. Gene sets in MSigDB are organized into collections
-              that capture different types of biological knowledge, including
-              canonical pathways, Gene Ontology terms, oncogenic and immunologic
-              signatures, and transcription factor targets. These curated and
-              standardized collections provide a consistent framework for
-              interpreting high-throughput data, linking gene-level measurements
-              to higher-order biological processes, regulatory programs, and
-              disease contexts.
-            </p>
+      {/* Error message if pathway not found */}
+      {error && <p className="error">{error}</p>}
 
-            <p>
-              Within MSigDB, the Transcription Factor Targets (TFT) collection
-              derived from the Gene Transcription Regulation Database (GTRD)
-              represents gene sets defined by transcription factor binding
-              profiles. These sets are constructed by aggregating and uniformly
-              processing large-scale ChIP-seq experiments from public
-              repositories such as GEO, ENCODE, and SRA. For each transcription
-              factor, genes with high-confidence binding sites are grouped into
-              a non-redundant target set. The resulting TFT:GTRD pathways thus
-              provide experimentally supported maps of regulatory programs,
-              enabling the identification of transcription factors that may
-              drive observed gene expression changes in a dataset.
-            </p>
+      {!error && (
+        <>
+          {/* Expandable Explanation Panel */}
+          <div
+            className="panel full expandable"
+            onClick={() => setShowExplanation(!showExplanation)}
+          >
+            <h2 className="panel-title clickable">
+              {showExplanation ? "▼" : "▶"} Click here for an explanation of how
+              the genes in the Transcriptional Regulatory Networks are curated
+            </h2>
+            {showExplanation && (
+              <div className="explanation-text">
+                <p>
+                  The Molecular Signatures Database (MSigDB) is a curated
+                  resource of gene sets used for gene set enrichment analysis
+                  and related approaches. Gene sets in MSigDB are organized into
+                  collections that capture different types of biological
+                  knowledge, including canonical pathways, Gene Ontology terms,
+                  oncogenic and immunologic signatures, and transcription factor
+                  targets.
+                </p>
+
+                <p>
+                  Within MSigDB, the Transcription Factor Targets (TFT)
+                  collection derived from the Gene Transcription Regulation
+                  Database (GTRD) represents gene sets defined by transcription
+                  factor binding profiles. These sets are constructed by
+                  aggregating and uniformly processing large-scale ChIP-seq
+                  experiments. The resulting TFT:GTRD pathways provide
+                  experimentally supported maps of regulatory programs, enabling
+                  the identification of transcription factors that may drive
+                  observed gene expression changes.
+                </p>
+              </div>
+            )}
           </div>
-        )}
-      </div>
 
-      {/* Row 1: full-width top panel */}
-      <div className="panel full">
-        <h2 className="panel-title">Top Pathway Panel</h2>
-        <p>This full-width panel will take up the top row.</p>
-      </div>
+          {/* Row 1: full-width top panel */}
+          <div className="panel full">
+            <h2 className="panel-title">Top Pathway Panel</h2>
+            <p>This full-width panel will take up the top row.</p>
+          </div>
 
-      {/* Row 2: two half-width panels */}
-      <div className="panel-row">
-        {/* Left: proteins above threshold */}
-        <div className="panel half">
-          <h2 className="panel-title">Proteins in {pathway}</h2>
+          {/* Row 2: two half-width panels */}
+          <div className="panel-row">
+            {/* Left: proteins above threshold */}
+            <div className="panel half">
+              <h2 className="panel-title">Proteins in {pathway}</h2>
 
-          <label>
-            Minimum Association Score:{" "}
-            <select
-              value={threshold}
-              onChange={(e) => setThreshold(parseFloat(e.target.value))}
-            >
-              {[...Array(10)].map((_, i) => {
-                const val = i / 10;
-                return (
-                  <option key={val} value={val}>
-                    {val.toFixed(1)}
-                  </option>
-                );
-              })}
-            </select>
-          </label>
+              <label>
+                Minimum Association Score:{" "}
+                <select
+                  value={threshold}
+                  onChange={(e) => setThreshold(parseFloat(e.target.value))}
+                >
+                  {[...Array(10)].map((_, i) => {
+                    const val = i / 10;
+                    return (
+                      <option key={val} value={val}>
+                        {val.toFixed(1)}
+                      </option>
+                    );
+                  })}
+                </select>
+              </label>
 
-          {error ? (
-            <p className="error">{error}</p>
-          ) : proteins.length ? (
-            <ul>
-              {proteins.map((p) => (
-                <li key={p.id}>
-                  {p.id} — <span className="score">{p.score.toFixed(3)}</span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p>No proteins found above threshold.</p>
-          )}
-        </div>
+              {proteins.length ? (
+                <ul>
+                  {proteins.map((p) => (
+                    <li key={p.id}>
+                      {p.id} —{" "}
+                      <span className="score">{p.score.toFixed(3)}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p>No proteins found above threshold.</p>
+              )}
+            </div>
 
-        {/* Right: STRING interactions */}
-        <div className="panel half">
-          <h2 className="panel-title">STRING Evidence</h2>
+            {/* Right: STRING interactions */}
+            <div className="panel half">
+              <h2 className="panel-title">STRING Evidence</h2>
 
-          {stringError ? (
-            <p className="error">{stringError}</p>
-          ) : interactions.length ? (
-            <table className="string-table">
-              <thead>
-                <tr>
-                  <th>Protein from Prediction</th>
-                  <th>Protein in {pathway} Gene Set</th>
-                  <th>STRING Score</th>
-                </tr>
-              </thead>
-              <tbody>
-                {interactions.map((i, idx) => (
-                  <tr key={idx}>
-                    <td>{i.prediction_protein}</td>
-                    <td>{i.geneset_protein}</td>
-                    <td>{i.score.toFixed(2)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : (
-            <p>No STRING interactions found for this set.</p>
-          )}
-        </div>
-      </div>
+              {stringError ? (
+                <p className="error">{stringError}</p>
+              ) : interactions.length ? (
+                <table className="string-table">
+                  <thead>
+                    <tr>
+                      <th>Protein from Prediction</th>
+                      <th>Protein in {pathway} Gene Set</th>
+                      <th>STRING Score</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {interactions.map((i, idx) => (
+                      <tr key={idx}>
+                        <td>{i.prediction_protein}</td>
+                        <td>{i.geneset_protein}</td>
+                        <td>{i.score.toFixed(2)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <p>No STRING interactions found for this set.</p>
+              )}
+            </div>
+          </div>
+        </>
+      )}
 
       <style jsx>{`
         .container {
@@ -253,6 +256,9 @@ export default function PathwaySearchPage() {
         }
         .error {
           color: red;
+          font-size: 1.2rem;
+          text-align: center;
+          margin: 2rem 0;
         }
         ul {
           margin-top: 1rem;
@@ -291,4 +297,5 @@ export default function PathwaySearchPage() {
     </main>
   );
 }
+
 
