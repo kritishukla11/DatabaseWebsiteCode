@@ -15,7 +15,7 @@ export default function PathwaySearchPage() {
 
   // state for STRING evidence panel
   const [interactions, setInteractions] = useState<
-    { protein1: string; protein2: string; score: number }[]
+    { prediction_protein: string; geneset_protein: string; score: number }[]
   >([]);
   const [stringError, setStringError] = useState<string | null>(null);
 
@@ -139,7 +139,7 @@ export default function PathwaySearchPage() {
               value={threshold}
               onChange={(e) => setThreshold(parseFloat(e.target.value))}
             >
-              {[...Array(11)].map((_, i) => {
+              {[...Array(10)].map((_, i) => {
                 const val = i / 10;
                 return (
                   <option key={val} value={val}>
@@ -172,14 +172,24 @@ export default function PathwaySearchPage() {
           {stringError ? (
             <p className="error">{stringError}</p>
           ) : interactions.length ? (
-            <ul>
-              {interactions.map((i, idx) => (
-                <li key={idx}>
-                  {i.protein1} ↔ {i.protein2} —{" "}
-                  <span className="score">{i.score.toFixed(2)}</span>
-                </li>
-              ))}
-            </ul>
+            <table className="string-table">
+              <thead>
+                <tr>
+                  <th>Protein from Prediction</th>
+                  <th>Protein in {pathway} Gene Set</th>
+                  <th>STRING Score</th>
+                </tr>
+              </thead>
+              <tbody>
+                {interactions.map((i, idx) => (
+                  <tr key={idx}>
+                    <td>{i.prediction_protein}</td>
+                    <td>{i.geneset_protein}</td>
+                    <td>{i.score.toFixed(2)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           ) : (
             <p>No STRING interactions found for this set.</p>
           )}
@@ -252,6 +262,26 @@ export default function PathwaySearchPage() {
           color: #555;
           font-weight: 500;
         }
+        .string-table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-top: 1rem;
+          font-size: 0.95rem;
+        }
+        .string-table th,
+        .string-table td {
+          border: 1px solid #ccc;
+          padding: 0.5rem;
+          text-align: center;
+        }
+        .string-table th {
+          background-color: #f1f9ff;
+          color: #333;
+          font-weight: 700;
+        }
+        .string-table tr:nth-child(even) {
+          background-color: #fafafa;
+        }
         @media (max-width: 900px) {
           .panel-row {
             grid-template-columns: 1fr;
@@ -261,3 +291,4 @@ export default function PathwaySearchPage() {
     </main>
   );
 }
+
