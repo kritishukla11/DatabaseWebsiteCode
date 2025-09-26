@@ -683,7 +683,11 @@ def flatmap_image(gene: str, name: str | None = None, collapse: str = "max"):
     plt.savefig(buf, format="png", dpi=170, bbox_inches="tight")
     plt.close(fig)
     buf.seek(0)
-    return StreamingResponse(buf, media_type="image/png")
+    return StreamingResponse(
+        buf,
+        media_type="image/png",
+        headers={"Cache-Control": "no-store"}
+    )
 
 
 
@@ -712,7 +716,12 @@ def calibration_image(gene: str):
     plt.close(fig)
     buf.seek(0)
 
-    return Response(content=buf.read(), media_type="image/png")
+    return Response(
+        content=buf.read(),
+        media_type="image/png",
+        headers={"Cache-Control": "no-store"}
+    )
+
 
 # =========================================================
 # =============== PANEL 1: structures endpoint ============
@@ -904,8 +913,51 @@ def pathway_description(pathway: str):
 
 
 # =========================================================
-# =============== DOWNLOADS ENDPOINT ======================
+# ========= PANEL 4: AUPRC plot (matplotlib) ==============
 # =========================================================
+DRUG_AUC_DF = pd.read_csv("drug_AUC.csv")
+
+@app.get("/auprc/image")
+def auprc_image(gene: str):
+    """
+    Return AUPRC plot for a given gene.
+    """
+    try:
+        df = pd.read_csv("drug_AUC.csv")
+
+        # Subset to this gene
+        sub = df[df["gene"].str.upper() == gene.upper()]
+        if sub.empty:
+            return Response(status_code=404)
+
+        fig, ax = plt.subplots()
+
+        # ✅ Plot drug_norm vs AUPRC_mean
+        ax.plot(sub["drug_norm"], sub["AUPRC_mean"], marker="o", linestyle="-")
+
+        # ✅ Formatting: clean minimal plot
+        ax.set_xticks([])                # remove ticks
+        ax.set_xticklabels([])           # remove labels
+        ax.grid(False)                   # remove gridlines
+        ax.set_title("")                 # remove title
+        ax.set_ylabel("AUPRC (mean)")    # keep only y-axis label
+
+        # Save to PNG buffer
+        buf = io.BytesIO()
+        plt.savefig(buf, format="png", bbox_inches="tight")
+        plt.close(fig)
+        buf.seek(0)
+
+        return Response(
+            content=buf.read(),
+            media_type="image/png",
+            headers={"Cache-Control": "no-store"}
+        )
+
+    except Exception as e:
+        return {"error": str(e)}
+
+
 
 # =========================================================
 # =============== DOWNLOADS ENDPOINT ======================

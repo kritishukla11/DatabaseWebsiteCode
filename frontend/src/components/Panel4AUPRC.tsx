@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 
 const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8001";
 
-export default function Panel3Calibration({ gene }: { gene: string }) {
+export default function Panel4AUPRC({ gene }: { gene: string }) {
   const [imgUrl, setImgUrl] = useState<string | null>(null);
 
   useEffect(() => {
@@ -12,7 +12,7 @@ export default function Panel3Calibration({ gene }: { gene: string }) {
       setImgUrl(null);
       return;
     }
-    const url = `${BACKEND}/calibration/image?gene=${encodeURIComponent(
+    const url = `${BACKEND}/auprc/image?gene=${encodeURIComponent(
       gene
     )}&_ts=${Date.now()}`;
     setImgUrl(url);
@@ -26,12 +26,12 @@ export default function Panel3Calibration({ gene }: { gene: string }) {
       {!gene ? (
         <p className="text-gray-500">No gene selected.</p>
       ) : !imgUrl ? (
-        <p className="text-gray-500">Loading calibration plot...</p>
+        <p className="text-gray-500">Loading AUPRC plot...</p>
       ) : (
         <img
-          key={`calibration-${imgUrl}`}
+          key={`auprc-${imgUrl}`}
           src={imgUrl}
-          alt={`Calibration plot for ${gene}`}
+          alt={`AUPRC plot for ${gene}`}
           style={{
             width: "100%",
             height: "auto",
@@ -44,3 +44,4 @@ export default function Panel3Calibration({ gene }: { gene: string }) {
     </div>
   );
 }
+

@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import Panel2Flatmap from "@/components/Panel2Flatmap";
 import Panel3Calibration from "@/components/Panel3Calibration";
+import Panel4AUPRC from "@/components/Panel4AUPRC";
 
 const Plot = dynamic(() => import("react-plotly.js"), { ssr: false });
 
@@ -160,7 +161,7 @@ export default function SearchPage() {
 
             <div className="panel half">
               <h2 className="panel-title">2D Protein Flatmap</h2>
-              <Panel2Flatmap gene={gene} />
+              <Panel2Flatmap key={`flatmap-${gene || "none"}`} gene={gene} />
             </div>
           </div>
 
@@ -171,12 +172,12 @@ export default function SearchPage() {
               style={{ minHeight: "600px", display: "flex", flexDirection: "column" }}
             >
               <h2 className="panel-title">Empirical Calibration Plot - Protein/Pathway</h2>
-              <Panel3Calibration gene={gene} />
+              <Panel3Calibration key={`calibration-${gene || "none"}`} gene={gene} />
             </div>
 
             <div className="panel half">
-              <h2 className="panel-title">Panel 4</h2>
-              <p>Content for Panel 4 will go here later...</p>
+              <h2 className="panel-title">AUPRC for drugs</h2>
+              <Panel4AUPRC key={`auprc-${gene}`} gene={gene} />
             </div>
           </div>
 

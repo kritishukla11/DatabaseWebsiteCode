@@ -7,10 +7,14 @@ const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8001";
 export default function Panel2Flatmap({ gene }: { gene: string }) {
   const [pathways, setPathways] = useState<string[]>([]);
   const [selected, setSelected] = useState<string>("");
+  const [imgUrl, setImgUrl] = useState<string | null>(null);
 
   // Load available pathways when gene changes
   useEffect(() => {
-    if (!gene) return;
+    if (!gene) {
+      setPathways([]);
+      return;
+    }
     (async () => {
       try {
         const res = await fetch(`${BACKEND}/flatmap/pathways?gene=${gene}`);
@@ -22,12 +26,19 @@ export default function Panel2Flatmap({ gene }: { gene: string }) {
     })();
   }, [gene]);
 
-  // Image URL (cache-busted with timestamp)
-  const imgUrl = selected
-    ? `${BACKEND}/flatmap/image?gene=${gene}&name=${encodeURIComponent(
-        selected
-      )}&_ts=${Date.now()}`
-    : `${BACKEND}/flatmap/image?gene=${gene}&_ts=${Date.now()}`;
+  // Build image URL whenever gene or selection changes
+  useEffect(() => {
+    if (!gene) {
+      setImgUrl(null);
+      return;
+    }
+    const url = selected
+      ? `${BACKEND}/flatmap/image?gene=${gene}&name=${encodeURIComponent(
+          selected
+        )}&_ts=${Date.now()}`
+      : `${BACKEND}/flatmap/image?gene=${gene}&_ts=${Date.now()}`;
+    setImgUrl(url);
+  }, [gene, selected]);
 
   return (
     <div>
@@ -46,22 +57,20 @@ export default function Panel2Flatmap({ gene }: { gene: string }) {
         </select>
       </div>
 
-      <div
-        className="border rounded-lg shadow bg-white p-2"
-        style={{ marginTop: "1rem" }}
-      >
-        {gene ? (
+      <div className="border rounded-lg shadow bg-white p-2" style={{ marginTop: "1rem" }}>
+        {!gene ? (
+          <p className="text-gray-500">No gene selected.</p>
+        ) : !imgUrl ? (
+          <p className="text-gray-500">Loading flatmap...</p>
+        ) : (
           <img
-            key={imgUrl}
+            key={`flatmap-${imgUrl}`}
             src={imgUrl}
             alt={`${gene} Flatmap`}
             style={{ width: "100%", maxHeight: "480px", objectFit: "contain" }}
           />
-        ) : (
-          <p className="text-gray-500">No gene selected.</p>
         )}
       </div>
     </div>
   );
 }
-
