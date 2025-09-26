@@ -22,10 +22,12 @@ export default function Panel2Flatmap({ gene }: { gene: string }) {
     })();
   }, [gene]);
 
-  // Image URL
+  // Image URL (cache-busted with timestamp)
   const imgUrl = selected
-    ? `${BACKEND}/flatmap/image?gene=${gene}&name=${encodeURIComponent(selected)}`
-    : `${BACKEND}/flatmap/image?gene=${gene}`;
+    ? `${BACKEND}/flatmap/image?gene=${gene}&name=${encodeURIComponent(
+        selected
+      )}&_ts=${Date.now()}`
+    : `${BACKEND}/flatmap/image?gene=${gene}&_ts=${Date.now()}`;
 
   return (
     <div>
@@ -46,7 +48,7 @@ export default function Panel2Flatmap({ gene }: { gene: string }) {
 
       <div
         className="border rounded-lg shadow bg-white p-2"
-        style={{ marginTop: "1rem" }} // 👈 pushes image lower
+        style={{ marginTop: "1rem" }}
       >
         {gene ? (
           <img
