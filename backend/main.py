@@ -712,14 +712,17 @@ def calibration_image(gene: str):
 
     # save to PNG buffer
     buf = io.BytesIO()
-    plt.savefig(buf, format="png", bbox_inches="tight")
+    fig.savefig(buf, format="png", bbox_inches="tight")
     plt.close(fig)
     buf.seek(0)
 
-    return Response(
-        content=buf.read(),
+    return StreamingResponse(
+        buf,
         media_type="image/png",
-        headers={"Cache-Control": "no-store"}
+        headers={
+            "Cache-Control": "no-store",
+            "Access-Control-Allow-Origin": "*"
+        }
     )
 
 
@@ -915,6 +918,8 @@ def pathway_description(pathway: str):
 # =========================================================
 # ========= PANEL 4: AUPRC plot (matplotlib) ==============
 # =========================================================
+
+# ✅ Load CSV once globally
 DRUG_AUC_DF = pd.read_csv("drug_AUC.csv")
 
 @app.get("/auprc/image")
@@ -923,10 +928,8 @@ def auprc_image(gene: str):
     Return AUPRC plot for a given gene.
     """
     try:
-        df = pd.read_csv("drug_AUC.csv")
-
         # Subset to this gene
-        sub = df[df["gene"].str.upper() == gene.upper()]
+        sub = DRUG_AUC_DF[DRUG_AUC_DF["gene"].str.upper() == gene.upper()]
         if sub.empty:
             return Response(status_code=404)
 
@@ -944,15 +947,42 @@ def auprc_image(gene: str):
 
         # Save to PNG buffer
         buf = io.BytesIO()
-        plt.savefig(buf, format="png", bbox_inches="tight")
+        fig.savefig(buf, format="png", bbox_inches="tight") 
         plt.close(fig)
         buf.seek(0)
 
-        return Response(
-            content=buf.read(),
+        return StreamingResponse(
+            buf,
             media_type="image/png",
-            headers={"Cache-Control": "no-store"}
+            headers={
+                "Cache-Control": "no-store",
+                "Access-Control-Allow-Origin": "*"
+            }
         )
+
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@app.get("/auprc/rankings")
+def auprc_rankings(gene: str):
+    """
+    Return list of drugs ranked for a given gene.
+    """
+    try:
+        sub = DRUG_AUC_DF[DRUG_AUC_DF["gene"].str.upper() == gene.upper()]
+        if sub.empty:
+            return {"rankings": []}
+
+        # Sort by AUPRC_mean descending
+        ranked = sub.sort_values("AUPRC_mean", ascending=False)
+
+        return {
+            "rankings": [
+                {"drug": row["drug_norm"], "auprc": row["AUPRC_mean"]}
+                for _, row in ranked.iterrows()
+            ]
+        }
 
     except Exception as e:
         return {"error": str(e)}
