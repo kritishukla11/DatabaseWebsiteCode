@@ -171,7 +171,7 @@ export default function SearchPage() {
               className="panel half"
               style={{ minHeight: "600px", display: "flex", flexDirection: "column" }}
             >
-              <h2 className="panel-title">Empirical Calibration Plot - Protein/Pathway</h2>
+              <h2 className="panel-title">Perturb-Seq Based Confidence of Protein/TRN Association</h2>
               <Panel3Calibration key={`calibration-${gene || "none"}`} gene={gene} />
             </div>
 

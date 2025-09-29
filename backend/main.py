@@ -729,6 +729,37 @@ def calibration_image(gene: str):
         }
     )
 
+@app.get("/calibration/genes")
+def calibration_genes(gene: str):
+    """
+    Return partner genes (from 'genes' column) and their confidence values
+    for the searched gene.
+    """
+    try:
+        if not {"gene", "genes", "confidence"}.issubset(CALIBRATION_DF.columns):
+            return {"error": "CSV must have columns: gene, genes, confidence"}
+
+        sub = CALIBRATION_DF[CALIBRATION_DF["gene"].str.upper() == gene.upper()]
+        if sub.empty:
+            return {"genes": []}
+
+        # drop duplicates (one row per partner gene, highest confidence)
+        grouped = (
+            sub.groupby("genes")["confidence"]
+            .max()
+            .reset_index()
+            .sort_values("confidence", ascending=False)
+        )
+
+        return {
+            "genes": [
+                {"gene": row["genes"], "confidence": float(row["confidence"])}
+                for _, row in grouped.iterrows()
+            ]
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
 
 # =========================================================
 # =============== PANEL 1: structures endpoint ============
