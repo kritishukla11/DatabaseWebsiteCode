@@ -703,10 +703,14 @@ def calibration_image(gene: str):
     if sub.empty:
         return Response(status_code=404)
 
+    
     # make plot
     fig, ax = plt.subplots()
     ax.plot(sub["adjusted_rank"], sub["confidence"])
-    ax.set_xlabel("Rank (from computational method)")
+    # remove x-axis labels and ticks
+    ax.set_xlabel("")           # remove x-axis label text
+    ax.set_xticks([])           # remove tick marks
+    ax.set_xticklabels([])      # remove tick labels
     ax.set_ylabel("Confidence (% significant)")
     ax.grid(False)
 
