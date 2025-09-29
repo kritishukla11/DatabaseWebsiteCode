@@ -85,6 +85,10 @@
         <div class="field" style="flex:0 0 140px">
           <button id="btnClear" type="button">Clear</button>
         </div>
+
+        <div class="field" style="flex:0 0 200px">
+          <button id="btnZoomWhole" type="button">Zoom to Whole Protein</button>
+        </div>
       </div>
 
       <div id="status"></div>
@@ -289,7 +293,17 @@
             warn("");
             error("");
           });
-        }
+
+          $("btnZoomWhole").addEventListener("click", () => {
+            if (viewer) {
+              viewer.zoomTo();    // zoom to the whole protein
+              viewer.render();
+              status("Zoomed to whole protein.");
+            }
+          });
+
+          }
+
 
         function showManualGene(show) { $("manualGeneBox").style.display = show ? "" : "none"; }
         function disableSelectors(disabled) {
