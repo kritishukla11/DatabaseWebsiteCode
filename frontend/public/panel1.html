@@ -493,19 +493,25 @@
 
           currentClusterKeys.forEach((k) => {
             const presentCount = currentResiduesSorted.filter(
-            (r) => geneResidueToCluster.get(gene)?.get(r) === k
-          ).length;
-          const colorHex = currentColorMap.get(k) || "#666";
-          const colorName = colorNames[colorHex.toLowerCase()] || colorHex; // fallback to hex
+              (r) => geneResidueToCluster.get(gene)?.get(r) === k
+            ).length;
+            const colorHex = currentColorMap.get(k) || "#666";
+            const colorName = colorNames[colorHex.toLowerCase()] || colorHex;
 
-          const o = document.createElement("option");
-          o.value = k;
-          o.textContent = `${k} (${presentCount} residues) - ${colorName}`;
-          cs.appendChild(o);
-        });
+            const o = document.createElement("option");
+            o.value = k;
+
+            // Add text in black + color square
+            o.innerHTML = `${k} (${presentCount} residues) - ${colorName} ` +
+              `<span style="display:inline-block;width:12px;height:12px;` +
+              `background-color:${colorHex};margin-left:6px;border:1px solid #333;vertical-align:middle;"></span>`;
+
+            cs.appendChild(o);
+          });
 
         cs.disabled = currentClusterKeys.length === 0;
       }
+
 
 
         function populateResidueSelector(list) {
