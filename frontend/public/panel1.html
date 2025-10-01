@@ -743,22 +743,22 @@
           panel.hidden = false;
           panel.style.display = "block";
           const rows = genePathwaysByCluster.get(gene)?.get(clusterKey) || [];
+
           $("pathwaysNote").innerHTML =
             resi != null
               ? `Residue <span class="mono">${resi}</span> → cluster <strong>${escapeHtml(clusterKey)}</strong>.`
               : `Cluster <strong>${escapeHtml(clusterKey)}</strong>.`;
-          if (!rows.length) {
-            $("pathwaysTableWrap").innerHTML = '<div class="muted">No pathways found for this cluster in the CSV.</div>';
-            notifyParentOfHeight();
-            return;
-          }
+
+          // filter out 0 scores
           const seen = new Map();
           for (const { pathway, score } of rows) {
             if (!pathway) continue;
+            if (score === 0) continue;   // <-- filter out rows with score = 0
             if (!seen.has(pathway) || (Number.isFinite(score) && score > seen.get(pathway))) {
               seen.set(pathway, score);
             }
           }
+
           const uniqueRows = Array.from(seen.entries())
             .map(([pathway, score]) => ({ pathway, score }))
             .sort((a, b) => {
@@ -766,7 +766,14 @@
               const bs = Number.isFinite(b.score) ? b.score : -Infinity;
               return bs - as;
             });
+
           const topRows = uniqueRows.slice(0, 10);
+          if (!topRows.length) {
+            $("pathwaysTableWrap").innerHTML = '<div class="muted">No nonzero pathways for this cluster.</div>';
+            notifyParentOfHeight();
+            return;
+          }
+
           let html = `<table class="pathways"><thead><tr><th>Pathway</th><th>Score</th></tr></thead><tbody>`;
           for (const { pathway, score } of topRows) {
             const s = Number.isFinite(score) ? score.toPrecision(6) : "";
@@ -776,6 +783,7 @@
           $("pathwaysTableWrap").innerHTML = html;
           notifyParentOfHeight();
         }
+
 
         // ---------- Overlap warning ----------
         function checkResidueOverlapAndWarn() {
