@@ -477,17 +477,36 @@
         function populateClusterSelectForGene(gene) {
           const cs = $("clusterSelect");
           cs.innerHTML = '<option value="" selected>— all clusters —</option>';
+
+          // Map hex → friendly name
+          const colorNames = {
+            "#e41a1c": "red",
+            "#377eb8": "blue",
+            "#4daf4a": "green",
+            "#984ea3": "purple",
+            "#ff7f00": "orange",
+            "#ffff33": "yellow",
+            "#a65628": "brown",
+            "#f781bf": "pink",
+            "#999999": "gray"
+          };
+
           currentClusterKeys.forEach((k) => {
             const presentCount = currentResiduesSorted.filter(
-              (r) => geneResidueToCluster.get(gene)?.get(r) === k
-            ).length;
-            const o = document.createElement("option");
-            o.value = k;
-            o.textContent = `${k} (${presentCount})`;
-            cs.appendChild(o);
-          });
-          cs.disabled = currentClusterKeys.length === 0;
-        }
+            (r) => geneResidueToCluster.get(gene)?.get(r) === k
+          ).length;
+          const colorHex = currentColorMap.get(k) || "#666";
+          const colorName = colorNames[colorHex.toLowerCase()] || colorHex; // fallback to hex
+
+          const o = document.createElement("option");
+          o.value = k;
+          o.textContent = `${k} (${presentCount} residues) - ${colorName}`;
+          cs.appendChild(o);
+        });
+
+        cs.disabled = currentClusterKeys.length === 0;
+      }
+
 
         function populateResidueSelector(list) {
           const rs = $("resiSelect");
