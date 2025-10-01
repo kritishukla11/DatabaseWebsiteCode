@@ -176,28 +176,40 @@
             initViewer();
             try {
               await loadGeneMapping();
-              await loadResiduePathwayScore();
-              populateGeneSelect();
 
-              const urlGene = getQueryParam("gene");
+              const urlGene = (getQueryParam("gene") || "").trim().toUpperCase();
               const urlStructure = getQueryParam("structure");
 
+              // If a gene is in the URL, try the backend first so we get clusters/colors
               if (urlGene) {
-                const g = urlGene.trim();
-                if (genes.includes(g)) {
-                  $("geneSelect").value = g;
-                  await handleGeneChange(g, urlStructure);
+                try {
+                  // build gene maps from backend for that gene
+                  await loadResiduePathwayScore(urlGene);
+                } catch (_) {
+                  // ignore — we'll fall back to custom if no data
+                }
+
+                // Now that genes[] may be populated, build the dropdown
+                populateGeneSelect();
+
+                if (genes.includes(urlGene)) {
+                  $("geneSelect").value = urlGene;
+                  await handleGeneChange(urlGene, urlStructure);
                 } else {
-                  // Custom gene mode
+                  // No backend data — go to custom mode (AlphaFold only)
                   $("geneSelect").value = "__custom__";
                   showManualGene(true);
-                  $("geneInput").value = g;
-                  await loadCustomGene(g); // loads AlphaFold only
+                  $("geneInput").value = urlGene;
+                  await loadCustomGene(urlGene);
                 }
-              } else if (genes.length) {
-                $("geneSelect").value = genes[0];
-                await handleGeneChange(genes[0]);
+              } else {
+                // No URL gene — show manual box by default (or you can prefill a favorite)
+                populateGeneSelect();
+                $("geneSelect").value = "__custom__";
+                showManualGene(true);
+                status('Enter a gene symbol and click "Load structure".');
               }
+
 
               status("Ready.");
               error("");
@@ -240,6 +252,23 @@
           $("btnLoadGene").addEventListener("click", async () => {
             const g = $("geneInput").value.trim();
             if (!g) { error("Please enter a gene symbol."); return; }
+
+            warn(""); error(""); status(`Checking backend for ${g}…`);
+            try {
+              await loadResiduePathwayScore(g);          // builds maps & pushes g into genes[] if found
+              if (genes.includes(g)) {
+                populateGeneSelect();
+                $("geneSelect").value = g;
+                showManualGene(false);
+                structureSelectDisable(false);
+                await handleGeneChange(g);
+                return;
+              }
+            } catch (_) {
+              // ignore and fall through to custom
+            }
+
+            // Backend had nothing — just show AlphaFold without clusters
             await loadCustomGene(g);
           });
 
@@ -334,20 +363,18 @@
           }
         }
 
-        async function loadResiduePathwayScore() {
-          const res = await fetch("residue-pathway-score.csv", { cache: "no-store" });
-          if (!res.ok) throw new Error("residue-pathway-score.csv not found");
-          const text = await res.text();
-          const out = Papa.parse(text, { header: true, skipEmptyLines: true });
-          const fields = out.meta?.fields || [];
-          const geneCol = findColumn(fields, ["gene"]);
-          const residueCol = findColumn(fields, ["residue", "res"]);
-          const clusterCol = findColumn(fields, ["cluster", "clust"]);
-          const pathwayCol = findColumn(fields, ["pathway", "path"]);
-          const scoreCol = findColumn(fields, ["score", "value"]);
-          if (!geneCol || !residueCol || !clusterCol || !pathwayCol) {
-            throw new Error("CSV must include gene, residue, cluster, pathway columns.");
-          }
+        const API_BASE = "http://127.0.0.1:8001";
+
+        async function loadResiduesForColoring(gene) {
+          const res = await fetch(`${API_BASE}/residues?gene=${encodeURIComponent(gene)}`);
+          if (!res.ok) throw new Error("Failed to fetch residues");
+          return await res.json();
+        }
+
+
+        async function loadResiduePathwayScore(gene) {
+          // --- build cluster → residues map from /residues ---
+          const colorRows = await loadResiduesForColoring(gene);
 
           genes = [];
           geneResidueSet.clear();
@@ -356,56 +383,66 @@
           genePathwaysByCluster.clear();
           const geneSeen = new Set();
 
-          for (const row of out.data) {
-            const gene = (row[geneCol] ?? "").toString().trim();
-            if (!gene) continue;
-            if (!geneSeen.has(gene)) { geneSeen.add(gene); genes.push(gene); }
+          for (const row of colorRows) {
+            const g = String(row.gene ?? "").trim().toUpperCase();
+            if (!g) continue;
+            if (!geneSeen.has(g)) { geneSeen.add(g); genes.push(g); }
 
-            const resi = Number(row[residueCol]);
+            const resi = Number(row.residue ?? row.res);
             if (!Number.isFinite(resi) || resi <= 0) continue;
 
-            let clusterKey = row[clusterCol];
-            clusterKey = (clusterKey == null) ? "" : String(clusterKey).trim();
-            if (clusterKey && clusterKey.toLowerCase() === "nan") clusterKey = "";
+            let clusterKey = String(row.cluster ?? row.clust ?? "").trim();
+            if (!clusterKey || clusterKey.toLowerCase() === "nan") continue;
 
-            if (!geneResidueSet.has(gene)) geneResidueSet.set(gene, new Set());
-            if (!geneResidueToCluster.has(gene)) geneResidueToCluster.set(gene, new Map());
-            if (!geneClusterMap.has(gene)) geneClusterMap.set(gene, new Map());
-            if (!genePathwaysByCluster.has(gene)) genePathwaysByCluster.set(gene, new Map());
+            if (!geneResidueSet.has(g)) geneResidueSet.set(g, new Set());
+            if (!geneResidueToCluster.has(g)) geneResidueToCluster.set(g, new Map());
+            if (!geneClusterMap.has(g)) geneClusterMap.set(g, new Map());
+            if (!genePathwaysByCluster.has(g)) genePathwaysByCluster.set(g, new Map());
 
-            if (clusterKey && !geneClusterMap.get(gene).has(clusterKey)) {
-              geneClusterMap.get(gene).set(clusterKey, new Set());
+            if (!geneClusterMap.get(g).has(clusterKey)) {
+              geneClusterMap.get(g).set(clusterKey, new Set());
             }
-            if (clusterKey && !genePathwaysByCluster.get(gene).has(clusterKey)) {
-              genePathwaysByCluster.get(gene).set(clusterKey, []);
-            }
-
-            geneResidueSet.get(gene).add(resi);
-            if (clusterKey) {
-              geneResidueToCluster.get(gene).set(resi, clusterKey);
-              geneClusterMap.get(gene).get(clusterKey).add(resi);
+            if (!genePathwaysByCluster.get(g).has(clusterKey)) {
+              genePathwaysByCluster.get(g).set(clusterKey, []);
             }
 
-            const pathway = row[pathwayCol];
-            if (clusterKey && pathway != null && pathway !== "") {
-              const score = scoreCol ? Number(row[scoreCol]) : NaN;
-              genePathwaysByCluster.get(gene).get(clusterKey).push({
+            geneResidueSet.get(g).add(resi);
+            geneResidueToCluster.get(g).set(resi, clusterKey);
+            geneClusterMap.get(g).get(clusterKey).add(resi);
+          } 
+
+          // --- now merge pathway info from /residues_with_pathways ---
+          const res2 = await fetch(`${API_BASE}/residues_with_pathways?gene=${encodeURIComponent(gene)}`);
+          if (res2.ok) {
+            const rows2 = await res2.json();
+            for (const row of rows2) {
+              const g = String(row.gene ?? "").trim().toUpperCase();
+              let clusterKey = String(row.cluster ?? row.clust ?? "").trim();
+              if (!g || !clusterKey) continue;
+
+              const pathway = row.pathway ?? row.path;
+              if (!pathway) continue;
+
+              const score = Number(row.score ?? row.value);
+              if (!genePathwaysByCluster.get(g).has(clusterKey)) {
+                genePathwaysByCluster.get(g).set(clusterKey, []);
+              }
+              genePathwaysByCluster.get(g).get(clusterKey).push({
                 pathway: String(pathway),
-                score: Number.isFinite(score) ? score : undefined,
+                score: Number.isFinite(score) ? score : undefined
               });
             }
-          }
 
-          for (const [gene, cmap] of genePathwaysByCluster) {
-            for (const [key, arr] of cmap) {
-              arr.sort((a, b) => {
-                const as = Number.isFinite(a.score) ? a.score : -Infinity;
-                const bs = Number.isFinite(b.score) ? b.score : -Infinity;
-                return bs - as;
-              });
+            // sort pathway rows by score
+            for (const [g, cmap] of genePathwaysByCluster) {
+              for (const [key, arr] of cmap) {
+                arr.sort((a, b) => (b.score ?? -Infinity) - (a.score ?? -Infinity));
+              }
             }
-          }
+          }   
         }
+
+
 
         // ---------- UI population ----------
         function populateGeneSelect() {
@@ -494,11 +531,17 @@
               $("structureSelect").value = preferredStructure;
             }
 
+            // Load residues + cluster assignments
+            await loadResiduePathwayScore(gene);
+
             // Load current structure
             await loadStructureForCurrentSelection();
-
-            // If no CSV entries for this gene
-            if (!geneResidueSet.has(gene)) {
+            
+            // Now recompute intersection + recolor (third)
+            if (geneResidueSet.has(gene)) {
+              refreshResidueAndClusterUIAfterStructure();
+              status(`Loaded ${gene}. Residues in model: ${pdbResiduesSet?.size ?? 0}.`);
+            } else {
               currentResiduesSorted = [];
               currentClusterKeys = [];
               populateClusterSelectForGene(gene);
@@ -506,14 +549,9 @@
               disableSelectors(true);
               recolorCartoonByClusters();
               clearPathways();
-              status(`Loaded ${gene} structure (no entries in residue-pathway-score.csv).`);
-              return;
+              status(`Loaded ${gene} structure (no entries in residues).`);
             }
-
-            // Compute intersection of CSV residues with residues present in model
-            refreshResidueAndClusterUIAfterStructure();
-
-            status(`Loaded ${gene}. Residues in model: ${pdbResiduesSet?.size ?? 0}.`);
+            
             error("");
           } catch (e) {
             error(`Failed to load ${gene}: ${e.message}`);

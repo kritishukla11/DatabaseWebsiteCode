@@ -12,6 +12,7 @@ import math
 import io
 import time
 import traceback
+import hashlib
 
 # --- matplotlib headless backend (for Panel 2) ---
 import matplotlib
@@ -444,8 +445,13 @@ def make_cluster_cmap(n_clusters: int) -> ListedColormap:
     return ListedColormap(colors)
 
 # ---------------- Data loaders ----------------
+def normalize_clusters(series: pd.Series) -> pd.Series:
+    """Normalize cluster labels to consecutive ints starting at 0."""
+    unique = sorted(series.unique())
+    mapping = {old: new for new, old in enumerate(unique)}
+    return series.map(mapping), mapping
+
 def load_nmf(gene: str) -> pd.DataFrame:
-    """Load nmfinfo file for a given gene."""
     fn = DATA_DIR / f"{gene}_nmfinfo_final.csv"
     if not fn.exists():
         raise HTTPException(status_code=404, detail=f"No nmfinfo file for {gene}")
@@ -453,7 +459,9 @@ def load_nmf(gene: str) -> pd.DataFrame:
     nmf = nmf.rename(columns={"x_axis": "x", "y_axis": "y", "clust": "cluster"})
     nmf["x_r"] = nmf["x"].round(6)
     nmf["y_r"] = nmf["y"].round(6)
-    return nmf
+    nmf["cluster"], mapping = normalize_clusters(nmf["cluster"])
+    return nmf, mapping
+
 
 POINT_RX = re.compile(r"POINT\s*\(([-0-9\.Ee+]+)\s+([-0-9\.Ee+]+)\)")
 def parse_wkt_point(s: str):
@@ -471,6 +479,9 @@ def list_pathways_for_gene(gene: str) -> list[str]:
             paths.append(m.group(1))
     return sorted(paths)
 
+
+
+
 # ---------------- Endpoints ----------------
 @app.get("/flatmap/pathways")
 def flatmap_pathways(gene: str):
@@ -484,7 +495,7 @@ def flatmap_image(gene: str, name: str | None = None, collapse: str = "max"):
     - Pathway-specific: clusters colored by GI* (mean/max), clipped to mask.
     - collapse: "max" or "mean".
     """
-    df = load_nmf(gene)
+    df, mapping = load_nmf(gene)
 
     gi_vals = None
     if name:
@@ -621,12 +632,17 @@ def flatmap_image(gene: str, name: str | None = None, collapse: str = "max"):
         ann_path = DATA_DIR / "annotated_clusters.csv"
         if ann_path.exists():
             ann = pd.read_csv(ann_path)
-            ann["cluster"] = ann["cluster"].astype(int)
-            df["cluster"] = df["cluster"].astype(int)
-
+            # filter to gene
             ann_sub = ann[ann["gene"].str.upper() == gene.upper()]
+
             if not ann_sub.empty:
+                ann_sub["cluster"] = ann_sub["cluster"].map(mapping)
+                ann_sub = ann_sub.dropna(subset=["cluster"])
+                ann_sub["cluster"] = ann_sub["cluster"].astype(int)
+                # Compute centroids for each cluster
                 centroids = df.groupby("cluster")[["x", "y"]].mean()
+                ann_sub["cluster"] = pd.to_numeric(ann_sub["cluster"], errors="coerce").astype("Int64")
+                df["cluster"] = pd.to_numeric(df["cluster"], errors="coerce").astype("Int64")
 
                 for _, row in ann_sub.iterrows():
                     clust = row["cluster"]
@@ -675,6 +691,8 @@ def flatmap_image(gene: str, name: str | None = None, collapse: str = "max"):
 
     except Exception as e:
         print("[flatmap_image][WARN] Could not add annotations:", e)
+
+
 
     # ------------------------------------------------------------------
     fig.tight_layout(pad=0)
@@ -793,6 +811,63 @@ def get_structures(gene: str):
             status_code=500,
             content={"error": f"Failed to load structures for {gene}: {e}"}
         )
+
+N_BUCKETS = 500
+
+def stable_bucket(g: str, n_buckets: int = N_BUCKETS) -> int:
+    h = hashlib.md5(g.encode("utf-8")).hexdigest()
+    return int(h, 16) % n_buckets
+
+@app.get("/residues")
+def get_residues(gene: str):
+    """Return only residue-cluster mapping (for coloring structures)."""
+    bucket = stable_bucket(gene)
+    path = Path(f"gene_buckets/bucket_{bucket:04d}.parquet")
+    if not path.exists():
+        raise HTTPException(status_code=404, detail=f"No bucket file for {gene}")
+    df = pd.read_parquet(path)
+
+    df = df.rename(columns={"clust": "cluster", "res": "residue"})
+    df = df[df["gene"].str.upper() == gene.upper()].copy()
+
+    # ✅ Normalize residues and clusters as ints
+    df["residue"] = pd.to_numeric(df["residue"], errors="coerce")
+    df["cluster"] = pd.to_numeric(df["cluster"], errors="coerce")
+
+    df = df.dropna(subset=["residue", "cluster"])
+    df["residue"] = df["residue"].astype(int)
+    df["cluster"] = df["cluster"].astype(int)
+
+    subset = df[["gene", "residue", "cluster"]].drop_duplicates()
+    return subset.to_dict(orient="records")
+
+
+@app.get("/residues_with_pathways")
+def get_residues_with_pathways(gene: str):
+    """Return full residue-cluster-pathway-score mapping (for pathway table)."""
+    bucket = stable_bucket(gene)
+    path = Path(f"gene_buckets/bucket_{bucket:04d}.parquet")
+    if not path.exists():
+        raise HTTPException(status_code=404, detail=f"No bucket file for {gene}")
+    df = pd.read_parquet(path)
+
+    df = df.rename(columns={"clust": "cluster", "res": "residue"})
+    df = df[df["gene"].str.upper() == gene.upper()].copy()
+
+    # ✅ Normalize types
+    df["residue"] = pd.to_numeric(df["residue"], errors="coerce")
+    df["cluster"] = pd.to_numeric(df["cluster"], errors="coerce")
+    df["score"] = pd.to_numeric(df["score"], errors="coerce")
+
+    df = df.dropna(subset=["residue", "cluster"])
+    df["residue"] = df["residue"].astype(int)
+    df["cluster"] = df["cluster"].astype(int)
+
+    return df.to_dict(orient="records")
+
+
+
+
 
 # =========================================================
 # =============== PATHWAY ENDPOINT ========================
