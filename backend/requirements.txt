@@ -1,10 +1,26 @@
+# Web framework
 fastapi
-uvicorn
+uvicorn[standard]
+
+# Data science stack
 numpy
 pandas
-plotly
-matplotlib
 scipy
+matplotlib
+plotly
+
+# Parquet + Arrow
 pyarrow
+
+# HTTP + parsing
 requests
 beautifulsoup4
+
+# Hugging Face + remote storage
+huggingface_hub
+fsspec
+aiohttp   # async downloads (used by fsspec/HF)
+tqdm      # progress bars (used by HF tools)
+
+# Optional extras for robustness
+python-multipart  # if you add file upload endpoints later

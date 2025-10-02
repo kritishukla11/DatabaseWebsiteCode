@@ -67,7 +67,7 @@ export default function Panel2Flatmap({ gene }: { gene: string }) {
             key={`flatmap-${imgUrl}`}
             src={imgUrl}
             alt={`${gene} Flatmap`}
-            style={{ width: "100%", maxHeight: "480px", objectFit: "contain" }}
+            style={{ width: "90%", maxHeight: "480px", objectFit: "contain" }}
           />
         )}
       </div>

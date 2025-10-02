@@ -13,6 +13,8 @@ import io
 import time
 import traceback
 import hashlib
+from huggingface_hub import hf_hub_download
+import fsspec
 
 # --- matplotlib headless backend (for Panel 2) ---
 import matplotlib
@@ -445,6 +447,32 @@ def make_cluster_cmap(n_clusters: int) -> ListedColormap:
     return ListedColormap(colors)
 
 # ---------------- Data loaders ----------------
+def load_gene_parquet(gene: str) -> pd.DataFrame:
+    """Efficiently load NMF + GDF info for one gene from Hugging Face per-letter Parquets."""
+    letter = gene[0].upper()
+    if not letter.isalpha():
+        letter = "OTHER"
+
+    repo_id = "kritishukla/parquet_for_narproj"
+    filename = f"{letter}.parquet"
+
+    try:
+        parquet_url = f"hf://datasets/{repo_id}/{filename}"
+        # Use filters to only read matching gene rows
+        df = pd.read_parquet(
+            parquet_url,
+            engine="pyarrow",
+            filters=[("gene", "==", gene.upper())]
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to load parquet {filename}: {e}")
+
+    if df.empty:
+        raise HTTPException(status_code=404, detail=f"No data for {gene} in {filename}")
+
+    return df
+
+
 def normalize_clusters(series: pd.Series) -> pd.Series:
     """Normalize cluster labels to consecutive ints starting at 0."""
     unique = sorted(series.unique())
@@ -452,10 +480,14 @@ def normalize_clusters(series: pd.Series) -> pd.Series:
     return series.map(mapping), mapping
 
 def load_nmf(gene: str) -> pd.DataFrame:
-    fn = DATA_DIR / f"{gene}_nmfinfo_final.csv"
-    if not fn.exists():
-        raise HTTPException(status_code=404, detail=f"No nmfinfo file for {gene}")
-    nmf = pd.read_csv(fn)
+    df = load_gene_parquet(gene)
+
+    # Keep only nmfinfo rows
+    nmf = df[df["table"] == "nmfinfo"].copy()
+    if nmf.empty:
+        raise HTTPException(status_code=404, detail=f"No nmfinfo data for {gene}")
+
+    # Match the old column names
     nmf = nmf.rename(columns={"x_axis": "x", "y_axis": "y", "clust": "cluster"})
     nmf["x_r"] = nmf["x"].round(6)
     nmf["y_r"] = nmf["y"].round(6)
@@ -471,18 +503,29 @@ def parse_wkt_point(s: str):
     return float(m.group(1)), float(m.group(2))
 
 def list_pathways_for_gene(gene: str) -> list[str]:
-    """Return available pathway names for this gene based on *_GSEA.csv_gdf.csv files."""
-    paths = []
-    for p in DATA_DIR.glob(f"{gene}_*_GSEA.csv_gdf.csv"):
-        m = re.match(fr"{gene}_(.+?)_GSEA\.csv_gdf\.csv$", p.name)
-        if m:
-            paths.append(m.group(1))
-    return sorted(paths)
+    df = load_gene_parquet(gene)
+    gdfs = df[df["table"] == "gdf"]
+
+    if gdfs.empty:
+        return []
+
+    # keep only pathways where Gi_sum > 0 at least once
+    valid = (
+        gdfs.groupby("pathway")["Gi_sum"]
+        .max()
+        .reset_index()
+    )
+    valid = valid[valid["Gi_sum"] > 0]
+
+    return sorted(valid["pathway"].dropna().unique().tolist())
+
 
 
 
 
 # ---------------- Endpoints ----------------
+
+
 @app.get("/flatmap/pathways")
 def flatmap_pathways(gene: str):
     return {"pathways": list_pathways_for_gene(gene)}
@@ -499,12 +542,14 @@ def flatmap_image(gene: str, name: str | None = None, collapse: str = "max"):
 
     gi_vals = None
     if name:
-        fn = DATA_DIR / f"{gene}_{name}_GSEA.csv_gdf.csv"
-        if not fn.exists():
-            raise HTTPException(status_code=404, detail=f"No file for pathway {name}")
-        gdf = pd.read_csv(fn)
+        df_all = load_gene_parquet(gene)
+        gdf = df_all[(df_all["table"] == "gdf") & (df_all["pathway"].str.upper() == name.upper())].copy()
+        if gdf.empty:
+            raise HTTPException(status_code=404, detail=f"No GDF data for pathway {name} in {gene}")
+
         if "geometry" not in gdf.columns or "Gi_sum" not in gdf.columns:
-            raise HTTPException(status_code=400, detail=f"Expected 'geometry' and 'Gi_sum' in {fn.name}")
+            raise HTTPException(status_code=400, detail=f"GDF data missing required columns for {gene}, pathway={name}")
+
 
         # Parse WKT points -> (x, y)
         xy = gdf["geometry"].apply(parse_wkt_point).apply(pd.Series)
