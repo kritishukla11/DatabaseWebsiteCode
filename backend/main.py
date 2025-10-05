@@ -533,6 +533,20 @@ def list_pathways_for_gene(gene: str) -> list[str]:
 
     return sorted(valid["pathway"].dropna().unique().tolist())
 
+from functools import lru_cache
+
+@lru_cache(maxsize=256)
+def get_gi_global_range(gene: str):
+    """Return global min/max of gi_sum across all pathways for this gene."""
+    df = load_gene_parquet(gene)
+    gdfs = df[df["table"] == "gdf"].copy()
+    if gdfs.empty or "gi_sum" not in gdfs.columns:
+        return 0.0, 1.0  # fallback default
+
+    vmin = float(gdfs["gi_sum"].min(skipna=True))
+    vmax = float(gdfs["gi_sum"].max(skipna=True))
+    # Optional: add symmetric padding for aesthetic balance
+    return vmin, vmax
 
 
 
@@ -673,8 +687,19 @@ def flatmap_image(gene: str, name: str | None = None, collapse: str = "max"):
             Zi_gi_cluster[Zi_cluster == clust] = score
 
         cmap_redgreen = plt.cm.RdYlGn_r
-        vmax = max(1.0, float(np.nanpercentile(np.abs(cluster_scores), 99)))
-        norm = plt.Normalize(vmin=0, vmax=vmax)
+        vmin_global, vmax_global = get_gi_global_range(gene)
+
+        # Optional: clamp or pad range a bit for visual balance
+        if vmin_global == vmax_global:
+            vmin_global, vmax_global = 0, max(1.0, vmax_global)
+        else:
+            # symmetric normalization around zero
+            if vmin_global < 0 < vmax_global:
+                vmax_global = max(abs(vmin_global), abs(vmax_global))
+                vmin_global = -vmax_global
+
+        norm = plt.Normalize(vmin=vmin_global, vmax=vmax_global)
+
 
         Zi_gi_masked = np.ma.array(Zi_gi_cluster, mask=outer_mask)
         im = ax.imshow(Zi_gi_masked, origin="lower",
