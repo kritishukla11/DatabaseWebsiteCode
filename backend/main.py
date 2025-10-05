@@ -453,7 +453,7 @@ def load_gene_parquet(gene: str) -> pd.DataFrame:
     if not letter.isalpha():
         letter = "OTHER"
 
-    repo_id = "kritishukla/parquet_for_narproj"
+    repo_id = "kritishukla/parquet_storage"
     filename = f"{letter}.parquet"
 
     try:
