@@ -9,7 +9,7 @@ export default function PathwaySearchPage() {
   const [showExplanation, setShowExplanation] = useState(false);
 
   // state for proteins panel
-  const [threshold, setThreshold] = useState(0.2);
+  const [threshold, setThreshold] = useState(0.6);
   const [proteins, setProteins] = useState<{ id: string; score: number }[]>([]);
   const [error, setError] = useState<string | null>(null);
 

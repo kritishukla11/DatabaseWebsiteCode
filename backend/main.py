@@ -266,29 +266,56 @@ def plot_ping(gene: str = "KEAP1"):
         return f"[plot_ping] OK in {time.time()-t0:.3f}s; neighbors={len(nbrs)} first={nbrs.iloc[0]['protein_id'] if len(nbrs) else 'NA'}"
     except Exception as e:
         return f"[plot_ping] EXCEPTION: {e}\n{traceback.format_exc()}"
+    
+@app.get("/check_gene")
+def check_gene(gene: str):
+    """
+    Returns an error if the gene is not found in all_proteins_max_score_matrix_cleaned.csv.
+    """
+    if not gene_in_master_matrix(gene):
+        return JSONResponse(
+            content={"error": f"Sorry, we don't have info for {gene}."},
+            status_code=404
+        )
+    return {"message": "Gene found."}
+
 
 @app.get("/plot")
 def get_plot(gene: str, topk: int = 10):
     t0 = time.time()
     try:
         if _V_NORM.size == 0 or _VECS_DF.empty:
-            raise RuntimeError("Embeddings not loaded. See server logs for load errors.")
+            # Still a genuine server issue
+            return JSONResponse(
+                content={"plot": None, "neighbors": [], "shared_pathways": [], "message": "Panel 5 data not loaded."},
+                status_code=200
+            )
 
-        # ✅ Case 1: gene not in dataset
+        # Case 1: gene not in dataset → return empty instead of 404
         if gene not in _VECS_DF.index:
             return JSONResponse(
-                content={"error": f"Sorry, we don't have info for {gene}."},
-                status_code=404
+                content={
+                    "plot": None,
+                    "neighbors": [],
+                    "shared_pathways": [],
+                    "message": f"No Panel 5 data available for {gene}."
+                },
+                status_code=200
             )
 
-        # ✅ Case 2: gene exists but no nonzero pathway values
+        # Case 2: gene exists but no pathway annotations
         if not has_annotations(gene):
             return JSONResponse(
-                content={"error": f"Sorry, we don't have info for {gene}."},
-                status_code=404
+                content={
+                    "plot": None,
+                    "neighbors": [],
+                    "shared_pathways": [],
+                    "message": f"No Panel 5 annotations available for {gene}."
+                },
+                status_code=200
             )
 
-        # Normal case: build network + shared pathways
+        # Normal case: return the real plot
         nbrs_df = _topk_cosine(gene, k=topk)
         shared_pw = _shared_pathways(gene, nbrs_df["protein_id"].tolist())
         fig = _plot_network(gene, nbrs_df)
@@ -302,11 +329,17 @@ def get_plot(gene: str, topk: int = 10):
         return JSONResponse(content=out)
 
     except Exception as e:
-        print("[/plot][ERROR]", e)
+        print("[/plot][WARN]", e)
         traceback.print_exc()
+        # Return gracefully even on failure
         return JSONResponse(
-            content={"error": f"Internal error: {str(e)}"},
-            status_code=500
+            content={
+                "plot": None,
+                "neighbors": [],
+                "shared_pathways": [],
+                "message": f"Panel 5 unavailable ({str(e)})"
+            },
+            status_code=200
         )
 
     
@@ -431,6 +464,7 @@ from matplotlib import cm, patheffects
 from scipy.interpolate import griddata
 from fastapi import HTTPException
 from fastapi.responses import StreamingResponse
+from functools import lru_cache
 
 DATA_DIR = Path(__file__).resolve().parent / "data"
 
@@ -533,7 +567,7 @@ def list_pathways_for_gene(gene: str) -> list[str]:
 
     return sorted(valid["pathway"].dropna().unique().tolist())
 
-from functools import lru_cache
+
 
 @lru_cache(maxsize=256)
 def get_gi_global_range(gene: str):
@@ -971,6 +1005,16 @@ def get_residues_with_pathways(gene: str):
 
 # Load once at startup
 PATHWAY_MATRIX = pd.read_csv("all_proteins_max_score_matrix_cleaned.csv", index_col=0)
+
+# after PATHWAY_MATRIX load
+PATHWAY_MATRIX = pd.read_csv("all_proteins_max_score_matrix_cleaned.csv", index_col=0)
+
+def gene_in_master_matrix(gene: str) -> bool:
+    """Check if the given gene exists in the main all_proteins_max_score_matrix_cleaned.csv index."""
+    g = gene.strip().upper()
+    return g in [x.strip().upper() for x in PATHWAY_MATRIX.index]
+
+
 
 @app.get("/pathway/proteins")
 def pathway_proteins(pathway: str, threshold: float = 0.1):
