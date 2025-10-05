@@ -448,17 +448,12 @@ def make_cluster_cmap(n_clusters: int) -> ListedColormap:
 
 # ---------------- Data loaders ----------------
 def load_gene_parquet(gene: str) -> pd.DataFrame:
-    """Efficiently load NMF + GDF info for one gene from Hugging Face per-letter Parquets."""
-    letter = gene[0].upper()
-    if not letter.isalpha():
-        letter = "OTHER"
-
+    letter = gene[0].upper() if gene and gene[0].isalpha() else "OTHER"
     repo_id = "kritishukla/parquet_storage"
     filename = f"{letter}.parquet"
 
     try:
         parquet_url = f"hf://datasets/{repo_id}/{filename}"
-        # Use filters to only read matching gene rows
         df = pd.read_parquet(
             parquet_url,
             engine="pyarrow",
@@ -470,7 +465,17 @@ def load_gene_parquet(gene: str) -> pd.DataFrame:
     if df.empty:
         raise HTTPException(status_code=404, detail=f"No data for {gene} in {filename}")
 
+    # ✅ normalize column names once, everywhere else use lowercase
+    df.columns = df.columns.str.lower()
+
+    # (optional) keep pathway tidy without turning NaN into "nan"
+    if "pathway" in df.columns:
+        df["pathway"] = df["pathway"].where(df["pathway"].notna(), None)
+        # strip whitespace for non-null paths
+        df.loc[df["pathway"].notna(), "pathway"] = df.loc[df["pathway"].notna(), "pathway"].str.strip()
+
     return df
+
 
 
 def normalize_clusters(series: pd.Series) -> pd.Series:
@@ -495,12 +500,21 @@ def load_nmf(gene: str) -> pd.DataFrame:
     return nmf, mapping
 
 
-POINT_RX = re.compile(r"POINT\s*\(([-0-9\.Ee+]+)\s+([-0-9\.Ee+]+)\)")
+POINT_RX = re.compile(
+    r"POINT\s*\(?\s*([-0-9\.Ee+]+)\s+([-0-9\.Ee+]+)\s*\)?", re.IGNORECASE
+)
+
 def parse_wkt_point(s: str):
-    m = POINT_RX.search(str(s))
+    if not isinstance(s, str):
+        return None, None
+    m = POINT_RX.search(s)
     if not m:
         return None, None
-    return float(m.group(1)), float(m.group(2))
+    try:
+        return float(m.group(1)), float(m.group(2))
+    except ValueError:
+        return None, None
+
 
 def list_pathways_for_gene(gene: str) -> list[str]:
     df = load_gene_parquet(gene)
@@ -511,11 +525,11 @@ def list_pathways_for_gene(gene: str) -> list[str]:
 
     # keep only pathways where Gi_sum > 0 at least once
     valid = (
-        gdfs.groupby("pathway")["Gi_sum"]
+        gdfs.groupby("pathway")["gi_sum"]
         .max()
         .reset_index()
     )
-    valid = valid[valid["Gi_sum"] > 0]
+    valid = valid[valid["gi_sum"] > 0]
 
     return sorted(valid["pathway"].dropna().unique().tolist())
 
@@ -547,7 +561,7 @@ def flatmap_image(gene: str, name: str | None = None, collapse: str = "max"):
         if gdf.empty:
             raise HTTPException(status_code=404, detail=f"No GDF data for pathway {name} in {gene}")
 
-        if "geometry" not in gdf.columns or "Gi_sum" not in gdf.columns:
+        if "geometry" not in gdf.columns or "gi_sum" not in gdf.columns:
             raise HTTPException(status_code=400, detail=f"GDF data missing required columns for {gene}, pathway={name}")
 
 
@@ -560,12 +574,24 @@ def flatmap_image(gene: str, name: str | None = None, collapse: str = "max"):
 
         # Collapse GI* values per residue
         if collapse == "mean":
-            collapsed = gdf.groupby(["x_r", "y_r"])["Gi_sum"].mean().reset_index()
+            collapsed = (
+                gdf.groupby(["x_r", "y_r"])["gi_sum"]
+                .mean()
+                .reset_index()
+                .rename(columns={"gi_sum": "gi_sum_collapsed"})
+            )
         else:
-            collapsed = gdf.groupby(["x_r", "y_r"])["Gi_sum"].max().reset_index()
+            collapsed = (
+                gdf.groupby(["x_r", "y_r"])["gi_sum"]
+                .max()
+                .reset_index()
+                .rename(columns={"gi_sum": "gi_sum_collapsed"})
+            )
 
         merged = pd.merge(df, collapsed, on=["x_r", "y_r"], how="left")
-        gi_vals = merged["Gi_sum"].fillna(0.0).astype(float)
+        merged["gi_sum"] = merged["gi_sum_collapsed"].fillna(0.0).astype(float)
+
+        gi_vals = merged["gi_sum"].fillna(0.0).astype(float)
     else:
         merged = df
 
@@ -638,9 +664,9 @@ def flatmap_image(gene: str, name: str | None = None, collapse: str = "max"):
         # --- Pathway-specific ---
         merged["cluster"] = merged["cluster"].astype(int)
         if collapse == "mean":
-            cluster_scores = merged.groupby("cluster")["Gi_sum"].mean()
+            cluster_scores = merged.groupby("cluster")["gi_sum"].mean()
         else:
-            cluster_scores = merged.groupby("cluster")["Gi_sum"].max()
+            cluster_scores = merged.groupby("cluster")["gi_sum"].max()
 
         Zi_gi_cluster = np.zeros_like(Zi_cluster, dtype=float)
         for clust, score in cluster_scores.items():
