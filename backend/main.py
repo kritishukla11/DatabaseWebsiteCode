@@ -843,57 +843,83 @@ def flatmap_image(gene: str, name: str | None = None, collapse: str = "max"):
 # ========= PANEL 3: /empirical (matplotlib) ======
 # =========================================================
 # Path to your calibration CSV
-CALIBRATION_DF = pd.read_csv("calibration.csv")
+# Directory containing A.parquet, B.parquet, etc.
+PARQUET_DIR = Path("data/Parquet_letter_concat")
+
+
+def load_gene_data(gene: str) -> pd.DataFrame:
+    """Load Parquet file for the gene's first letter and filter for the gene."""
+    letter = gene[0].upper()
+    file_path = PARQUET_DIR / f"{letter}.parquet"
+
+    if not file_path.exists():
+        raise FileNotFoundError(f"Missing Parquet file for letter {letter}")
+
+    df = pd.read_parquet(file_path)
+    sub = df[df["gene"].str.upper() == gene.upper()]
+    sub['confidence'] = sub['confidence']*10
+    return sub
+
+
+# ====== /calibration/image ======
 @app.get("/calibration/image")
 def calibration_image(gene: str):
-    # filter rows for this gene
-    sub = CALIBRATION_DF[CALIBRATION_DF["gene"] == gene]
-    if sub.empty:
-        return Response(status_code=404)
+    """
+    Returns a matplotlib plot (PNG) of adjusted_rank vs confidence
+    for the given gene.
+    """
+    try:
+        sub = load_gene_data(gene)
+        if sub.empty:
+            return JSONResponse({"error": f"No data found for gene {gene}"}, status_code=404)
 
-    
-    # make plot
-    fig, ax = plt.subplots()
-    ax.plot(sub["adjusted_rank"], sub["confidence"])
-    # remove x-axis labels and ticks
-    ax.set_xlabel("")           # remove x-axis label text
-    ax.set_xticks([])           # remove tick marks
-    ax.set_xticklabels([])      # remove tick labels
-    ax.set_ylabel("Confidence (% significant)")
-    ax.grid(False)
+        # make plot
+        fig, ax = plt.subplots()
+        ax.plot(sub["adjusted_rank"], sub["confidence"], marker="o", linestyle="-", linewidth=1.5, alpha=0.8)
+        ax.set_xlabel("")  # remove x-axis label text
+        ax.set_xticks([])  # remove tick marks
+        ax.set_xticklabels([])  # remove tick labels
+        ax.set_ylabel("Confidence (% significant)")
+        ax.grid(False)
 
-    # save to PNG buffer
-    buf = io.BytesIO()
-    fig.savefig(buf, format="png", bbox_inches="tight")
-    plt.close(fig)
-    buf.seek(0)
+        # save to PNG buffer
+        buf = io.BytesIO()
+        fig.savefig(buf, format="png", bbox_inches="tight")
+        plt.close(fig)
+        buf.seek(0)
 
-    return StreamingResponse(
-        buf,
-        media_type="image/png",
-        headers={
-            "Cache-Control": "no-store",
-            "Access-Control-Allow-Origin": "*"
-        }
-    )
+        return StreamingResponse(
+            buf,
+            media_type="image/png",
+            headers={
+                "Cache-Control": "no-store",
+                "Access-Control-Allow-Origin": "*"
+            }
+        )
 
+    except FileNotFoundError as e:
+        return JSONResponse({"error": str(e)}, status_code=404)
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+# ====== /calibration/genes ======
 @app.get("/calibration/genes")
 def calibration_genes(gene: str):
     """
-    Return partner genes (from 'genes' column) and their confidence values
-    for the searched gene.
+    Returns list of pathway–confidence pairs for the given gene.
+    Used for dropdown options.
     """
     try:
-        if not {"gene", "genes", "confidence"}.issubset(CALIBRATION_DF.columns):
-            return {"error": "CSV must have columns: gene, genes, confidence"}
-
-        sub = CALIBRATION_DF[CALIBRATION_DF["gene"].str.upper() == gene.upper()]
+        sub = load_gene_data(gene)
         if sub.empty:
             return {"genes": []}
 
-        # drop duplicates (one row per partner gene, highest confidence)
+        if not {"pathway", "confidence"}.issubset(sub.columns):
+            return {"error": "Parquet files must include columns: pathway, confidence"}
+
         grouped = (
-            sub.groupby("genes")["confidence"]
+            sub.groupby("pathway")["confidence"]
             .max()
             .reset_index()
             .sort_values("confidence", ascending=False)
@@ -901,10 +927,13 @@ def calibration_genes(gene: str):
 
         return {
             "genes": [
-                {"gene": row["genes"], "confidence": float(row["confidence"])}
+                {"gene": row["pathway"], "confidence": float(row["confidence"])}
                 for _, row in grouped.iterrows()
             ]
         }
+
+    except FileNotFoundError as e:
+        return {"error": str(e)}
     except Exception as e:
         return {"error": str(e)}
 
