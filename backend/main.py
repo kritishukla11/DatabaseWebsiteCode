@@ -887,20 +887,19 @@ def flatmap_summary(gene: str, pathway: str | None = None):
                 )
             }
 
-        # Identify cluster with highest GI* association
-        # --- Parse WKT geometry if x/y not already present ---
+        # --- Identify cluster with highest GI* association ---
         if "x" not in gdf.columns or "y" not in gdf.columns:
             xy = gdf["geometry"].apply(parse_wkt_point).apply(pd.Series)
             xy.columns = ["x", "y"]
             gdf = pd.concat([gdf, xy], axis=1)
 
-        # Round coordinates to align NMF and GDF tables
+        # Round coordinates to align NMF and GDF
         gdf["x_r"] = gdf["x"].round(6)
         gdf["y_r"] = gdf["y"].round(6)
         nmf["x_r"] = nmf["x"].round(6)
         nmf["y_r"] = nmf["y"].round(6)
 
-        # Collapse GI* per residue (match flatmap/image)
+        # Collapse GI* per residue (match /flatmap/image)
         collapsed = (
             gdf.groupby(["x_r", "y_r"])["gi_sum"]
             .max()
@@ -908,14 +907,13 @@ def flatmap_summary(gene: str, pathway: str | None = None):
             .rename(columns={"gi_sum": "gi_sum_collapsed"})
         )
 
-        # Merge with NMF data to attach GI* to each cluster coordinate
         merged = pd.merge(nmf, collapsed, on=["x_r", "y_r"], how="left")
         merged["gi_sum"] = merged["gi_sum_collapsed"].fillna(0.0).astype(float)
 
         # Compute per-cluster GI* stats
         cluster_gi = merged.groupby("cluster")["gi_sum"].max().fillna(0)
         top_cluster = cluster_gi.idxmax() if not cluster_gi.empty else None
-
+        top_score = cluster_gi.max().round(3) if not cluster_gi.empty else None  # 🆕 add score
 
         # Lookup annotation label for that cluster
         desc = None
@@ -933,15 +931,26 @@ def flatmap_summary(gene: str, pathway: str | None = None):
         if not desc:
             desc = f"cluster {top_cluster}"
 
-        s = (
-            f"This flatmap of {gene.upper()} is colored by association to {pathway.upper()}. "
-            f"The {desc} region of functional interest (RFI) shows the strongest association "
-            f"with this TRN."
-        )
+        # 🆕 Include GI* score in sentence
+        if top_score is not None:
+            s = (
+                f"This flatmap of {gene.upper()} is colored by association to {pathway.upper()}. "
+                f"The '{desc}' region of functional interest (RFI) shows the strongest association "
+                f"with this TRN, with a GI* score of {top_score}."
+            )
+        else:
+            s = (
+                f"This flatmap of {gene.upper()} is colored by association to {pathway.upper()}. "
+                f"The '{desc}' region of functional interest (RFI) shows the strongest association "
+                f"with this TRN."
+            )
+
         return {"summary": s}
 
     except Exception as e:
         return {"error": str(e)}
+
+
 
 # =========================================================
 # ========= PANEL 3: /empirical (matplotlib) ======
