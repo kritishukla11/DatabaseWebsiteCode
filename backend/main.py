@@ -1024,6 +1024,90 @@ def get_residues_with_pathways(gene: str):
 
     return df.to_dict(orient="records")
 
+@app.get("/flatmap/summary")
+def flatmap_summary(gene: str, pathway: str | None = None):
+    """
+    Return dynamic summary sentences for Panel 2.
+    - Default: report mutation + cell line counts (from The Cancer Dependency Map) + cluster count.
+    - Pathway-specific: describe TRN association + top cluster description.
+    """
+    try:
+        # --- Load mutation + cell line counts ---
+        mut_csv = Path("mutation_counts.csv")
+        n_mut, n_cell = None, None
+        if mut_csv.exists():
+            mdf = pd.read_csv(mut_csv)
+            # expect columns: gene, mut_count, cell_line_count
+            if {"gene", "mut_count", "cell_line_count"}.issubset(mdf.columns):
+                row = mdf[mdf["gene"].str.upper() == gene.upper()]
+                if not row.empty:
+                    n_mut = int(row.iloc[0]["mut_count"])
+                    n_cell = int(row.iloc[0]["cell_line_count"])
+
+        # --- Load cluster info (from NMF data) ---
+        nmf, mapping = load_nmf(gene)
+        n_clusters = nmf["cluster"].nunique()
+
+        # --- Default summary sentence ---
+        if not pathway:
+            s = (
+                f"{gene.upper()} has {n_mut if n_mut is not None else 'multiple'} mutations "
+                f"across {n_cell if n_cell is not None else 'several'} cell lines "
+                f"from The Cancer Dependency Map. "
+                f"Shown here is a flatmap of {gene.upper()} split into {n_clusters} "
+                f"regions of functional interest (RFIs)."
+            )
+            return {"summary": s}
+
+        # --- Pathway-specific summary sentence ---
+        df_all = load_gene_parquet(gene)
+        gdf = df_all[
+            (df_all["table"] == "gdf") &
+            (df_all["pathway"].str.upper() == pathway.upper())
+        ].copy()
+
+        if gdf.empty:
+            return {
+                "summary": (
+                    f"This flatmap of {gene.upper()} is colored by association to {pathway.upper()}, "
+                    "but no GI* data were found for this TRN."
+                )
+            }
+
+        # Identify cluster with highest GI* association
+        gdf["x_r"] = gdf["x"].round(6)
+        gdf["y_r"] = gdf["y"].round(6)
+        nmf["x_r"] = nmf["x"].round(6)
+        nmf["y_r"] = nmf["y"].round(6)
+        merged = pd.merge(nmf, gdf, on=["x_r", "y_r"], how="left")
+        cluster_gi = merged.groupby("cluster")["gi_sum"].max().fillna(0)
+        top_cluster = cluster_gi.idxmax()
+
+        # Lookup annotation label for that cluster
+        desc = None
+        ann_path = DATA_DIR / "annotated_clusters.csv"
+        if ann_path.exists():
+            ann = pd.read_csv(ann_path)
+            ann_sub = ann[ann["gene"].str.upper() == gene.upper()]
+            if not ann_sub.empty and "cluster" in ann_sub.columns:
+                ann_sub["cluster"] = ann_sub["cluster"].map(mapping)
+                if top_cluster in ann_sub["cluster"].values:
+                    desc = ann_sub.loc[
+                        ann_sub["cluster"] == top_cluster, "annotation_type"
+                    ].iloc[0]
+
+        if not desc:
+            desc = f"cluster {top_cluster}"
+
+        s = (
+            f"This flatmap of {gene.upper()} is colored by association to {pathway.upper()}. "
+            f"The {desc} region of functional interest (RFI) shows the strongest association "
+            f"with this TRN."
+        )
+        return {"summary": s}
+
+    except Exception as e:
+        return {"error": str(e)}
 
 
 
@@ -1033,9 +1117,6 @@ def get_residues_with_pathways(gene: str):
 # =========================================================
 
 # Load once at startup
-PATHWAY_MATRIX = pd.read_csv("all_proteins_max_score_matrix_cleaned.csv", index_col=0)
-
-# after PATHWAY_MATRIX load
 PATHWAY_MATRIX = pd.read_csv("all_proteins_max_score_matrix_cleaned.csv", index_col=0)
 
 def gene_in_master_matrix(gene: str) -> bool:
