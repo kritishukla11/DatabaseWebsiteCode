@@ -9,7 +9,7 @@ export default function PathwaySearchPage() {
   const [showExplanation, setShowExplanation] = useState(false);
 
   // state for proteins panel
-  const [threshold, setThreshold] = useState(0.6);
+  const [threshold, setThreshold] = useState(0.8);
   const [proteins, setProteins] = useState<{ id: string; score: number }[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -58,7 +58,7 @@ export default function PathwaySearchPage() {
       });
   }, [pathway, threshold]);
 
-  // fetch STRING interactions
+  // fetch STRING interactions (sorted by protein order)
   useEffect(() => {
     if (!pathway) return;
 
@@ -74,14 +74,28 @@ export default function PathwaySearchPage() {
           setInteractions([]);
         } else {
           setStringError(null);
-          setInteractions(data.interactions || []);
+
+          // --- custom sort to match protein order ---
+          const orderMap = new Map(
+            proteins.map((p, i) => [p.id.toUpperCase(), i])
+          );
+
+          const sortedInteractions = (data.interactions || []).sort((a, b) => {
+            const aOrder =
+              orderMap.get(a.prediction_protein.toUpperCase()) ?? Infinity;
+            const bOrder =
+              orderMap.get(b.prediction_protein.toUpperCase()) ?? Infinity;
+            return aOrder - bOrder;
+          });
+
+          setInteractions(sortedInteractions);
         }
       })
       .catch(() => {
         setStringError("Failed to fetch STRING interactions.");
         setInteractions([]);
       });
-  }, [pathway, threshold]);
+  }, [pathway, threshold, proteins]); // include proteins to trigger sorting after proteins load
 
   // fetch pathway description
   useEffect(() => {
@@ -192,7 +206,7 @@ export default function PathwaySearchPage() {
             {/* Left: proteins above threshold */}
             <div className="panel half">
               <h2 className="panel-title">
-                Proteins with strong association scores with the {pathway} TRN
+                Proteins sorted by AI-predicted Association Scores with the {pathway} TRN
               </h2>
 
               <label>
@@ -228,7 +242,7 @@ export default function PathwaySearchPage() {
 
             {/* Right: STRING interactions */}
             <div className="panel half">
-              <h2 className="panel-title">STRING Evidence</h2>
+              <h2 className="panel-title">STRING-DB Evidence of Associations between AI-predicted Proteins and Known Proteins in the {pathway} gene set</h2>
 
               {stringError ? (
                 <p className="error">{stringError}</p>
