@@ -56,17 +56,29 @@ export default function SearchPage() {
   // Effect 3: fetch network plot + neighbors
   useEffect(() => {
     if (!gene) return;
-    fetch(`http://127.0.0.1:8001/plot?gene=${encodeURIComponent(gene)}`)
+
+    // 🔹 Step 1: Verify that the gene exists in master matrix
+    fetch(`http://127.0.0.1:8001/check_gene?gene=${encodeURIComponent(gene)}`)
+      .then((res) => {
+        if (res.status === 404) {
+          throw new Error(`Sorry, we don't have info for ${gene}.`);
+        }
+        return res.json();
+      })
+      .then(() => {
+        // 🔹 Step 2: If valid, load the plot + neighbors
+        return fetch(`http://127.0.0.1:8001/plot?gene=${encodeURIComponent(gene)}`);
+      })
       .then((res) => res.json())
       .then((data) => {
         if (data.error) {
-          setError(data.error); // show backend error message
+          setError(data.error);
           setPlotJson(null);
           setNeighbors([]);
           setSelectedGene("");
           setSharedGroups([]);
           setExpandedGroup(null);
-          setSelectedInfoGene(""); // reset Gene Info
+          setSelectedInfoGene("");
           setGeneInfo(null);
           setExpandedInfoGroup(null);
           return;
@@ -79,13 +91,13 @@ export default function SearchPage() {
         setSelectedGene("");
         setSharedGroups([]);
         setExpandedGroup(null);
-        setSelectedInfoGene(""); // default to "Select a gene"
+        setSelectedInfoGene("");
         setGeneInfo(null);
         setExpandedInfoGroup(null);
         setError(null);
       })
-      .catch(() => {
-        setError("No data available for this gene.");
+      .catch((err) => {
+        setError(err.message || "No data available for this gene.");
         setPlotJson(null);
         setNeighbors([]);
         setSelectedGene("");
@@ -96,6 +108,7 @@ export default function SearchPage() {
         setExpandedInfoGroup(null);
       });
   }, [gene]);
+
 
   // Effect 4: fetch shared pathway groups when neighbor selected
   useEffect(() => {
@@ -183,7 +196,7 @@ export default function SearchPage() {
 
           {/* Panel 5 full-width */}
           <div className="panel full panel5">
-            <h2 className="panel-title">Pathway Network</h2>
+            <h2 className="panel-title">Protein Relationship Network Based on Common TRN Associations</h2>
             {groupLabel && (
               <p className="group-label">Group Annotation: {groupLabel}</p>
             )}
@@ -265,7 +278,7 @@ export default function SearchPage() {
 
                 {/* Shared Pathways box */}
                 <div className="pathway-box">
-                  <h3 className="sidebar-title">Shared Pathways</h3>
+                  <h3 className="sidebar-title">Shared TRNs</h3>
                   {/* Neighbor dropdown */}
                   <select
                     className="dropdown"
@@ -315,7 +328,7 @@ export default function SearchPage() {
                         ))}
                       </div>
                     ) : (
-                      <p className="no-pathways">No shared pathways found.</p>
+                      <p className="no-pathways">No shared TRNs found.</p>
                     )
                   ) : (
                     <p className="no-pathways">Select a neighbor gene</p>
