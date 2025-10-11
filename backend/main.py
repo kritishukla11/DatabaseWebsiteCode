@@ -979,7 +979,7 @@ def load_gene_data(gene: str) -> pd.DataFrame:
 def calibration_image(gene: str):
     """
     Returns a matplotlib plot (PNG) of adjusted_rank vs confidence
-    for the given gene.
+    for the given gene, highlighting the top 10% region.
     """
     try:
         sub = load_gene_data(gene)
@@ -988,12 +988,38 @@ def calibration_image(gene: str):
 
         # make plot
         fig, ax = plt.subplots()
-        ax.plot(sub["adjusted_rank"], sub["confidence"], marker="o", linestyle="-", linewidth=1.5, alpha=0.8)
-        ax.set_xlabel("")  # remove x-axis label text
-        ax.set_xticks([])  # remove tick marks
-        ax.set_xticklabels([])  # remove tick labels
-        ax.set_ylabel("Confidence (% significant)")
+        ax.plot(
+            sub["adjusted_rank"], sub["confidence"],
+            marker="o", linestyle="-", linewidth=1.5, alpha=0.8
+        )
+
+        ax.set_xlabel("Rank of TRNs (predicted using AI)")
+        ax.set_xticks([])          # remove tick marks
+        ax.set_xticklabels([])     # remove tick labels
+        ax.set_ylabel(
+            f"Confidence of association between\n{gene} and each TRN\n(validated by Perturb-seq)",
+            fontsize=10,
+            labelpad=8, 
+            wrap=True
+        )
+
         ax.grid(False)
+
+        # === Highlight only the top-left 10% region ===
+        x_thresh = sub["adjusted_rank"].quantile(0.1)   # smallest 10% of ranks
+        y_thresh = sub["confidence"].quantile(0.9)      # highest 10% of confidence
+
+        width = abs(x_thresh - sub["adjusted_rank"].min())
+
+        # Draw translucent box from (min x, y_thresh) to (x_thresh, max y)
+        ax.add_patch(plt.Rectangle(
+            (sub["adjusted_rank"].min(), y_thresh),
+            width,
+            sub["confidence"].max() - y_thresh,
+            facecolor="lightgreen", alpha=0.3,
+            edgecolor="green", linewidth=1.5, linestyle="--"
+        ))
+
 
         # save to PNG buffer
         buf = io.BytesIO()
@@ -1014,6 +1040,7 @@ def calibration_image(gene: str):
         return JSONResponse({"error": str(e)}, status_code=404)
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
+
 
 
 # ====== /calibration/genes ======
