@@ -6,6 +6,7 @@ const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8001";
 
 export default function Panel3Calibration({ gene }: { gene: string }) {
   const [imgUrl, setImgUrl] = useState<string | null>(null);
+  const [summary, setSummary] = useState<string>("");
   const [showGenes, setShowGenes] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
   const [genes, setGenes] = useState<{ gene: string; confidence: number }[]>([]);
@@ -20,6 +21,26 @@ export default function Panel3Calibration({ gene }: { gene: string }) {
       gene
     )}&_ts=${Date.now()}`;
     setImgUrl(url);
+  }, [gene]);
+
+  // --- Load summary sentence ---
+  useEffect(() => {
+    if (!gene) {
+      setSummary("");
+      return;
+    }
+    (async () => {
+      try {
+        const res = await fetch(
+          `${BACKEND}/calibration/summary?gene=${encodeURIComponent(gene)}`
+        );
+        const data = await res.json();
+        setSummary(data.summary || "");
+      } catch (err) {
+        console.error("Error fetching calibration summary:", err);
+        setSummary("");
+      }
+    })();
   }, [gene]);
 
   // --- Load partner TRNs if button toggled ---
@@ -39,6 +60,13 @@ export default function Panel3Calibration({ gene }: { gene: string }) {
 
   return (
     <div className="border rounded-lg shadow bg-white p-4 flex flex-col items-center min-h-[650px]">
+      {/* === Summary sentence === */}
+      {summary && (
+        <p className="text-sm italic text-gray-700 text-center max-w-md mb-4 transition-opacity duration-500">
+          {summary}
+        </p>
+      )}
+
       {/* === Calibration plot === */}
       <div className="w-full text-center" style={{ minHeight: "400px" }}>
         {!gene ? (
@@ -88,7 +116,7 @@ export default function Panel3Calibration({ gene }: { gene: string }) {
         </div>
       )}
 
-      {/* === Info section toggle — moved to bottom === */}
+      {/* === Info section toggle — stays at bottom === */}
       <div className="w-full flex justify-start mt-auto pt-4">
         <button
           onClick={() => setShowInfo(!showInfo)}

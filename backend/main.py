@@ -1076,6 +1076,45 @@ def calibration_genes(gene: str):
         return {"error": str(e)}
     except Exception as e:
         return {"error": str(e)}
+    
+# ====== /calibration/summary ======
+@app.get("/calibration/summary")
+def calibration_summary(gene: str):
+    """
+    Return a short descriptive summary for Panel 3 (calibration plot):
+    "[gene] has [x] mutations across [y] cell lines... [z] RFIs..."
+    """
+    try:
+        # --- Load mutation + cell line counts ---
+        mut_csv = Path("mutation_counts.csv")
+        n_mut, n_cell = None, None
+        if mut_csv.exists():
+            mdf = pd.read_csv(mut_csv)
+            if {"gene", "mut_count", "cell_line_count"}.issubset(mdf.columns):
+                row = mdf[mdf["gene"].str.upper() == gene.upper()]
+                if not row.empty:
+                    n_mut = int(row.iloc[0]["mut_count"])
+                    n_cell = int(row.iloc[0]["cell_line_count"])
+
+        # --- Load NMF / cluster info ---
+        nmf, _ = load_nmf(gene)
+        n_clusters = nmf["cluster"].nunique()
+
+        # --- Construct summary sentence ---
+        s = (
+            f"{gene.upper()} has {n_mut if n_mut is not None else 'multiple'} mutations "
+            f"across {n_cell if n_cell is not None else 'several'} cell lines from "
+            f"The Cancer Dependency Map. {gene.upper()} can be divided into {n_clusters} "
+            f"regions of functional interest (RFIs). TRNs with the strongest associations "
+            f"to {gene.upper()} are highlighted in the green quadrant. "
+            f"These associations have been predicted by AI, and validated with experimental "
+            f"single-cell Perturb-seq data."
+        )
+        return {"summary": s}
+
+    except Exception as e:
+        return {"error": str(e)}
+
 
 
 # =========================================================
