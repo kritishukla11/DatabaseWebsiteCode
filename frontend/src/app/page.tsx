@@ -70,7 +70,17 @@ export default function HomePage() {
   return (
     <main className="container">
       <div className="content">
-        <h1 className="title">Welcome to the Brunk Lab Protein Database!</h1>
+        <h1 className="title">
+          Welcome to <span className="starmap">STARMAP</span>
+        </h1>
+        <p className="subtitle">
+          (
+          <span className="cap-underline">S</span>tructure –{" "}
+          <span className="cap-underline">T</span>ranscriptional{" "}
+          <span className="cap-underline">A</span>ctivity – drug{" "}
+          <span className="cap-underline">R</span>esponse{" "}
+          <span className="cap-underline">MAP</span>)
+        </p>
 
         <form onSubmit={handleSearch} className="search-form">
           <select
@@ -162,7 +172,28 @@ export default function HomePage() {
           color: #7bafd4;
           font-size: 3.5rem;
           font-weight: 900;
+          margin-bottom: 0.5rem;
+          line-height: 1.2;
+        }
+
+        .starmap {
+          text-decoration: underline;
+          text-decoration-thickness: 4px;
+          text-underline-offset: 6px;
+        }
+
+        .subtitle {
+          font-size: 1.5rem;
+          color: #7bafd4;
+          font-weight: 500;
           margin-bottom: 2.5rem;
+        }
+
+        .cap-underline {
+          display: inline-block;
+          border-bottom: 3px solid #7bafd4;
+          padding-bottom: 1px;
+          margin-right: 1px;
         }
 
         .search-form {
@@ -244,17 +275,19 @@ export default function HomePage() {
 
         .about-section {
           text-align: left;
-          margin-top: 3rem;
+          margin: 4rem auto 2rem;
           color: #222;
           line-height: 1.6;
           font-size: 1.05rem;
+          max-width: 1100px;
+          padding: 0 1rem;
         }
 
         .about-section h2 {
           color: #7bafd4;
-          font-size: 1.8rem;
-          font-weight: 700;
-          margin-bottom: 1rem;
+          font-size: 1.9rem;
+          font-weight: 800;
+          margin-bottom: 1.5rem;
           text-align: center;
         }
 
@@ -265,3 +298,4 @@ export default function HomePage() {
     </main>
   );
 }
+
