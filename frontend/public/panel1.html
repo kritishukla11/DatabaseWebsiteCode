@@ -279,7 +279,7 @@
             await loadCustomGene(g);
           });
 
-          $("clusterSelect").addEventListener("change", () => {
+          $("clusterSelect").addEventListener("change", async () => {
             const key = $("clusterSelect").value;
             if (!key) {
               setResidueViewToAll();
@@ -301,10 +301,13 @@
               recolorCartoonByClusters();
               error("No residues for this cluster are present in the loaded structure.");
             }
+
+            await ensureClusterTRNsLoaded(currentGene, key);
             renderPathwaysForCluster(currentGene, key);
           });
 
-          $("resiSelect").addEventListener("change", () => {
+
+          $("resiSelect").addEventListener("change", async () => {
             const val = $("resiSelect").value;
             if (!val) return;
             const r = Number(val);
@@ -314,8 +317,10 @@
             viewer.zoomTo({ resi: [r] });
             viewer.render();
             status(`Residue ${r} highlighted.`);
+            if (cKey) await ensureClusterTRNsLoaded(currentGene, cKey);
             renderPathwaysForResidue(currentGene, r);
           });
+
 
           $("btnClear").addEventListener("click", () => {
             $("clusterSelect").value = "";
@@ -376,6 +381,50 @@
           const res = await fetch(`${API_BASE}/residues?gene=${encodeURIComponent(gene)}`);
           if (!res.ok) throw new Error("Failed to fetch residues");
           return await res.json();
+        }
+        
+        async function loadResiduePathwayScore(gene) {
+          const res = await fetch(`${API_BASE}/residues?gene=${encodeURIComponent(gene)}`);
+          if (!res.ok) throw new Error(`Failed to fetch residue data for ${gene}`);
+          const data = await res.json();
+
+          genes = [];
+          geneResidueSet.clear();
+          geneResidueToCluster.clear();
+          geneClusterMap.clear();
+          genePathwaysByCluster.clear();
+
+          const geneSeen = new Set();
+
+          for (const row of data) {
+            const g = String(row.gene ?? "").trim().toUpperCase();
+            if (!g) continue;
+            if (!geneSeen.has(g)) { geneSeen.add(g); genes.push(g); }
+
+            const resi = Number(row.residue ?? row.res);
+            if (!Number.isFinite(resi) || resi <= 0) continue;
+
+            let clusterKey = String(row.cluster ?? row.clust ?? "").trim();
+            if (!clusterKey || clusterKey.toLowerCase() === "nan") continue;
+
+            if (!geneResidueSet.has(g)) geneResidueSet.set(g, new Set());
+            if (!geneResidueToCluster.has(g)) geneResidueToCluster.set(g, new Map());
+            if (!geneClusterMap.has(g)) geneClusterMap.set(g, new Map());
+            if (!genePathwaysByCluster.has(g)) genePathwaysByCluster.set(g, new Map());
+
+            if (!geneClusterMap.get(g).has(clusterKey)) {
+              geneClusterMap.get(g).set(clusterKey, new Set());
+            }
+            if (!genePathwaysByCluster.get(g).has(clusterKey)) {
+              genePathwaysByCluster.get(g).set(clusterKey, []);
+            }
+
+            geneResidueSet.get(g).add(resi);
+            geneResidueToCluster.get(g).set(resi, clusterKey);
+            geneClusterMap.get(g).get(clusterKey).add(resi);
+          }
+
+          if (genes.length === 0) throw new Error(`No residue data found for ${gene}`);
         }
 
 
@@ -724,6 +773,29 @@
           $("pathwaysTableWrap").innerHTML = "";
           window.parent.postMessage({ type: "resize-panel", panel: "panel1", height: 0 }, "*");
         }
+
+        async function ensureClusterTRNsLoaded(gene, clusterKey) {
+          const clusterMap = genePathwaysByCluster.get(gene);
+          if (!clusterMap) return;
+          if (clusterMap.has(clusterKey) && clusterMap.get(clusterKey).length > 0) return; // already cached
+
+          const url = `${API_BASE}/trn_by_cluster_or_residue?gene=${encodeURIComponent(gene)}&cluster=${encodeURIComponent(clusterKey)}`;
+          status(`Loading TRNs for cluster ${clusterKey}...`);
+          try {
+            const res = await fetch(url);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            const trns = data.pathways || [];
+            clusterMap.set(
+              clusterKey,
+              trns.map((x) => ({ pathway: String(x.pathway), score: Number(x.score) }))
+            );
+            status(`Loaded ${trns.length} TRNs for cluster ${clusterKey}.`);
+          } catch (err) {
+            error(`Failed to load TRNs for cluster ${clusterKey}: ${err.message}`);
+          }
+        }
+
 
         function renderPathwaysForResidue(gene, resi) {
           const panel = $("pathwaysPanel");
