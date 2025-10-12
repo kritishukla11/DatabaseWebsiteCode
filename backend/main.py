@@ -481,6 +481,7 @@ def make_cluster_cmap(n_clusters: int) -> ListedColormap:
     return ListedColormap(colors)
 
 # ---------------- Data loaders ----------------
+@lru_cache(maxsize=128)
 def load_gene_parquet(gene: str) -> pd.DataFrame:
     letter = gene[0].upper() if gene and gene[0].isalpha() else "OTHER"
     repo_id = "kritishukla/parquet_storage"
@@ -518,15 +519,14 @@ def normalize_clusters(series: pd.Series) -> pd.Series:
     mapping = {old: new for new, old in enumerate(unique)}
     return series.map(mapping), mapping
 
-def load_nmf(gene: str) -> pd.DataFrame:
-    df = load_gene_parquet(gene)
+def load_nmf(gene: str, df: pd.DataFrame | None = None):
+    if df is None:
+        df = load_gene_parquet(gene)
 
-    # Keep only nmfinfo rows
     nmf = df[df["table"] == "nmfinfo"].copy()
     if nmf.empty:
         raise HTTPException(status_code=404, detail=f"No nmfinfo data for {gene}")
 
-    # Match the old column names
     nmf = nmf.rename(columns={"x_axis": "x", "y_axis": "y", "clust": "cluster"})
     nmf["x_r"] = nmf["x"].round(6)
     nmf["y_r"] = nmf["y"].round(6)
@@ -1204,8 +1204,44 @@ def get_residues_with_pathways(gene: str):
     return df.to_dict(orient="records")
 
 
+@app.get("/trn_by_cluster_or_residue")
+def trn_by_cluster_or_residue(gene: str, cluster: int | None = None, residue: int | None = None, collapse: str = "max"):
+    """Return top-500 TRNs aggregated by cluster or residue (fast single parquet read)."""
+    df_all = load_gene_parquet(gene)
+    gdf = df_all[df_all["table"] == "gdf"].copy()
+    nmf, mapping = load_nmf(gene, df_all)
 
+    # parse geometry if needed
+    if "geometry" in gdf.columns and ("x" not in gdf.columns or "y" not in gdf.columns):
+        coords = gdf["geometry"].str.extract(r"POINT\s*\(?\s*([-0-9\.Ee+]+)\s+([-0-9\.Ee+]+)\s*\)?", expand=True)
+        coords.columns = ["x", "y"]
+        coords = coords.astype(float)
+        gdf = pd.concat([gdf, coords], axis=1)
 
+    gdf["x_r"], gdf["y_r"] = gdf["x"].round(6), gdf["y"].round(6)
+    nmf["x_r"], nmf["y_r"] = nmf["x"].round(6), nmf["y"].round(6)
+    merged = pd.merge(gdf, nmf[["x_r", "y_r", "cluster"]], on=["x_r", "y_r"], how="left")
+
+    if cluster is not None:
+        merged = merged[merged["cluster"] == cluster]
+    elif residue is not None and "residue" in merged.columns:
+        merged = merged[merged["residue"] == residue]
+
+    if merged.empty:
+        raise HTTPException(status_code=404, detail="No matching points.")
+
+    agg = merged.groupby("pathway")["gi_sum"]
+    trn_scores = (agg.mean() if collapse == "mean" else agg.max()).reset_index()
+    trn_scores = trn_scores.rename(columns={"gi_sum": "score"}).sort_values("score", ascending=False)
+
+    return {
+        "gene": gene.upper(),
+        "n_trns": len(trn_scores),
+        "aggregation": collapse,
+        "cluster": cluster,
+        "residue": residue,
+        "pathways": trn_scores.head(500).to_dict(orient="records"),
+    }
 
 
 # =========================================================

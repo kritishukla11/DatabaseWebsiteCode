@@ -28,13 +28,20 @@
       #status { font-size:12px; color:#0a4; margin-top:6px; }
       #error { font-size:12px; color:#b00020; margin-top:4px; white-space:pre-line; }
       #warn { font-size:12px; color:#b36b00; margin-top:4px; white-space:pre-line; }
-      #pathwaysPanel { margin-top:14px; padding:12px; border:1px solid var(--border); border-radius:12px; background:var(--bg); }
+      #pathwaysPanel { margin-top:14px; padding:12px; border:1px solid var(--border); border-radius:12px; background:var(--bg); overflow: hidden;}
       #pathwaysPanel h3 { margin:0 0 8px; font-size:16px; }
       #pathwaysPanel .note { font-size:12px; color:#555; margin-bottom:8px; }
       table.pathways { width:100%; border-collapse:collapse; font-size:14px; }
       table.pathways th, table.pathways td { border-bottom:1px solid #eee; padding:8px 10px; text-align:left; }
       table.pathways th { background:#f6f6f6; }
       .muted { color:var(--muted); }
+      #pathwaysTableWrap {
+        max-height: 420px;
+        overflow-y: auto;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+      }
+
     </style>
   </head>
 
@@ -372,7 +379,7 @@
         }
 
 
-        async function loadResiduePathwayScore(gene) {
+        async function loadResidueClusterMap(gene) {
           // --- build cluster → residues map from /residues ---
           const colorRows = await loadResiduesForColoring(gene);
 
@@ -409,39 +416,8 @@
             geneResidueSet.get(g).add(resi);
             geneResidueToCluster.get(g).set(resi, clusterKey);
             geneClusterMap.get(g).get(clusterKey).add(resi);
-          } 
-
-          // --- now merge pathway info from /residues_with_pathways ---
-          const res2 = await fetch(`${API_BASE}/residues_with_pathways?gene=${encodeURIComponent(gene)}`);
-          if (res2.ok) {
-            const rows2 = await res2.json();
-            for (const row of rows2) {
-              const g = String(row.gene ?? "").trim().toUpperCase();
-              let clusterKey = String(row.cluster ?? row.clust ?? "").trim();
-              if (!g || !clusterKey) continue;
-
-              const pathway = row.pathway ?? row.path;
-              if (!pathway) continue;
-
-              const score = Number(row.score ?? row.value);
-              if (!genePathwaysByCluster.get(g).has(clusterKey)) {
-                genePathwaysByCluster.get(g).set(clusterKey, []);
-              }
-              genePathwaysByCluster.get(g).get(clusterKey).push({
-                pathway: String(pathway),
-                score: Number.isFinite(score) ? score : undefined
-              });
-            }
-
-            // sort pathway rows by score
-            for (const [g, cmap] of genePathwaysByCluster) {
-              for (const [key, arr] of cmap) {
-                arr.sort((a, b) => (b.score ?? -Infinity) - (a.score ?? -Infinity));
-              }
-            }
-          }   
+          }
         }
-
 
 
         // ---------- UI population ----------
@@ -792,7 +768,7 @@
               return bs - as;
             });
 
-          const topRows = uniqueRows.slice(0, 10);
+          const topRows = uniqueRows; // show all ~500, already sorted by score
           if (!topRows.length) {
             $("pathwaysTableWrap").innerHTML = '<div class="muted">No nonzero pathways for this cluster.</div>';
             notifyParentOfHeight();

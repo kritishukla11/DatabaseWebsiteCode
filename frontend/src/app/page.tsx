@@ -11,8 +11,7 @@ export default function HomePage() {
   const [allProteins, setAllProteins] = useState<string[]>([]);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showInfo, setShowInfo] = useState(false);
-  const [isFocused, setIsFocused] = useState(false); // ✅ added
-  const contentRef = useRef<HTMLDivElement>(null);
+  const [isFocused, setIsFocused] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   // -----------------------------
@@ -33,15 +32,14 @@ export default function HomePage() {
   }, []);
 
   // -----------------------------
-  // Handle autocomplete logic (fixed)
+  // Handle autocomplete
   // -----------------------------
   const updateSuggestions = (val: string, focused = false) => {
     setQuery(val);
-
     let src: string[] = [];
     if (searchType === "protein") src = allProteins;
     else if (searchType === "pathway") src = allPathways;
-    else src = []; // no autocomplete for drugs
+    else src = []; // drug has no autocomplete
 
     if (!focused) {
       setSuggestions([]);
@@ -49,7 +47,7 @@ export default function HomePage() {
     }
 
     if (!val.trim()) {
-      // show top 10 alphabetically when clicking into box
+      // show first 10 alphabetically when box is clicked
       setSuggestions(src.slice(0, 10));
       return;
     }
@@ -60,19 +58,17 @@ export default function HomePage() {
     setSuggestions(filtered);
   };
 
-  // ✅ Re-run when backend finishes loading while focused
+  // Refresh autocomplete if backend finishes loading while focused
   useEffect(() => {
     if (isFocused) updateSuggestions(query, true);
   }, [allProteins.length, allPathways.length, isFocused]);
 
-  // -----------------------------
-  // Close autocomplete on outside click
-  // -----------------------------
+  // Close autocomplete when clicking outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
         setSuggestions([]);
-        setIsFocused(false); // ✅ added
+        setIsFocused(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -114,6 +110,7 @@ export default function HomePage() {
   // -----------------------------
   return (
     <main className="main-container">
+      {/* ---------- HERO ---------- */}
       <section className="hero">
         <h1 className="title">Welcome to STARMAP</h1>
         <p className="subtitle">
@@ -125,7 +122,7 @@ export default function HomePage() {
           <span className="underline-letter">MAP</span>)
         </p>
 
-        {/* ---------- METRICS SECTION ---------- */}
+        {/* ---------- METRICS ---------- */}
         <div className="metrics">
           <div className="metric">
             <p className="metric-label">PROTEINS</p>
@@ -133,7 +130,9 @@ export default function HomePage() {
           </div>
           <div className="divider">|</div>
           <div className="metric">
-            <p className="metric-label">TRANSCRIPTIONAL REGULATORY NETWORKS</p>
+            <p className="metric-label">
+              TRANSCRIPTIONAL REGULATORY NETWORKS
+            </p>
             <p className="metric-value">500</p>
           </div>
           <div className="divider">|</div>
@@ -203,20 +202,23 @@ export default function HomePage() {
         </button>
       </section>
 
-      {/* ---------- COLLAPSIBLE ABOUT SECTION ---------- */}
-      <section
-        className="about-section"
-        style={{
-          maxHeight: showInfo ? `${contentRef.current?.scrollHeight}px` : "0px",
-          opacity: showInfo ? 1 : 0,
-          padding: showInfo ? "2rem 8rem" : "0 8rem",
-        }}
-      >
-        <div ref={contentRef}>
+      {/* ---------- FIXED COLLAPSIBLE SECTION ---------- */}
+      <section className={`about-section ${showInfo ? "open" : ""}`}>
+        <div className="about-inner">
           <h2>About This Platform</h2>
           <p>
             This database uses AI-based modeling to study how genetic mutations
-            in cancer influence transcriptional regulation and drug response.
+            in cancer influence transcriptional regulation and drug response. We
+            generate 2D functional flatmaps for over{" "}
+            <strong>16,000 human proteins</strong>, identifying{" "}
+            <strong>Regions of Functional Interest (RFIs)</strong> that contain
+            clustered mutations from the{" "}
+            <strong>Cancer Dependency Map (DepMap)</strong>. Our multi-omics
+            pipeline connects these RFIs to changes in{" "}
+            <strong>Transcriptional Regulatory Networks (TRNs)</strong> across{" "}
+            <strong>500 transcription factors</strong> and predicts{" "}
+            <strong>drug sensitivity profiles</strong> for more than 300
+            compounds from CTRP and PRISM.
           </p>
         </div>
       </section>
@@ -225,31 +227,36 @@ export default function HomePage() {
       <style jsx>{`
         .main-container {
           background: #ffffff;
-          height: calc(100dvh - 70px);
+          height: calc(100dvh - 150px);
           width: 100vw;
           display: flex;
           flex-direction: column;
           justify-content: center;
           align-items: center;
         }
+
         .hero {
           text-align: center;
         }
+
         .title {
           font-size: 2.8rem;
           font-weight: 800;
           color: #7bafd4;
         }
+
         .subtitle {
           color: #7bafd4;
           font-size: 1.2rem;
           margin-bottom: 2rem;
         }
+
         .underline-letter {
           text-decoration: underline;
           font-weight: 600;
           color: #7bafd4;
         }
+
         .metrics {
           display: flex;
           justify-content: center;
@@ -257,20 +264,24 @@ export default function HomePage() {
           gap: 2rem;
           margin-bottom: 2rem;
         }
+
         .metric-label {
           font-size: 0.85rem;
           color: #999;
           font-weight: 600;
         }
+
         .metric-value {
           font-size: 1.5rem;
           font-weight: 800;
           color: #999;
         }
+
         .divider {
           color: #ddd;
           font-size: 1.4rem;
         }
+
         .search-row {
           display: flex;
           justify-content: center;
@@ -278,9 +289,11 @@ export default function HomePage() {
           gap: 0.5rem;
           flex-wrap: wrap;
         }
+
         .search-wrapper {
           position: relative;
         }
+
         .dropdown,
         .search-box {
           border: 1px solid #7bafd4;
@@ -288,9 +301,11 @@ export default function HomePage() {
           padding: 0.6rem 0.8rem;
           font-size: 1rem;
         }
+
         .search-box {
           width: 220px;
         }
+
         .search-btn {
           background-color: #7bafd4;
           color: white;
@@ -299,6 +314,7 @@ export default function HomePage() {
           padding: 0.6rem 1.2rem;
           font-weight: 600;
         }
+
         .suggestions {
           position: absolute;
           top: 100%;
@@ -314,13 +330,16 @@ export default function HomePage() {
           overflow-y: auto;
           z-index: 1000;
         }
+
         .suggestions li {
           padding: 0.5rem 0.8rem;
           cursor: pointer;
         }
+
         .suggestions li:hover {
           background: #eaf4fb;
         }
+
         .more-info-btn {
           margin-top: 2rem;
           color: #7bafd4;
@@ -329,15 +348,43 @@ export default function HomePage() {
           font-weight: 700;
           cursor: pointer;
         }
+
+        /* ---------- FIXED ABOUT SECTION ---------- */
         .about-section {
           width: 100%;
+          background: #ffffff;
           overflow: hidden;
-          transition: max-height 0.6s ease, opacity 0.4s ease;
+          box-sizing: border-box;
+          max-height: 0;
+          opacity: 0;
+          transition: max-height 0.6s ease, opacity 0.6s ease, padding 0.4s ease;
+          padding: 0 8rem;
         }
+
+        .about-section.open {
+          max-height: 2000px;
+          opacity: 1;
+          padding: 2rem 8rem;
+        }
+
+        .about-inner {
+          max-width: 1600px;
+          margin: 0 auto;
+        }
+
         .about-section h2 {
           text-align: center;
           color: #7bafd4;
           font-weight: 800;
+          font-size: 1.8rem;
+          margin-bottom: 1rem;
+        }
+
+        .about-section p {
+          font-size: 1rem;
+          line-height: 1.7;
+          color: #333;
+          margin: 0 auto 1rem;
         }
       `}</style>
     </main>
