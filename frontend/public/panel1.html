@@ -103,7 +103,7 @@
       <div id="error"></div>
 
       <div id="pathwaysPanel" hidden>
-        <h3>Related pathways</h3>
+        <h3>Related Transcriptional Regulatory Networks</h3>
         <div class="note" id="pathwaysNote"></div>
         <div id="pathwaysTableWrap"></div>
       </div>
@@ -785,7 +785,7 @@
             const res = await fetch(url);
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const data = await res.json();
-            const trns = data.pathways || [];
+            const trns = Array.isArray(data) ? data : data.pathways || [];
             clusterMap.set(
               clusterKey,
               trns.map((x) => ({ pathway: String(x.pathway), score: Number(x.score) }))
@@ -826,7 +826,7 @@
           const seen = new Map();
           for (const { pathway, score } of rows) {
             if (!pathway) continue;
-            if (score === 0) continue;   // <-- filter out rows with score = 0
+            if (score === 0) continue;
             if (!seen.has(pathway) || (Number.isFinite(score) && score > seen.get(pathway))) {
               seen.set(pathway, score);
             }
@@ -840,22 +840,106 @@
               return bs - as;
             });
 
-          const topRows = uniqueRows; // show all ~500, already sorted by score
+          const topRows = uniqueRows;
           if (!topRows.length) {
-            $("pathwaysTableWrap").innerHTML = '<div class="muted">No nonzero pathways for this cluster.</div>';
+            $("pathwaysTableWrap").innerHTML =
+              '<div class="muted">No nonzero pathways for this cluster.</div>';
             notifyParentOfHeight();
             return;
           }
 
-          let html = `<table class="pathways"><thead><tr><th>Pathway</th><th>Score</th></tr></thead><tbody>`;
+          // --- Step 1: build the pathway table ---
+          let html = `<table class="pathways"><thead><tr><th>TRN</th><th>Score</th></tr></thead><tbody>`;
           for (const { pathway, score } of topRows) {
             const s = Number.isFinite(score) ? score.toPrecision(6) : "";
             html += `<tr><td>${escapeHtml(pathway)}</td><td>${s}</td></tr>`;
           }
           html += `</tbody></table>`;
-          $("pathwaysTableWrap").innerHTML = html;
+
+          // --- Step 2: build the Gene Info box ---
+          let geneInfoBoxHTML = `
+            <div class="trn-geneinfo-box" style="margin-bottom: 12px;">
+              <h4 style="margin:4px 0;font-size:15px;">See gene info for transcription factor</h4>
+              <select id="trnGeneInfoSelect" style="padding:6px 10px;border-radius:6px;border:1px solid #ccc;width:100%;">
+                <option value="">Select a transcription factor</option>
+                ${uniqueRows
+                  .map(
+                    (r) =>
+                      `<option value="${escapeHtml(r.pathway)}">${escapeHtml(r.pathway)}</option>`
+                  )
+                  .join("")}
+              </select>
+              <div id="trnGeneInfoOutput" style="margin-top:10px;"></div>
+            </div>
+          `;
+
+          // --- Step 3: combine and inject both ---
+          $("pathwaysTableWrap").innerHTML = geneInfoBoxHTML + html;
           notifyParentOfHeight();
+
+          // --- Step 4: attach dropdown listener for /gene_info ---
+          const infoSelect = document.getElementById("trnGeneInfoSelect");
+          infoSelect?.addEventListener("change", async (e) => {
+            const tf = e.target.value;
+            const output = document.getElementById("trnGeneInfoOutput");
+            if (!tf) {
+              output.innerHTML = "<p class='muted'>Select a transcription factor.</p>";
+              return;
+            }
+            output.innerHTML = "<p class='muted'>Loading gene info...</p>";
+            try {
+              const res = await fetch(`${API_BASE}/gene_info?gene=${encodeURIComponent(tf)}`);
+              if (!res.ok) throw new Error(`HTTP ${res.status}`);
+              const data = (await res.json()).info || {}; // ✅ fixed
+
+            if (!data || Object.keys(data).length === 0) {
+               output.innerHTML = `<p class='muted'>No info available for ${escapeHtml(tf)}.</p>`;
+                return;
+              }
+
+              // build collapsible buttons like Panel 5
+              let infoHTML = `<div class="group-buttons">`;
+              for (const [category, values] of Object.entries(data)) {
+                const groupId = `grp-${category.replace(/\s+/g, "-")}-${Math.random()
+                  .toString(36)
+                  .slice(2, 7)}`;
+                infoHTML += `
+                  <div class="group-block" style="margin-bottom:6px;">
+                    <button class="group-btn" id="${groupId}-btn"
+                      style="width:100%;text-align:left;background:#f7f7f7;border:1px solid #ddd;border-radius:6px;padding:6px 10px;cursor:pointer;">
+                      ${escapeHtml(category)}
+                    </button>
+                    <ul id="${groupId}-list" class="info-list"
+                    style="display:none;list-style:disc;margin:6px 0 0 20px;padding:0;font-size:13px;"></ul>
+                  </div>
+                `;
+              }
+              infoHTML += `</div>`;
+              output.innerHTML = infoHTML;
+
+              // fill lists and wire expand/collapse
+              for (const [category, values] of Object.entries(data)) {
+                const list = output.querySelector(
+                  `[id^="grp-${category.replace(/\s+/g, "-")}"][id$="-list"]`
+                );
+                const btn = output.querySelector(
+                  `[id^="grp-${category.replace(/\s+/g, "-")}"][id$="-btn"]`
+                );
+                if (list && Array.isArray(values)) {
+                  list.innerHTML = values.map((v) => `<li>${escapeHtml(v)}</li>`).join("");
+                  btn?.addEventListener("click", () => {
+                    const visible = list.style.display === "block";
+                    list.style.display = visible ? "none" : "block";
+                  });
+                }
+              }
+            } catch (err) {
+              output.innerHTML = `<p class='muted'>Error loading info: ${escapeHtml(err.message)}</p>`;
+            }
+            notifyParentOfHeight();
+          });
         }
+
 
 
         // ---------- Overlap warning ----------
