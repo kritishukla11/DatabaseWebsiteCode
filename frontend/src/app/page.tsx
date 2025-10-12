@@ -1,105 +1,176 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 export default function HomePage() {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [searchType, setSearchType] = useState("protein");
-
   const [allPathways, setAllPathways] = useState<string[]>([]);
   const [allProteins, setAllProteins] = useState<string[]>([]);
   const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [showInfo, setShowInfo] = useState(false);
+  const [isFocused, setIsFocused] = useState(false); // ✅ added
+  const contentRef = useRef<HTMLDivElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
 
+  // -----------------------------
+  // Load data (protein + pathway lists)
+  // -----------------------------
   useEffect(() => {
-    if (searchType === "pathway") {
-      fetch("http://127.0.0.1:8001/pathways/list")
-        .then((res) => res.json())
-        .then((data) => setAllPathways(data.pathways || []))
-        .catch(() => setAllPathways([]));
-    } else if (searchType === "protein") {
-      fetch("http://127.0.0.1:8001/proteins/list")
-        .then((res) => res.json())
-        .then((data) => setAllProteins(data.proteins || []))
-        .catch(() => setAllProteins([]));
-    }
-  }, [searchType]);
+    const BACKEND = "http://127.0.0.1:8001";
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!query.trim()) return;
+    fetch(`${BACKEND}/proteins/list`)
+      .then((r) => r.json())
+      .then((d) => setAllProteins((d.proteins || []).sort()))
+      .catch(() => setAllProteins([]));
 
-    let normalized = query.trim();
+    fetch(`${BACKEND}/pathways/list`)
+      .then((r) => r.json())
+      .then((d) => setAllPathways((d.pathways || []).sort()))
+      .catch(() => setAllPathways([]));
+  }, []);
 
-    if (searchType === "protein") {
-      normalized = normalized.toUpperCase();
-      router.push(`/search?gene=${encodeURIComponent(normalized)}`);
-    } else if (searchType === "pathway") {
-      normalized = normalized.toUpperCase();
-      router.push(`/pathway?pathway=${encodeURIComponent(normalized)}`);
-    } else if (searchType === "drug") {
-      router.push(`/drug?drug=${encodeURIComponent(normalized)}`);
-    }
-  };
-
-  const getPlaceholder = () => {
-    if (searchType === "pathway") return "Enter transcriptional regulatory network name";
-    if (searchType === "protein") return "Enter protein name";
-    return `Enter ${searchType} name`;
-  };
-
-  const handleInputChange = (val: string) => {
+  // -----------------------------
+  // Handle autocomplete logic (fixed)
+  // -----------------------------
+  const updateSuggestions = (val: string, focused = false) => {
     setQuery(val);
 
-    if (searchType === "pathway") {
-      const lowerVal = val.toLowerCase();
-      setSuggestions(
-        allPathways.filter((p) => p.toLowerCase().startsWith(lowerVal))
-      );
-    } else if (searchType === "protein") {
-      const upperVal = val.toUpperCase();
-      setSuggestions(
-        allProteins.filter((p) => p.startsWith(upperVal))
-      );
-    } else {
+    let src: string[] = [];
+    if (searchType === "protein") src = allProteins;
+    else if (searchType === "pathway") src = allPathways;
+    else src = []; // no autocomplete for drugs
+
+    if (!focused) {
       setSuggestions([]);
+      return;
+    }
+
+    if (!val.trim()) {
+      // show top 10 alphabetically when clicking into box
+      setSuggestions(src.slice(0, 10));
+      return;
+    }
+
+    const filtered = src
+      .filter((x) => x.toLowerCase().startsWith(val.toLowerCase()))
+      .slice(0, 10);
+    setSuggestions(filtered);
+  };
+
+  // ✅ Re-run when backend finishes loading while focused
+  useEffect(() => {
+    if (isFocused) updateSuggestions(query, true);
+  }, [allProteins.length, allPathways.length, isFocused]);
+
+  // -----------------------------
+  // Close autocomplete on outside click
+  // -----------------------------
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+        setSuggestions([]);
+        setIsFocused(false); // ✅ added
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // -----------------------------
+  // Handle search
+  // -----------------------------
+  const handleSearch = () => {
+    if (!query) return;
+    const normalizedQuery = query.toUpperCase();
+
+    if (searchType === "protein") {
+      router.push(`/search?gene=${encodeURIComponent(normalizedQuery)}`);
+    } else if (searchType === "pathway") {
+      router.push(`/pathway?pathway=${encodeURIComponent(normalizedQuery)}`);
+    } else if (searchType === "drug") {
+      router.push(`/drug?drug=${encodeURIComponent(normalizedQuery)}`);
     }
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") handleSearch();
+  };
+
+  // -----------------------------
+  // Dynamic placeholder
+  // -----------------------------
+  const placeholderText =
+    searchType === "protein"
+      ? "Enter Protein Name"
+      : searchType === "pathway"
+      ? "Enter TRN Name"
+      : "Enter Drug Name";
+
+  // -----------------------------
+  // UI
+  // -----------------------------
   return (
-    <main className="container">
-      <div className="content">
-        <h1 className="title">
-          Welcome to <span className="starmap">STARMAP</span>
-        </h1>
+    <main className="main-container">
+      <section className="hero">
+        <h1 className="title">Welcome to STARMAP</h1>
         <p className="subtitle">
-          (
-          <span className="cap-underline">S</span>tructure –{" "}
-          <span className="cap-underline">T</span>ranscriptional{" "}
-          <span className="cap-underline">A</span>ctivity – drug{" "}
-          <span className="cap-underline">R</span>esponse{" "}
-          <span className="cap-underline">MAP</span>)
+          (Oncogenic{" "}
+          <span className="underline-letter">S</span>tructure –{" "}
+          <span className="underline-letter">T</span>ranscriptional{" "}
+          <span className="underline-letter">A</span>ctivity – drug{" "}
+          <span className="underline-letter">R</span>esponse{" "}
+          <span className="underline-letter">MAP</span>)
         </p>
 
-        <form onSubmit={handleSearch} className="search-form">
+        {/* ---------- METRICS SECTION ---------- */}
+        <div className="metrics">
+          <div className="metric">
+            <p className="metric-label">PROTEINS</p>
+            <p className="metric-value">16,000+</p>
+          </div>
+          <div className="divider">|</div>
+          <div className="metric">
+            <p className="metric-label">TRANSCRIPTIONAL REGULATORY NETWORKS</p>
+            <p className="metric-value">500</p>
+          </div>
+          <div className="divider">|</div>
+          <div className="metric">
+            <p className="metric-label">DRUGS</p>
+            <p className="metric-value">300</p>
+          </div>
+        </div>
+
+        {/* ---------- SEARCH BAR + AUTOCOMPLETE ---------- */}
+        <div className="search-row" ref={wrapperRef}>
           <select
+            className="dropdown"
             value={searchType}
-            onChange={(e) => setSearchType(e.target.value)}
-            className="search-select"
+            onChange={(e) => {
+              setSearchType(e.target.value);
+              setQuery("");
+              setSuggestions([]);
+            }}
           >
             <option value="protein">Protein</option>
             <option value="pathway">Transcriptional Regulatory Network</option>
             <option value="drug">Drug</option>
           </select>
 
-          <div className="input-wrapper">
+          <div className="search-wrapper">
             <input
               type="text"
-              placeholder={getPlaceholder()}
+              className="search-box"
+              placeholder={placeholderText}
               value={query}
-              onChange={(e) => handleInputChange(e.target.value)}
-              className="search-input"
+              onChange={(e) => updateSuggestions(e.target.value, true)}
+              onFocus={() => {
+                setIsFocused(true);
+                updateSuggestions(query, true);
+              }}
+              onKeyDown={handleKeyDown}
             />
             {suggestions.length > 0 && (
               <ul className="suggestions">
@@ -118,181 +189,155 @@ export default function HomePage() {
             )}
           </div>
 
-          <button type="submit" className="search-button">
+          <button onClick={handleSearch} className="search-btn">
             Search
           </button>
-        </form>
+        </div>
 
-        {/* --- About Section --- */}
-        <div className="about-section">
+        {/* ---------- TOGGLE BUTTON ---------- */}
+        <button
+          className="more-info-btn"
+          onClick={() => setShowInfo((prev) => !prev)}
+        >
+          {showInfo ? "Hide Info ▲" : "More Info ▼"}
+        </button>
+      </section>
+
+      {/* ---------- COLLAPSIBLE ABOUT SECTION ---------- */}
+      <section
+        className="about-section"
+        style={{
+          maxHeight: showInfo ? `${contentRef.current?.scrollHeight}px` : "0px",
+          opacity: showInfo ? 1 : 0,
+          padding: showInfo ? "2rem 8rem" : "0 8rem",
+        }}
+      >
+        <div ref={contentRef}>
           <h2>About This Platform</h2>
           <p>
-            This database uses AI-based modeling to study how genetic mutations in cancer
-            influence transcriptional regulation and drug response. We generate 2D
-            functional flatmaps for over <strong>16,000 human proteins</strong>, identifying{" "}
-            <strong>Regions of Functional Interest (RFIs)</strong> that contain clustered
-            mutations from <strong>The Cancer Dependency Map (DepMap)</strong>. Our
-            multi-omics pipeline connects these RFIs to changes in{" "}
-            <strong>Transcriptional Regulatory Networks (TRNs)</strong> across{" "}
-            <strong>500 transcription factors</strong> and predicts{" "}
-            <strong>drug sensitivity profiles</strong> for more than{" "}
-            <strong>300 compounds</strong> from <strong>CTRP</strong> and{" "}
-            <strong>PRISM</strong>. These computational predictions are supported by
-            large-scale <strong>single-cell Perturb-seq</strong> experiments that validate
-            variant-driven transcriptional and drug-response effects. Together, these
-            analyses provide an integrated view of how protein-level variation shapes gene
-            regulation and therapeutic sensitivity in cancer.
-          </p>
-          <p>
-            You can explore these associations by searching for a{" "}
-            <strong>protein</strong>, a{" "}
-            <strong>Transcriptional Regulatory Network (TRN)</strong>, or a{" "}
-            <strong>drug</strong>. Each view provides complementary insights that connect
-            structural variation to regulatory activity and therapeutic response.
+            This database uses AI-based modeling to study how genetic mutations
+            in cancer influence transcriptional regulation and drug response.
           </p>
         </div>
-      </div>
+      </section>
 
+      {/* ---------- STYLES ---------- */}
       <style jsx>{`
-        .container {
-          background: white;
-          min-height: 100vh;
+        .main-container {
+          background: #ffffff;
+          height: calc(100dvh - 70px);
+          width: 100vw;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          align-items: center;
+        }
+        .hero {
+          text-align: center;
+        }
+        .title {
+          font-size: 2.8rem;
+          font-weight: 800;
+          color: #7bafd4;
+        }
+        .subtitle {
+          color: #7bafd4;
+          font-size: 1.2rem;
+          margin-bottom: 2rem;
+        }
+        .underline-letter {
+          text-decoration: underline;
+          font-weight: 600;
+          color: #7bafd4;
+        }
+        .metrics {
           display: flex;
           justify-content: center;
           align-items: center;
-          padding: 3rem 1rem;
+          gap: 2rem;
+          margin-bottom: 2rem;
         }
-
-        .content {
-          text-align: center;
-          max-width: 850px;
+        .metric-label {
+          font-size: 0.85rem;
+          color: #999;
+          font-weight: 600;
         }
-
-        .title {
-          color: #7bafd4;
-          font-size: 3.5rem;
-          font-weight: 900;
-          margin-bottom: 0.5rem;
-          line-height: 1.2;
-        }
-
-        .starmap {
-          text-decoration: underline;
-          text-decoration-thickness: 4px;
-          text-underline-offset: 6px;
-        }
-
-        .subtitle {
+        .metric-value {
           font-size: 1.5rem;
-          color: #7bafd4;
-          font-weight: 500;
-          margin-bottom: 2.5rem;
+          font-weight: 800;
+          color: #999;
         }
-
-        .cap-underline {
-          display: inline-block;
-          border-bottom: 3px solid #7bafd4;
-          padding-bottom: 1px;
-          margin-right: 1px;
+        .divider {
+          color: #ddd;
+          font-size: 1.4rem;
         }
-
-        .search-form {
+        .search-row {
           display: flex;
-          gap: 0.5rem;
           justify-content: center;
-          position: relative;
-          margin-bottom: 3rem;
+          align-items: center;
+          gap: 0.5rem;
+          flex-wrap: wrap;
         }
-
-        .search-select {
-          padding: 0.75rem 1rem;
-          font-size: 1rem;
-          border: 2px solid #7bafd4;
-          border-radius: 8px;
-          background: white;
-          color: black;
-          cursor: pointer;
-        }
-
-        .input-wrapper {
+        .search-wrapper {
           position: relative;
         }
-
-        .search-input {
-          background: white;
-          padding: 0.75rem 1rem;
+        .dropdown,
+        .search-box {
+          border: 1px solid #7bafd4;
+          border-radius: 6px;
+          padding: 0.6rem 0.8rem;
           font-size: 1rem;
-          border: 2px solid #7bafd4;
-          border-radius: 8px;
-          width: 400px;
-          outline: none;
-          color: black;
         }
-
-        .search-input:focus {
-          border-color: #005a9c;
+        .search-box {
+          width: 220px;
         }
-
+        .search-btn {
+          background-color: #7bafd4;
+          color: white;
+          border: none;
+          border-radius: 6px;
+          padding: 0.6rem 1.2rem;
+          font-weight: 600;
+        }
         .suggestions {
           position: absolute;
           top: 100%;
           left: 0;
           right: 0;
+          background: white;
           border: 1px solid #7bafd4;
-          border-radius: 4px;
-          margin-top: 0.25rem;
+          border-radius: 6px;
+          margin: 0;
+          padding: 0;
+          list-style: none;
           max-height: 200px;
           overflow-y: auto;
-          background: white;
           z-index: 1000;
-          text-align: left;
         }
-
         .suggestions li {
-          padding: 0.5rem;
+          padding: 0.5rem 0.8rem;
           cursor: pointer;
         }
-
         .suggestions li:hover {
-          background: #f1f9ff;
+          background: #eaf4fb;
         }
-
-        .search-button {
-          background: #7bafd4;
-          color: white;
-          border: none;
-          border-radius: 8px;
-          padding: 0.75rem 1.5rem;
-          font-size: 1rem;
-          font-weight: 600;
-          cursor: pointer;
-          transition: background 0.2s ease;
-        }
-
-        .search-button:hover {
-          background: #005a9c;
-        }
-
-        .about-section {
-          text-align: left;
-          margin: 4rem auto 2rem;
-          color: #222;
-          line-height: 1.6;
-          font-size: 1.05rem;
-          max-width: 1100px;
-          padding: 0 1rem;
-        }
-
-        .about-section h2 {
+        .more-info-btn {
+          margin-top: 2rem;
           color: #7bafd4;
-          font-size: 1.9rem;
-          font-weight: 800;
-          margin-bottom: 1.5rem;
-          text-align: center;
+          border: none;
+          background: none;
+          font-weight: 700;
+          cursor: pointer;
         }
-
-        .about-section p {
-          margin-bottom: 1.2rem;
+        .about-section {
+          width: 100%;
+          overflow: hidden;
+          transition: max-height 0.6s ease, opacity 0.4s ease;
+        }
+        .about-section h2 {
+          text-align: center;
+          color: #7bafd4;
+          font-weight: 800;
         }
       `}</style>
     </main>
