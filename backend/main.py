@@ -1565,25 +1565,39 @@ def get_mave_data(gene: str):
 @app.get("/clusters/colors")
 def get_cluster_colors(gene: str):
     """
-    Return mapping of cluster → color for the given gene.
-    Matches the same colors used in Panel 1 and Panel 2 flatmaps.
+    Return mapping of residue position → hex color for the given gene.
+    Colors correspond to the cluster each residue belongs to.
     """
     try:
-        # Load the gene’s NMF (cluster assignment) data
-        nmf, mapping = load_nmf(gene)
-        n_clusters = nmf["cluster"].nunique()
+        # --- Load residue-cluster mappings (from gene_buckets) ---
+        bucket = stable_bucket(gene)
+        path = Path(f"gene_buckets/bucket_{bucket:04d}.parquet")
+        if not path.exists():
+            raise HTTPException(status_code=404, detail=f"No bucket file for {gene}")
+        df = pd.read_parquet(path)
 
-        # Use the same palette logic as make_cluster_cmap()
+        df = df.rename(columns={"clust": "cluster", "res": "residue"})
+        df = df[df["gene"].str.upper() == gene.upper()].copy()
+
+        # Clean types
+        df["residue"] = pd.to_numeric(df["residue"], errors="coerce")
+        df["cluster"] = pd.to_numeric(df["cluster"], errors="coerce")
+        df = df.dropna(subset=["residue", "cluster"])
+        df["residue"] = df["residue"].astype(int)
+        df["cluster"] = df["cluster"].astype(int)
+
+        # --- Assign cluster colors ---
+        n_clusters = df["cluster"].nunique()
         cmap = make_cluster_cmap(n_clusters)
-
-        # Convert ListedColormap colors to hex
         hex_colors = [matplotlib.colors.rgb2hex(c) for c in cmap.colors]
 
-        # Build dict: cluster index (0-based) → color
-        cluster_color_map = {str(i): hex_colors[i % len(hex_colors)] for i in range(n_clusters)}
+        # Build mapping: residue → color
+        color_map = {
+            str(int(res)): hex_colors[int(cluster) % len(hex_colors)]
+            for res, cluster in zip(df["residue"], df["cluster"])
+        }
 
-        return cluster_color_map
+        return color_map
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to load cluster colors for {gene}: {e}")
-
+        raise HTTPException(status_code=500, detail=f"Failed to build residue color map for {gene}: {e}")
