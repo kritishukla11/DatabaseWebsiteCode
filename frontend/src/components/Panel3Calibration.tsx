@@ -1,15 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8001";
 
 export default function Panel3Calibration({ gene }: { gene: string }) {
+  const router = useRouter();
   const [imgUrl, setImgUrl] = useState<string | null>(null);
   const [summary, setSummary] = useState<string>("");
   const [showGenes, setShowGenes] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
   const [genes, setGenes] = useState<{ gene: string; confidence: number }[]>([]);
+  const [hasMave, setHasMave] = useState(false); // ✅ added
 
   // --- Load calibration plot ---
   useEffect(() => {
@@ -58,6 +61,14 @@ export default function Panel3Calibration({ gene }: { gene: string }) {
     }
   }, [showGenes, gene]);
 
+  // --- ✅ Check if MAVE data exists ---
+  useEffect(() => {
+    if (!gene) return;
+    fetch(`${BACKEND}/mave/data?gene=${encodeURIComponent(gene)}`)
+      .then((res) => setHasMave(res.ok))
+      .catch(() => setHasMave(false));
+  }, [gene]);
+
   return (
     <div className="border rounded-lg shadow bg-white p-4 flex flex-col items-center min-h-[650px]">
       {/* === Summary sentence === */}
@@ -90,15 +101,35 @@ export default function Panel3Calibration({ gene }: { gene: string }) {
         )}
       </div>
 
-      {/* === TRN list toggle === */}
-      {gene && (
-        <button
-          onClick={() => setShowGenes(!showGenes)}
-          className="mt-4 px-4 py-2 bg-[#77A9D8] text-white rounded-md hover:bg-[#5f94cc] transition-colors"
-        >
-          {showGenes ? "Hide TRN rankings" : "Click here to see TRN rankings"}
-        </button>
-      )}
+      {/* === Buttons section === */}
+      <div className="flex flex-col items-center justify-center mt-6 w-full">
+        {hasMave && (
+          <div className="mb-2 w-full flex justify-center">
+            <a
+              href={`/mave/${gene}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-4 py-2 bg-[#dbeafe] text-[#1d4ed8] font-semibold rounded-md hover:bg-[#bfdbfe] transition"
+              style={{ textAlign: "center", display: "inline-block" }}
+            >
+              View MAVE Info
+            </a>
+          </div>
+        )}
+
+        {gene && (
+          <div className="w-full flex justify-center">
+            <button
+              onClick={() => setShowGenes(!showGenes)}
+              className="px-4 py-2 bg-[#77A9D8] text-white font-semibold rounded-md hover:bg-[#5f94cc] transition"
+            >
+              {showGenes ? "Hide TRN rankings" : "Click here to see TRN rankings"}
+            </button>
+          </div>
+        )}
+      </div>
+
+
 
       {/* === Scrollable TRN list === */}
       {showGenes && genes.length > 0 && (

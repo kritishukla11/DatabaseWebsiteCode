@@ -971,6 +971,8 @@ def load_gene_data(gene: str) -> pd.DataFrame:
     df = pd.read_parquet(file_path)
     sub = df[df["gene"].str.upper() == gene.upper()]
     sub['confidence'] = sub['confidence']*10
+    sub = sub.sort_values("confidence", ascending=False).reset_index(drop=True)
+    sub["adjusted_rank"] = range(1, len(sub) + 1)
     return sub
 
 
@@ -1524,5 +1526,64 @@ def get_download(filename: str):
     return FileResponse(path=fpath, filename=fpath.name, media_type="application/octet-stream")
 
 
+# ===========================
+# /mave/data endpoint
+# ===========================
+import pandas as pd
+from fastapi import HTTPException
 
+MAVE_PATH = Path("data/processed_mave.csv")
+
+@app.get("/mave/data")
+def get_mave_data(gene: str):
+    """
+    Return MAVE average scores for a given gene as JSON.
+    """
+    try:
+        if not MAVE_PATH.exists():
+            raise HTTPException(status_code=404, detail="MAVE file not found")
+
+        df = pd.read_csv(MAVE_PATH)
+        sub = df[df["ID"].str.upper() == gene.upper()].copy()
+        if sub.empty:
+            raise HTTPException(status_code=404, detail=f"No MAVE data found for {gene}")
+
+        sub = sub[["from", "to", "position", "score"]].copy()
+
+        # Ensure position is integer and drop NaNs
+        sub["position"] = sub["position"].fillna(0).astype(int)
+        sub = sub.dropna(subset=["from", "to", "score"])
+
+        return sub.to_dict(orient="records")
+
+    except Exception as e:
+        print(f"[ERROR] /mave/data failed for {gene}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to load MAVE data: {e}")
+
+
+# ====== /clusters/colors ======
+@app.get("/clusters/colors")
+def get_cluster_colors(gene: str):
+    """
+    Return mapping of cluster → color for the given gene.
+    Matches the same colors used in Panel 1 and Panel 2 flatmaps.
+    """
+    try:
+        # Load the gene’s NMF (cluster assignment) data
+        nmf, mapping = load_nmf(gene)
+        n_clusters = nmf["cluster"].nunique()
+
+        # Use the same palette logic as make_cluster_cmap()
+        cmap = make_cluster_cmap(n_clusters)
+
+        # Convert ListedColormap colors to hex
+        hex_colors = [matplotlib.colors.rgb2hex(c) for c in cmap.colors]
+
+        # Build dict: cluster index (0-based) → color
+        cluster_color_map = {str(i): hex_colors[i % len(hex_colors)] for i in range(n_clusters)}
+
+        return cluster_color_map
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to load cluster colors for {gene}: {e}")
 
