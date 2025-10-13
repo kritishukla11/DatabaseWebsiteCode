@@ -1134,7 +1134,7 @@ def get_structures(gene: str):
         default = "alphafold"
         pdb_ids: list[str] = []
 
-        csv_path = Path("gene_to_pdb.csv")
+        csv_path = Path("data/gene_to_pdb.csv")
         if csv_path.exists():
             df = pd.read_csv(csv_path)
             # normalize colnames
