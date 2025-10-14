@@ -2,6 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
+import Image from "next/image";
+const starmapLogo = "/starmaplogo.png";
 
 export default function HomePage() {
   const router = useRouter();
@@ -47,7 +49,6 @@ export default function HomePage() {
     }
 
     if (!val.trim()) {
-      // show first 10 alphabetically when box is clicked
       setSuggestions(src.slice(0, 10));
       return;
     }
@@ -58,12 +59,10 @@ export default function HomePage() {
     setSuggestions(filtered);
   };
 
-  // Refresh autocomplete if backend finishes loading while focused
   useEffect(() => {
     if (isFocused) updateSuggestions(query, true);
   }, [allProteins.length, allPathways.length, isFocused]);
 
-  // Close autocomplete when clicking outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
@@ -95,9 +94,6 @@ export default function HomePage() {
     if (e.key === "Enter") handleSearch();
   };
 
-  // -----------------------------
-  // Dynamic placeholder
-  // -----------------------------
   const placeholderText =
     searchType === "protein"
       ? "Enter Protein Name"
@@ -110,8 +106,24 @@ export default function HomePage() {
   // -----------------------------
   return (
     <main className="main-container">
-      {/* ---------- HERO ---------- */}
       <section className="hero">
+        {/* ✅ LOGO ABOVE TITLE */}
+        <div className="logo-wrapper">
+          <Image
+            src={starmapLogo}
+            alt="STARMAP Logo"
+            width={0}
+            height={0}
+            sizes="100vw"
+            style={{
+            width: "auto",
+            height: "300px", // you can tweak this (e.g., 160px or 200px)
+            objectFit: "contain",
+            }}
+            priority
+          />
+        </div>
+
         <h1 className="title">Welcome to STARMAP</h1>
         <p className="subtitle">
           (variant -{" "}
@@ -142,7 +154,7 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* ---------- SEARCH BAR + AUTOCOMPLETE ---------- */}
+        {/* ---------- SEARCH BAR ---------- */}
         <div className="search-row" ref={wrapperRef}>
           <select
             className="dropdown"
@@ -193,7 +205,6 @@ export default function HomePage() {
           </button>
         </div>
 
-        {/* ---------- TOGGLE BUTTON ---------- */}
         <button
           className="more-info-btn"
           onClick={() => setShowInfo((prev) => !prev)}
@@ -202,14 +213,14 @@ export default function HomePage() {
         </button>
       </section>
 
-      {/* ---------- FIXED COLLAPSIBLE SECTION ---------- */}
+      {/* ---------- ABOUT SECTION ---------- */}
       <section className={`about-section ${showInfo ? "open" : ""}`}>
         <div className="about-inner">
           <h2>About This Platform</h2>
           <p>
             This database uses AI-based modeling to study how genetic mutations
-            in cancer influence transcriptional regulation and drug response. We
-            generate 2D functional flatmaps for over{" "}
+            in cancer influence transcriptional regulation and drug response.
+            We generate 2D functional flatmaps for over{" "}
             <strong>16,000 human proteins</strong>, identifying{" "}
             <strong>Regions of Functional Interest (RFIs)</strong> that contain
             clustered mutations from the{" "}
@@ -237,6 +248,18 @@ export default function HomePage() {
 
         .hero {
           text-align: center;
+        }
+
+        .logo-wrapper {
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          margin-bottom: 0.5rem;
+        }
+
+        .logo {
+          max-width: 220px;
+          height: auto;
         }
 
         .title {
@@ -349,7 +372,6 @@ export default function HomePage() {
           cursor: pointer;
         }
 
-        /* ---------- FIXED ABOUT SECTION ---------- */
         .about-section {
           width: 100%;
           background: #ffffff;
@@ -390,4 +412,3 @@ export default function HomePage() {
     </main>
   );
 }
-
