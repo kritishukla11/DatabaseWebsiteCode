@@ -1,33 +1,28 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 
 export default function PathwaySearchPage() {
   const searchParams = useSearchParams();
   const pathway = searchParams.get("pathway") || "";
   const [showExplanation, setShowExplanation] = useState(false);
 
-  // state for proteins panel
+  // ─── State ───────────────────────────────────────────────
   const [threshold, setThreshold] = useState(0.8);
   const [proteins, setProteins] = useState<{ id: string; score: number }[]>([]);
-  const [error, setError] = useState<string | null>(null);
-
-  // state for STRING evidence panel
   const [interactions, setInteractions] = useState<
-    { prediction_protein: string; geneset_protein: string; score: number }[]
+    { prediction_protein: string; geneset_protein: string; score: number; ai_score?: number | null }[]
   >([]);
+  const [error, setError] = useState<string | null>(null);
   const [stringError, setStringError] = useState<string | null>(null);
-
-  // state for description panel
   const [description, setDescription] = useState<string | null>(null);
   const [pubmed, setPubmed] = useState<string | null>(null);
   const [authors, setAuthors] = useState<string | null>(null);
 
-  // fetch proteins
+  // ─── Fetch predicted proteins ─────────────────────────────
   useEffect(() => {
     if (!pathway) return;
-
     fetch(
       `http://127.0.0.1:8001/pathway/proteins?pathway=${encodeURIComponent(
         pathway
@@ -36,11 +31,8 @@ export default function PathwaySearchPage() {
       .then((res) => res.json())
       .then((data) => {
         if (data.error) {
-          setError(
-            "Sorry, we don't have information for this transcription regulatory network"
-          );
+          setError("Sorry, we don't have information for this transcription regulatory network");
           setProteins([]);
-          setStringError(null);
           setInteractions([]);
         } else {
           setError(null);
@@ -58,10 +50,9 @@ export default function PathwaySearchPage() {
       });
   }, [pathway, threshold]);
 
-  // fetch STRING interactions (sorted by protein order)
+  // ─── Fetch STRING interactions ────────────────────────────
   useEffect(() => {
     if (!pathway) return;
-
     fetch(
       `http://127.0.0.1:8001/stringdb/pathway_interactions?pathway=${encodeURIComponent(
         pathway
@@ -75,36 +66,33 @@ export default function PathwaySearchPage() {
         } else {
           setStringError(null);
 
-          // --- custom sort to match protein order ---
-          const orderMap = new Map(
-            proteins.map((p, i) => [p.id.toUpperCase(), i])
-          );
-
-          const sortedInteractions = (data.interactions || []).sort((a, b) => {
-            const aOrder =
-              orderMap.get(a.prediction_protein.toUpperCase()) ?? Infinity;
-            const bOrder =
-              orderMap.get(b.prediction_protein.toUpperCase()) ?? Infinity;
-            return aOrder - bOrder;
+          const orderMap = new Map(proteins.map((p, i) => [p.id.toUpperCase(), i]));
+          const sorted = (data.interactions || []).sort((a, b) => {
+            const aOrd = orderMap.get(a.prediction_protein.toUpperCase()) ?? Infinity;
+            const bOrd = orderMap.get(b.prediction_protein.toUpperCase()) ?? Infinity;
+            return aOrd - bOrd;
           });
 
-          setInteractions(sortedInteractions);
+          const scoreMap = new Map(proteins.map((p) => [p.id.toUpperCase(), p.score]));
+          const enriched = sorted.map((i: any) => ({
+            ...i,
+            ai_score: scoreMap.get(i.prediction_protein.toUpperCase()) ?? null,
+          }));
+
+          setInteractions(enriched);
         }
       })
       .catch(() => {
         setStringError("Failed to fetch STRING interactions.");
         setInteractions([]);
       });
-  }, [pathway, threshold, proteins]); // include proteins to trigger sorting after proteins load
+  }, [pathway, threshold, proteins]);
 
-  // fetch pathway description
+  // ─── Fetch pathway description ────────────────────────────
   useEffect(() => {
     if (!pathway) return;
-
     fetch(
-      `http://127.0.0.1:8001/pathway/description?pathway=${encodeURIComponent(
-        pathway
-      )}`
+      `http://127.0.0.1:8001/pathway/description?pathway=${encodeURIComponent(pathway)}`
     )
       .then((res) => res.json())
       .then((data) => {
@@ -125,18 +113,23 @@ export default function PathwaySearchPage() {
       });
   }, [pathway]);
 
+  // ─── Compute top-10 without STRING evidence ───────────────
+  const topWithoutString = useMemo(() => {
+    if (!proteins.length) return [];
+    const withString = new Set(interactions.map((i) => i.prediction_protein.toUpperCase()));
+    return proteins.filter((p) => !withString.has(p.id.toUpperCase())).slice(0, 10);
+  }, [proteins, interactions]);
+
+  // ─── Render ───────────────────────────────────────────────
   return (
     <main className="container">
-      <h1 className="title">
-        Results for: {pathway} Transcriptional Regulatory Network
-      </h1>
+      <h1 className="title">Results for: {pathway} Transcriptional Regulatory Network</h1>
 
-      {/* Error message if pathway not found */}
       {error && <p className="error">{error}</p>}
 
       {!error && (
         <>
-          {/* Expandable Explanation Panel */}
+          {/* ── Info panel ── */}
           <div
             className="panel full expandable"
             onClick={() => setShowExplanation(!showExplanation)}
@@ -149,40 +142,23 @@ export default function PathwaySearchPage() {
               <div className="explanation-text">
                 <p>
                   The Molecular Signatures Database (MSigDB) is a curated
-                  resource of gene sets used for gene set enrichment analysis
-                  and related approaches. Gene sets in MSigDB are organized into
-                  collections that capture different types of biological
-                  knowledge, including canonical pathways, Gene Ontology terms,
-                  oncogenic and immunologic signatures, and transcription factor
-                  targets.
-                </p>
-
-                <p>
-                  Within MSigDB, the Transcription Factor Targets (TFT)
-                  collection derived from the Gene Transcription Regulation
-                  Database (GTRD) represents gene sets defined by transcription
-                  factor binding profiles. These sets are constructed by
-                  aggregating and uniformly processing large-scale ChIP-seq
-                  experiments. The resulting TFT:GTRD pathways provide
-                  experimentally supported maps of regulatory programs, enabling
-                  the identification of transcription factors that may drive
-                  observed gene expression changes.
+                  resource of gene sets used for gene set enrichment analysis.
+                  The Transcription Factor Targets (TFT) collection derived from
+                  GTRD represents gene sets defined by transcription factor
+                  binding profiles, enabling identification of regulators that
+                  may drive expression changes.
                 </p>
               </div>
             )}
           </div>
 
-          {/* Row 1: full-width description panel */}
+          {/* ── Description panel ── */}
           <div className="panel full">
             <h2 className="panel-title">{pathway} Gene Set Description</h2>
             {description ? (
               <>
                 <p>{description}</p>
-                {authors && (
-                  <p>
-                    <strong>Authors:</strong> {authors}
-                  </p>
-                )}
+                {authors && <p><strong>Authors:</strong> {authors}</p>}
                 {pubmed && (
                   <p>
                     <strong>Publication:</strong>{" "}
@@ -201,9 +177,9 @@ export default function PathwaySearchPage() {
             )}
           </div>
 
-          {/* Row 2: two half-width panels */}
+          {/* ── Two half-width panels ── */}
           <div className="panel-row">
-            {/* Left: proteins above threshold */}
+            {/* Left: predicted proteins */}
             <div className="panel half">
               <h2 className="panel-title">
                 Proteins sorted by AI-predicted Association Scores with the {pathway} TRN
@@ -230,8 +206,7 @@ export default function PathwaySearchPage() {
                 <ul>
                   {proteins.map((p) => (
                     <li key={p.id}>
-                      {p.id} —{" "}
-                      <span className="score">{p.score.toFixed(3)}</span>
+                      {p.id} — <span className="score">{p.score.toFixed(3)}</span>
                     </li>
                   ))}
                 </ul>
@@ -240,9 +215,24 @@ export default function PathwaySearchPage() {
               )}
             </div>
 
-            {/* Right: STRING interactions */}
+            {/* Right: STRING evidence */}
             <div className="panel half">
-              <h2 className="panel-title">STRING-DB Evidence of Associations between AI-predicted Proteins and Known Proteins in the {pathway} gene set</h2>
+              <h2 className="panel-title">
+                STRING-DB Evidence of Associations between AI-predicted Proteins and
+                Known Proteins in the {pathway} Gene Set
+              </h2>
+
+              {/* New: Top-10 without STRING evidence */}
+              {topWithoutString.length > 0 && (
+                <p className="no-string-summary">
+                  <strong>
+                    Top 10 proteins with predicted associations to {pathway} without STRING evidence:
+                  </strong>{" "}
+                  {topWithoutString
+                    .map((p) => `${p.id} (${p.score.toFixed(3)})`)
+                    .join(", ")}
+                </p>
+              )}
 
               {stringError ? (
                 <p className="error">{stringError}</p>
@@ -251,6 +241,7 @@ export default function PathwaySearchPage() {
                   <thead>
                     <tr>
                       <th>Protein from Prediction</th>
+                      <th>AI Association Score</th>
                       <th>Protein in {pathway} Gene Set</th>
                       <th>STRING Score</th>
                     </tr>
@@ -259,6 +250,7 @@ export default function PathwaySearchPage() {
                     {interactions.map((i, idx) => (
                       <tr key={idx}>
                         <td>{i.prediction_protein}</td>
+                        <td>{i.ai_score !== null ? i.ai_score.toFixed(3) : "—"}</td>
                         <td>{i.geneset_protein}</td>
                         <td>{i.score.toFixed(2)}</td>
                       </tr>
@@ -273,9 +265,10 @@ export default function PathwaySearchPage() {
         </>
       )}
 
+      {/* ─── Styles ────────────────────────────────────────── */}
       <style jsx>{`
         .container {
-          background: #ffffff;
+          background: #fff;
           min-height: 100vh;
           padding: 12px;
         }
@@ -292,23 +285,24 @@ export default function PathwaySearchPage() {
           border-radius: 12px;
           padding: 1.5rem;
           box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-          transition: all 0.3s ease-in-out;
         }
         .panel.full {
           width: 100%;
           margin-bottom: 2rem;
+        }
+        .panel-row {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 1.5rem;
+        }
+        .panel.half {
+          width: 100%;
         }
         .panel-title {
           color: #7bafd4;
           font-size: 1.5rem;
           font-weight: 700;
           margin-bottom: 0.5rem;
-        }
-        .panel-title.clickable {
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
         }
         .expandable {
           cursor: pointer;
@@ -318,21 +312,11 @@ export default function PathwaySearchPage() {
           margin-top: 1rem;
           font-size: 1rem;
           color: #333;
-          line-height: 1.5;
-        }
-        .explanation-text p {
-          margin-bottom: 1rem;
-        }
-        .panel-row {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 1.5rem;
         }
         .error {
           color: red;
-          font-size: 1.2rem;
           text-align: center;
-          margin: 2rem 0;
+          margin: 1rem 0;
         }
         ul {
           margin-top: 1rem;
@@ -341,6 +325,14 @@ export default function PathwaySearchPage() {
         .score {
           color: #555;
           font-weight: 500;
+        }
+        .no-string-summary {
+          background: #f1f9ff;
+          border-left: 4px solid #7bafd4;
+          padding: 0.6rem 0.8rem;
+          margin-bottom: 0.75rem;
+          font-size: 0.95rem;
+          color: #333;
         }
         .string-table {
           width: 100%;
@@ -355,12 +347,11 @@ export default function PathwaySearchPage() {
           text-align: center;
         }
         .string-table th {
-          background-color: #f1f9ff;
+          background: #f1f9ff;
           color: #333;
-          font-weight: 700;
         }
         .string-table tr:nth-child(even) {
-          background-color: #fafafa;
+          background: #fafafa;
         }
         @media (max-width: 900px) {
           .panel-row {

@@ -1297,52 +1297,66 @@ def stringdb_pathway_interactions(pathway: str, threshold: float = 0.5, species:
     """
     Check STRING interactions between:
       - proteins above threshold for this pathway (prediction set)
-      - proteins listed in geneset_files/<pathway>_geneset.csv
+      - proteins in the gene set, PLUS the TRN itself (NRF2 → NFE2L2)
     """
     try:
-        # 1. Get threshold proteins
+        # 1. Get predicted proteins above threshold
         if pathway not in PATHWAY_MATRIX.columns:
             return {"error": f"Pathway '{pathway}' not found."}
+
         col = PATHWAY_MATRIX[pathway]
         threshold_proteins = col[col > threshold].index.tolist()
         if not threshold_proteins:
             return {"interactions": []}
 
-        # 2. Load geneset proteins from file
+        # 2. Load gene set proteins
         geneset_file = GENESET_DIR / f"{pathway}_geneset.csv"
         if not geneset_file.exists():
             return {"error": f"Geneset file not found for pathway '{pathway}'"}
+
         geneset_df = pd.read_csv(geneset_file)
         geneset_proteins = geneset_df.iloc[:, 0].dropna().astype(str).tolist()
 
-        # 3. Query STRING in batches
+        # 3. Define TRN mapping: NRF2 → NFE2L2, else use the pathway name
+        trn_name = "NFE2L2" if pathway.strip().upper() == "NRF2" else pathway.strip().upper()
+
+        # 4. Add the TRN itself to the "gene set" group
+        if trn_name not in [x.upper() for x in geneset_proteins]:
+            geneset_proteins.append(trn_name)
+
+        # 5. Combine all for STRING query
         query_proteins = list(set(threshold_proteins) | set(geneset_proteins))
+
         STRING_API_URL = "https://string-db.org/api/json/network"
         all_data = []
 
-        # batch into groups of ~100 proteins (safe size for STRING API)
         for chunk in chunk_list(query_proteins, 100):
             identifiers = "%0d".join(chunk)
             params = {
                 "identifiers": identifiers,
                 "species": species,
-                "caller_identity": "my_app"
+                "caller_identity": "starmap_backend",
             }
             r = requests.get(STRING_API_URL, params=params)
             r.raise_for_status()
             all_data.extend(r.json())
 
-        # 4. Keep only edges where one is prediction and the other is geneset
+        # 6. Filter to keep only interactions between predicted ↔ (gene set ∪ TRN)
+        upper_preds = [x.upper() for x in threshold_proteins]
+        upper_geneset = [x.upper() for x in geneset_proteins]
+
         interactions = []
         for d in all_data:
-            a, b = d["preferredName_A"], d["preferredName_B"]
-            if a in threshold_proteins and b in geneset_proteins:
+            a, b = d["preferredName_A"].upper(), d["preferredName_B"].upper()
+
+            # predicted ↔ gene set (including TRN)
+            if (a in upper_preds and b in upper_geneset):
                 interactions.append({
                     "prediction_protein": a,
                     "geneset_protein": b,
                     "score": d["score"],
                 })
-            elif b in threshold_proteins and a in geneset_proteins:
+            elif (b in upper_preds and a in upper_geneset):
                 interactions.append({
                     "prediction_protein": b,
                     "geneset_protein": a,
@@ -1351,22 +1365,6 @@ def stringdb_pathway_interactions(pathway: str, threshold: float = 0.5, species:
 
         return {"interactions": interactions}
 
-    except Exception as e:
-        return {"error": str(e)}
-
-@app.get("/pathways/list")
-def list_pathways():
-    try:
-        return {"pathways": PATHWAY_MATRIX.columns.tolist()}
-    except Exception as e:
-        return {"error": str(e)}
-
-@app.get("/proteins/list")
-def list_proteins():
-    try:
-        if _VECS_DF.empty:
-            return {"proteins": []}
-        return {"proteins": _VECS_DF.index.tolist()}
     except Exception as e:
         return {"error": str(e)}
 
