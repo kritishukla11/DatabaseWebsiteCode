@@ -1601,3 +1601,37 @@ def get_cluster_colors(gene: str):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to build residue color map for {gene}: {e}")
+
+@app.get("/mave/legend")
+def mave_legend(gene: str):
+    """
+    Return mapping of cluster color -> RFI annotation label for legend display.
+    """
+    try:
+        ann_path = Path("data/annotated_clusters.csv")
+        if not ann_path.exists():
+            raise HTTPException(status_code=404, detail="No annotation file found")
+
+        ann = pd.read_csv(ann_path)
+        ann_sub = ann[ann["gene"].str.upper() == gene.upper()]
+        if ann_sub.empty:
+            return {}
+
+        # Normalize cluster numbers using same mapping as NMF
+        nmf, mapping = load_nmf(gene)
+        ann_sub["cluster"] = ann_sub["cluster"].map(mapping)
+        ann_sub = ann_sub.dropna(subset=["cluster", "annotation_type"])
+        ann_sub["cluster"] = ann_sub["cluster"].astype(int)
+
+        # Assign colors from BASE_COLORS
+        legend_map = {}
+        for _, row in ann_sub.iterrows():
+            clust = row["cluster"]
+            color = BASE_COLORS[clust % len(BASE_COLORS)]
+            label = str(row["annotation_type"])
+            legend_map[color] = label
+
+        return legend_map
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to build MAVE legend: {e}")

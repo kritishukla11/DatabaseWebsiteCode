@@ -114,7 +114,7 @@ export default function HomePage() {
       <section className="hero">
         <h1 className="title">Welcome to STARMAP</h1>
         <p className="subtitle">
-          (Oncogenic{" "}
+          (variant -{" "}
           <span className="underline-letter">S</span>tructure –{" "}
           <span className="underline-letter">T</span>ranscriptional{" "}
           <span className="underline-letter">A</span>ctivity – drug{" "}
