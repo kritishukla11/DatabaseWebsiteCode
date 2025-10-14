@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Brunk Lab Protein Database",
-  description: "Protein, pathway, and drug search platform",
+  title: "STARMAP",
+  description: "Protein, transcriptional network, and drug search platform",
 };
 
 export default function RootLayout({
