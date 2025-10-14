@@ -89,7 +89,7 @@ export default function MavePage() {
       </h1>
 
       {/* --- Explanation paragraph --- */}
-      <div className="max-w-5xl mx-auto mb-12 pb-8 text-gray-700 leading-relaxed text-[15px]">
+      <div className="max-w-5xl mx-auto mb-20 pb-48 text-gray-700 leading-relaxed text-[15px]">
         <p className="mb-3">
           <strong className="text-[#77A9D8]">What is MAVE?</strong>{" "}
           Multiplex Assays of Variant Effect (MAVEs) are high-throughput
@@ -114,12 +114,18 @@ export default function MavePage() {
           (Rubin et al., <em>Genome Biology</em>, 2025), a community database of
           multiplexed functional assays.
         </p>
+        <p>&nbsp;</p>
+        <p>&nbsp;</p>
+        <div className="h-10" />
       </div>
+
+      {/* Spacer */}
+      <div className="mt-8 mb-8 h-6" />
 
       {/* --- Text-based legend --- */}
       {Object.keys(legend).length > 0 && (
-        <div className="mb-6 text-center">
-          <h2 className="text-lg font-semibold mb-2 text-[#77A9D8]">
+        <div className="mb-6 text-center mt-12">
+          <h2 className="text-lg font-semibold mb-2 text-[#77A9D8] mt-10">
             Region of Functional Interest (RFI)
           </h2>
           <p className="text-sm text-gray-800 flex flex-wrap justify-center gap-x-8 gap-y-2">
