@@ -1633,3 +1633,35 @@ def mave_legend(gene: str):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to build MAVE legend: {e}")
+# =========================================================
+# ========== AUTOCOMPLETE ENDPOINTS (for homepage) =========
+# =========================================================
+
+@app.get("/proteins/list")
+def proteins_list():
+    """
+    Return a sorted list of all protein IDs available in the embeddings dataset.
+    Used for homepage autocomplete.
+    """
+    try:
+        if _VECS_DF.empty:
+            return {"proteins": []}
+        proteins = sorted(_VECS_DF.index.unique().tolist())
+        return {"proteins": proteins}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@app.get("/pathways/list")
+def pathways_list():
+    """
+    Return a sorted list of all pathway/TRN names available in the master matrix.
+    Used for homepage autocomplete.
+    """
+    try:
+        if PATHWAY_MATRIX.empty:
+            return {"pathways": []}
+        pathways = sorted(PATHWAY_MATRIX.columns.tolist())
+        return {"pathways": pathways}
+    except Exception as e:
+        return {"error": str(e)}
