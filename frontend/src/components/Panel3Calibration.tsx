@@ -12,31 +12,49 @@ export default function Panel3Calibration({ gene }: { gene: string }) {
   const [showGenes, setShowGenes] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
   const [genes, setGenes] = useState<{ gene: string; confidence: number }[]>([]);
-  const [hasMave, setHasMave] = useState(false); // ✅ added
+  const [hasMave, setHasMave] = useState(false);
+  const [error, setError] = useState<string>(""); // ✅ new
 
   // --- Load calibration plot ---
   useEffect(() => {
     if (!gene) {
       setImgUrl(null);
+      setError("");
       return;
     }
-    const url = `${BACKEND}/calibration/image?gene=${encodeURIComponent(
-      gene
-    )}&_ts=${Date.now()}`;
-    setImgUrl(url);
+
+    const fetchPlot = async () => {
+      try {
+        const res = await fetch(`${BACKEND}/calibration/image?gene=${encodeURIComponent(gene)}&_ts=${Date.now()}`);
+
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          setError(data.error || "There is no single cell perturbation (Perturb-seq) data for this protein.");
+          setImgUrl(null);
+          return;
+        }
+
+        // ✅ It's a valid image
+        setError("");
+        setImgUrl(`${BACKEND}/calibration/image?gene=${encodeURIComponent(gene)}&_ts=${Date.now()}`);
+      } catch (err) {
+        setError("There is no single cell perturbation (Perturb-seq) data for this protein.");
+        setImgUrl(null);
+      }
+    };
+
+    fetchPlot();
   }, [gene]);
 
-  // --- Load summary sentence ---
+  // --- Load summary sentence (only if image exists) ---
   useEffect(() => {
-    if (!gene) {
+    if (!gene || error) {
       setSummary("");
       return;
     }
     (async () => {
       try {
-        const res = await fetch(
-          `${BACKEND}/calibration/summary?gene=${encodeURIComponent(gene)}`
-        );
+        const res = await fetch(`${BACKEND}/calibration/summary?gene=${encodeURIComponent(gene)}`);
         const data = await res.json();
         setSummary(data.summary || "");
       } catch (err) {
@@ -44,16 +62,14 @@ export default function Panel3Calibration({ gene }: { gene: string }) {
         setSummary("");
       }
     })();
-  }, [gene]);
+  }, [gene, error]);
 
   // --- Load partner TRNs if button toggled ---
   useEffect(() => {
     if (showGenes && gene) {
       fetch(`${BACKEND}/calibration/genes?gene=${encodeURIComponent(gene)}`)
         .then((res) => res.json())
-        .then((data) =>
-          setGenes(Array.isArray(data) ? data : data.genes || [])
-        )
+        .then((data) => setGenes(Array.isArray(data) ? data : data.genes || []))
         .catch((err) => {
           console.error("Error fetching partner genes:", err);
           setGenes([]);
@@ -71,17 +87,19 @@ export default function Panel3Calibration({ gene }: { gene: string }) {
 
   return (
     <div className="border rounded-lg shadow bg-white p-4 flex flex-col items-center min-h-[650px]">
-      {/* === Summary sentence === */}
-      {summary && (
+      {/* === Summary sentence (only if no error) === */}
+      {!error && summary && (
         <p className="text-sm italic text-gray-700 text-center max-w-md mb-4 transition-opacity duration-500">
           {summary}
         </p>
       )}
 
-      {/* === Calibration plot === */}
+      {/* === Calibration plot or message === */}
       <div className="w-full text-center" style={{ minHeight: "400px" }}>
         {!gene ? (
           <p className="text-gray-500">No gene selected.</p>
+        ) : error ? (
+          <p className="text-gray-500">{error}</p>
         ) : !imgUrl ? (
           <p className="text-gray-500">Loading calibration plot...</p>
         ) : (
@@ -103,7 +121,7 @@ export default function Panel3Calibration({ gene }: { gene: string }) {
 
       {/* === Buttons section === */}
       <div className="flex flex-col items-center justify-center mt-6 w-full">
-        {hasMave && (
+        {hasMave && !error && (
           <div className="mb-2 w-full flex justify-center">
             <a
               href={`/mave/${gene}`}
@@ -117,7 +135,7 @@ export default function Panel3Calibration({ gene }: { gene: string }) {
           </div>
         )}
 
-        {gene && (
+        {gene && !error && (
           <div className="w-full flex justify-center">
             <button
               onClick={() => setShowGenes(!showGenes)}
@@ -129,10 +147,8 @@ export default function Panel3Calibration({ gene }: { gene: string }) {
         )}
       </div>
 
-
-
       {/* === Scrollable TRN list === */}
-      {showGenes && genes.length > 0 && (
+      {showGenes && !error && genes.length > 0 && (
         <div
           className="mt-3 border rounded bg-gray-50 w-full max-w-md p-2"
           style={{ maxHeight: "300px", overflowY: "auto" }}
@@ -147,7 +163,7 @@ export default function Panel3Calibration({ gene }: { gene: string }) {
         </div>
       )}
 
-      {/* === Info section toggle — stays at bottom === */}
+      {/* === Info toggle (always visible) === */}
       <div className="w-full flex justify-start mt-auto pt-4">
         <button
           onClick={() => setShowInfo(!showInfo)}
@@ -179,22 +195,17 @@ export default function Panel3Calibration({ gene }: { gene: string }) {
             Perturb-seq is a single-cell CRISPR screening method that links
             targeted gene perturbations (e.g., knockdowns or knockouts) to their
             downstream transcriptional effects by combining pooled CRISPR
-            editing with single-cell RNA sequencing. Our Perturb-seq data comes
-            from the X-Atlas/Orion dataset, which contains Perturb-seq data for
-            all human protein-coding genes in the HCT116 colorectal carcinoma
-            cell line.
+            editing with single-cell RNA sequencing.
+          </p>
+          <p className="mb-2">
+            Our Perturb-seq data comes from the X-Atlas/Orion dataset, which
+            contains data for all human protein-coding genes in the HCT116
+            colorectal carcinoma cell line.
           </p>
           <p className="mb-2">
             For each protein, we identify the most impactful transcriptional
             regulatory networks (TRNs) by ranking them based on the highest
             region-specific score across the protein’s structure.
-          </p>
-          <p className="mb-2">
-            Using Perturb-seq profiles, we then compare cells where the protein
-            is knocked down versus control cells, assessing how strongly each
-            TRN’s gene set is activated (via GSEA). The resulting p-values
-            capture how significantly a TRN’s activity changes when that protein
-            is perturbed.
           </p>
           <p>
             Finally, an <b>empirical calibration analysis</b> relates TRN rank
@@ -207,4 +218,3 @@ export default function Panel3Calibration({ gene }: { gene: string }) {
     </div>
   );
 }
-
