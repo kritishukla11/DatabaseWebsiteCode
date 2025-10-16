@@ -59,7 +59,7 @@ export default function PathwayPageContent() {
   useEffect(() => {
     if (!pathway) return;
     fetch(
-      `${BACKEND}/pathway/pathway_interactions?pathway=${encodeURIComponent(
+      `${BACKEND}/stringdb/pathway_interactions?pathway=${encodeURIComponent(
         pathway
       )}&threshold=${threshold}`
     )
