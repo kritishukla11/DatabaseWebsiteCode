@@ -250,7 +250,7 @@ export default function PathwaySearchPage() {
                     {interactions.map((i, idx) => (
                       <tr key={idx}>
                         <td>{i.prediction_protein}</td>
-                        <td>{i.ai_score !== null ? i.ai_score.toFixed(3) : "—"}</td>
+                        <td>{i.ai_score != null ? i.ai_score.toFixed(3) : "—"}</td>
                         <td>{i.geneset_protein}</td>
                         <td>{i.score.toFixed(2)}</td>
                       </tr>
