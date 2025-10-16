@@ -28,14 +28,64 @@ import matplotlib.patheffects as patheffects
 # -----------------------
 # FastAPI app
 # -----------------------
+from fastapi.middleware.cors import CORSMiddleware
+
+origins = [
+    "https://starmap-frontend-dept-brunklab.apps.cloudapps.unc.edu",
+    "https://starmap.unc.edu",
+    "http://localhost:3000",
+]
+
 app = FastAPI()
+
+# --- Apply CORS to everything, including error responses ---
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["Content-Disposition"],  # helpful for file responses
 )
+
+
+from fastapi import Request
+from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
+
+# --- Ensure CORS headers even for error responses or preflights ---
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+    response = JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail},
+    )
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "GET,POST,OPTIONS"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    return response
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    response = JSONResponse(
+        status_code=422,
+        content={"detail": exc.errors()},
+    )
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "GET,POST,OPTIONS"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    return response
+
+@app.options("/{rest_of_path:path}")
+async def preflight_handler(rest_of_path: str):
+    response = JSONResponse(content={"message": "CORS preflight OK"})
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "GET,POST,OPTIONS"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    return response
+
+
 
 @app.get("/")
 def root():
@@ -982,48 +1032,62 @@ def calibration_image(gene: str):
     """
     Returns a matplotlib plot (PNG) of adjusted_rank vs confidence
     for the given gene, highlighting the top 10% region.
+    If no data exist, returns a JSON message instead of an image.
     """
     try:
         sub = load_gene_data(gene)
-        if sub.empty:
-            return JSONResponse({"error": f"No data found for gene {gene}"}, status_code=404)
 
-        # make plot
-        fig, ax = plt.subplots()
+        # ✅ If gene data missing or empty, return JSON response
+        if sub is None or sub.empty:
+            return JSONResponse(
+                {
+                    "error": "There is no single cell perturbation (Perturb-seq) data for this protein."
+                },
+                status_code=404,
+            )
+
+        # --- Create the calibration plot ---
+        fig, ax = plt.subplots(figsize=(6, 4))
         ax.plot(
-            sub["adjusted_rank"], sub["confidence"],
-            marker="o", linestyle="-", linewidth=1.5, alpha=0.8
+            sub["adjusted_rank"],
+            sub["confidence"],
+            marker="o",
+            linestyle="-",
+            linewidth=1.5,
+            alpha=0.8,
         )
 
         ax.set_xlabel("Rank of TRNs (predicted using AI)")
-        ax.set_xticks([])          # remove tick marks
-        ax.set_xticklabels([])     # remove tick labels
+        ax.set_xticks([])
+        ax.set_xticklabels([])
         ax.set_ylabel(
             f"Confidence of association between\n{gene} and each TRN\n(validated by Perturb-seq)",
             fontsize=10,
-            labelpad=8, 
-            wrap=True
+            labelpad=8,
+            wrap=True,
         )
-
         ax.grid(False)
 
         # === Highlight only the top-left 10% region ===
-        x_thresh = sub["adjusted_rank"].quantile(0.1)   # smallest 10% of ranks
-        y_thresh = sub["confidence"].quantile(0.9)      # highest 10% of confidence
+        if not sub["adjusted_rank"].empty and not sub["confidence"].empty:
+            x_thresh = sub["adjusted_rank"].quantile(0.1)
+            y_thresh = sub["confidence"].quantile(0.9)
+            width = abs(x_thresh - sub["adjusted_rank"].min())
 
-        width = abs(x_thresh - sub["adjusted_rank"].min())
+            ax.add_patch(
+                plt.Rectangle(
+                    (sub["adjusted_rank"].min(), y_thresh),
+                    width,
+                    sub["confidence"].max() - y_thresh,
+                    facecolor="lightgreen",
+                    alpha=0.3,
+                    edgecolor="green",
+                    linewidth=1.5,
+                    linestyle="--",
+                )
+            )
 
-        # Draw translucent box from (min x, y_thresh) to (x_thresh, max y)
-        ax.add_patch(plt.Rectangle(
-            (sub["adjusted_rank"].min(), y_thresh),
-            width,
-            sub["confidence"].max() - y_thresh,
-            facecolor="lightgreen", alpha=0.3,
-            edgecolor="green", linewidth=1.5, linestyle="--"
-        ))
-
-
-        # save to PNG buffer
+        # --- Save to PNG buffer ---
         buf = io.BytesIO()
         fig.savefig(buf, format="png", bbox_inches="tight")
         plt.close(fig)
@@ -1034,14 +1098,20 @@ def calibration_image(gene: str):
             media_type="image/png",
             headers={
                 "Cache-Control": "no-store",
-                "Access-Control-Allow-Origin": "*"
-            }
+                "Access-Control-Allow-Origin": "*",
+            },
         )
 
-    except FileNotFoundError as e:
-        return JSONResponse({"error": str(e)}, status_code=404)
+    except FileNotFoundError:
+        return JSONResponse(
+            {
+                "error": "There is no single cell perturbation (Perturb-seq) data for this protein."
+            },
+            status_code=404,
+        )
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
+
 
 
 
