@@ -185,7 +185,6 @@ export default function MavePage() {
               anchor: "bottom",
               direction: "row",
               translateY: 60,
-              itemWidth: 100,
               itemHeight: 14,
               symbolSize: 18,
               title: "Functional Score",
