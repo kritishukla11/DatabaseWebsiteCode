@@ -7,7 +7,10 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { ResponsiveHeatMap } from "@nivo/heatmap";
 
-const BACKEND = "http://127.0.0.1:8001";
+const BACKEND =
+  process.env.NEXT_PUBLIC_BACKEND_URL ||
+  "http://127.0.0.1:8001";
+
 
 // Simple color name mapping for known palette
 const COLOR_NAMES: Record<string, string> = {

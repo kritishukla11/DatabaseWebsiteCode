@@ -3,6 +3,10 @@
 import { useSearchParams } from "next/navigation";
 import { useState, useEffect, useMemo } from "react";
 
+const BACKEND =
+  process.env.NEXT_PUBLIC_BACKEND_URL ||
+  "http://127.0.0.1:8001";
+
 
 export default function PathwayPageContent() {
   const searchParams = useSearchParams();
@@ -25,7 +29,7 @@ export default function PathwayPageContent() {
   useEffect(() => {
     if (!pathway) return;
     fetch(
-      `http://127.0.0.1:8001/pathway/proteins?pathway=${encodeURIComponent(
+      `${BACKEND}/pathway/proteins?pathway=${encodeURIComponent(
         pathway
       )}&threshold=${threshold}`
     )
@@ -55,7 +59,7 @@ export default function PathwayPageContent() {
   useEffect(() => {
     if (!pathway) return;
     fetch(
-      `http://127.0.0.1:8001/stringdb/pathway_interactions?pathway=${encodeURIComponent(
+      `${BACKEND}/pathway/pathway_interactions?pathway=${encodeURIComponent(
         pathway
       )}&threshold=${threshold}`
     )
@@ -92,9 +96,7 @@ export default function PathwayPageContent() {
   // ─── Fetch pathway description ────────────────────────────
   useEffect(() => {
     if (!pathway) return;
-    fetch(
-      `http://127.0.0.1:8001/pathway/description?pathway=${encodeURIComponent(pathway)}`
-    )
+    fetch(`${BACKEND}/pathway/description?pathway=${encodeURIComponent(pathway)}`)
       .then((res) => res.json())
       .then((data) => {
         if (data.error) {

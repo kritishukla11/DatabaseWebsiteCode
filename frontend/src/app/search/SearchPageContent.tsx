@@ -8,6 +8,9 @@ import Panel3Calibration from "@/components/Panel3Calibration";
 import Panel4AUPRC from "@/components/Panel4AUPRC";
 
 const Plot = nextDynamic(() => import("react-plotly.js"), { ssr: false });
+const BACKEND =
+      process.env.NEXT_PUBLIC_BACKEND_URL ||
+      "http://127.0.0.1:8001";
 
 // keep your component exactly as-is
 export default function SearchPageContent() {
@@ -48,7 +51,7 @@ export default function SearchPageContent() {
   // Effect 2: fetch group label
   useEffect(() => {
     if (!gene) return;
-    fetch(`http://127.0.0.1:8001/group_label?gene=${encodeURIComponent(gene)}`)
+    fetch(`${BACKEND}/group_label?gene=${encodeURIComponent(gene)}`)
       .then((res) => res.json())
       .then((data) => setGroupLabel(data.group_label || null))
       .catch(() => setGroupLabel(null));
@@ -59,17 +62,14 @@ export default function SearchPageContent() {
     if (!gene) return;
 
     // 🔹 Step 1: Verify that the gene exists in master matrix
-    fetch(`http://127.0.0.1:8001/check_gene?gene=${encodeURIComponent(gene)}`)
+    fetch(`${BACKEND}/check_gene?gene=${encodeURIComponent(gene)}`)
       .then((res) => {
         if (res.status === 404) {
           throw new Error(`Sorry, we don't have info for ${gene}.`);
         }
         return res.json();
       })
-      .then(() => {
-        // 🔹 Step 2: If valid, load the plot + neighbors
-        return fetch(`http://127.0.0.1:8001/plot?gene=${encodeURIComponent(gene)}`);
-      })
+      .then(() => fetch(`${BACKEND}/plot?gene=${encodeURIComponent(gene)}`))
       .then((res) => res.json())
       .then((data) => {
         if (data.error) {
@@ -119,7 +119,7 @@ export default function SearchPageContent() {
       return;
     }
     fetch(
-      `http://127.0.0.1:8001/shared_pathway_groups?query=${encodeURIComponent(
+      `${BACKEND}/shared_pathway_groups?query=${encodeURIComponent(
         gene
       )}&neighbor=${encodeURIComponent(selectedGene)}`
     )
@@ -134,7 +134,7 @@ export default function SearchPageContent() {
       setGeneInfo(null);
       return;
     }
-    fetch(`http://127.0.0.1:8001/gene_info?gene=${encodeURIComponent(selectedInfoGene)}`)
+     fetch(`${BACKEND}/gene_info?gene=${encodeURIComponent(selectedInfoGene)}`)
       .then((res) => res.json())
       .then((data) => setGeneInfo(data.info || {}))
       .catch(() => setGeneInfo(null));

@@ -20,7 +20,10 @@ export default function HomePage() {
   // Load data (protein + pathway lists)
   // -----------------------------
   useEffect(() => {
-    const BACKEND = "http://127.0.0.1:8001";
+    const BACKEND =
+      process.env.NEXT_PUBLIC_BACKEND_URL ||
+      "http://127.0.0.1:8001";
+
 
     fetch(`${BACKEND}/proteins/list`)
       .then((r) => r.json())

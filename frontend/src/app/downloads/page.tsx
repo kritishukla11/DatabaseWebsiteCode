@@ -12,13 +12,18 @@ export default function DownloadsPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("http://127.0.0.1:8001/downloads/list")
+    const BACKEND =
+      process.env.NEXT_PUBLIC_BACKEND_URL ||
+      "http://127.0.0.1:8001";
+
+    fetch(`${BACKEND}/downloads/list`)
       .then((res) => res.json())
       .then((data) => {
         setFiles(data);
       })
       .catch(() => setError("Failed to fetch downloads list."));
   }, []);
+
 
   return (
     <main className="container">
