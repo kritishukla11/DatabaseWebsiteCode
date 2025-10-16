@@ -1,14 +1,14 @@
 "use client";
-export const dynamic = "force-dynamic"; 
+export const dynamic = "force-dynamic";
 
 import { useSearchParams } from "next/navigation";
-import dynamic from "next/dynamic";
+import nextDynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import Panel2Flatmap from "@/components/Panel2Flatmap";
 import Panel3Calibration from "@/components/Panel3Calibration";
 import Panel4AUPRC from "@/components/Panel4AUPRC";
 
-const Plot = dynamic(() => import("react-plotly.js"), { ssr: false });
+const Plot = nextDynamic(() => import("react-plotly.js"), { ssr: false });
 
 export default function SearchPage() {
   const searchParams = useSearchParams();
