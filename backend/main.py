@@ -1450,7 +1450,9 @@ from fastapi.responses import StreamingResponse, Response
 
 # ✅ Load once globally
 TAHOE_MATRIX = pd.read_parquet("data/tahoe_matrix.parquet")
-TAHOE_MATRIX.set_index("gene", inplace=True)
+if TAHOE_MATRIX.index.name != "gene":
+    TAHOE_MATRIX.set_index("gene", inplace=True)
+
 
 @app.get("/expression/image")
 def expression_image(gene: str):
