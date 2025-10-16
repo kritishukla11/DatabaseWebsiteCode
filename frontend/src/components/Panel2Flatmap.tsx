@@ -1,4 +1,5 @@
 "use client";
+export const dynamic = "force-dynamic"; 
 
 import { useEffect, useState } from "react";
 
@@ -115,7 +116,7 @@ export default function Panel2Flatmap({ gene }: { gene: string }) {
   }, [gene, selected2, compareMode]);
 
   return (
-    <div>
+    <div key={gene} className="transition-opacity duration-300 opacity-100">
       {/* top dropdown for first flatmap */}
       <div className="flex gap-3 items-center mb-3">
         <select
