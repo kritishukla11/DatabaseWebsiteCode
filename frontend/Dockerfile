@@ -12,6 +12,10 @@ COPY tailwind.config.js postcss.config.js ./
 # Copy the rest of your frontend source
 COPY . .
 
+# Give write permissions to all users for the build folder
+RUN mkdir -p /app/.next && chmod -R 777 /app
+
+
 EXPOSE 3000
 
 CMD ["npm", "run", "dev"]
