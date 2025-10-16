@@ -375,7 +375,11 @@
           }
         }
 
-        const API_BASE = "http://127.0.0.1:8001";
+        const API_BASE =
+          window.location.hostname.includes("localhost") || window.location.hostname.includes("127.0.0.1")
+            ? "http://127.0.0.1:8001"
+            : "https://starmap-backend-dept-brunklab.apps.cloudapps.unc.edu";
+
 
         async function loadResiduesForColoring(gene) {
           const res = await fetch(`${API_BASE}/residues?gene=${encodeURIComponent(gene)}`);
@@ -558,7 +562,7 @@
         // ---------- Backend structures ----------
         async function fetchStructuresForGene(gene) {
           // Ask FastAPI which PDB IDs exist for this gene
-          const url = `http://127.0.0.1:8001/structures?gene=${encodeURIComponent(gene)}`;
+          const url = `${API_BASE}/structures?gene=${encodeURIComponent(gene)}`;
           const res = await fetch(url, { cache: "no-store" });
           if (!res.ok) throw new Error("structures endpoint failed");
           const data = await res.json();
