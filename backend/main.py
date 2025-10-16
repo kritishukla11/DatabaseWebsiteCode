@@ -20,6 +20,8 @@ import fsspec
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from threading import Lock
+PLOT_LOCK = Lock()
 from matplotlib.colors import ListedColormap, TwoSlopeNorm
 from scipy.interpolate import griddata
 from matplotlib import cm
@@ -613,242 +615,243 @@ def flatmap_image(gene: str, name: str | None = None, collapse: str = "max"):
     - Pathway-specific: clusters colored by GI* (mean/max), clipped to mask.
     - collapse: "max" or "mean".
     """
-    df, mapping = load_nmf(gene)
+    with PLOT_LOCK:  # 🧠 Prevent concurrent matplotlib writes
+        df, mapping = load_nmf(gene)
 
-    gi_vals = None
-    if name:
-        df_all = load_gene_parquet(gene)
-        gdf = df_all[(df_all["table"] == "gdf") & (df_all["pathway"].str.upper() == name.upper())].copy()
-        if gdf.empty:
-            raise HTTPException(status_code=404, detail=f"No GDF data for pathway {name} in {gene}")
+        gi_vals = None
+        if name:
+            df_all = load_gene_parquet(gene)
+            gdf = df_all[(df_all["table"] == "gdf") & (df_all["pathway"].str.upper() == name.upper())].copy()
+            if gdf.empty:
+                raise HTTPException(status_code=404, detail=f"No GDF data for pathway {name} in {gene}")
 
-        if "geometry" not in gdf.columns or "gi_sum" not in gdf.columns:
-            raise HTTPException(status_code=400, detail=f"GDF data missing required columns for {gene}, pathway={name}")
+            if "geometry" not in gdf.columns or "gi_sum" not in gdf.columns:
+                raise HTTPException(status_code=400, detail=f"GDF data missing required columns for {gene}, pathway={name}")
 
 
-        # Parse WKT points -> (x, y)
-        xy = gdf["geometry"].apply(parse_wkt_point).apply(pd.Series)
-        xy.columns = ["x", "y"]
-        gdf = pd.concat([gdf, xy], axis=1)
-        gdf["x_r"] = gdf["x"].round(6)
-        gdf["y_r"] = gdf["y"].round(6)
+            # Parse WKT points -> (x, y)
+            xy = gdf["geometry"].apply(parse_wkt_point).apply(pd.Series)
+            xy.columns = ["x", "y"]
+            gdf = pd.concat([gdf, xy], axis=1)
+            gdf["x_r"] = gdf["x"].round(6)
+            gdf["y_r"] = gdf["y"].round(6)
 
-        # Collapse GI* values per residue
-        if collapse == "mean":
-            collapsed = (
-                gdf.groupby(["x_r", "y_r"])["gi_sum"]
-                .mean()
-                .reset_index()
-                .rename(columns={"gi_sum": "gi_sum_collapsed"})
-            )
+            # Collapse GI* values per residue
+            if collapse == "mean":
+                collapsed = (
+                    gdf.groupby(["x_r", "y_r"])["gi_sum"]
+                    .mean()
+                    .reset_index()
+                    .rename(columns={"gi_sum": "gi_sum_collapsed"})
+                )
+            else:
+                collapsed = (
+                    gdf.groupby(["x_r", "y_r"])["gi_sum"]
+                    .max()
+                    .reset_index()
+                    .rename(columns={"gi_sum": "gi_sum_collapsed"})
+                )
+
+            merged = pd.merge(df, collapsed, on=["x_r", "y_r"], how="left")
+            merged["gi_sum"] = merged["gi_sum_collapsed"].fillna(0.0).astype(float)
+
+            gi_vals = merged["gi_sum"].fillna(0.0).astype(float)
         else:
-            collapsed = (
-                gdf.groupby(["x_r", "y_r"])["gi_sum"]
-                .max()
-                .reset_index()
-                .rename(columns={"gi_sum": "gi_sum_collapsed"})
+            merged = df
+
+        # --- Plotting ---
+        fig, ax = plt.subplots(figsize=(6, 6))
+        ax.set_aspect("equal")
+        ax.axis("off")
+
+        xmn, xmx = df["x"].min(), df["x"].max()
+        ymn, ymx = df["y"].min(), df["y"].max()
+        pad_x = 0.05 * (xmx - xmn)
+        pad_y = 0.05 * (ymx - ymn)
+        xmn_pad, xmx_pad = xmn - pad_x, xmx + pad_x
+        ymn_pad, ymx_pad = ymn - pad_y, ymx + pad_y
+
+        nx, ny = 400, 400
+        xi = np.linspace(xmn_pad, xmx_pad, nx)
+        yi = np.linspace(ymn_pad, ymx_pad, ny)
+        Xi, Yi = np.meshgrid(xi, yi)
+
+        # Cluster grid (categorical)
+        Zi_cluster = griddata((df["x"], df["y"]), df["cluster"], (Xi, Yi), method="nearest")
+
+        # Altitude grid
+        Zi_alt = griddata((df["x"], df["y"]), df["altitude"], (Xi, Yi), method="linear")
+        if isinstance(Zi_alt, np.ma.MaskedArray):
+            Zi_alt = Zi_alt.filled(np.nan)
+
+        # Mask definition from altitude
+        outer_mask = np.isnan(Zi_alt) | (Zi_alt <= np.nanmin(Zi_alt) + 1e-6)
+        inside_mask = (~outer_mask).astype(float)
+
+        # Precompute masked fields
+        Zi_cluster_masked = np.ma.array(Zi_cluster, mask=outer_mask)
+        Zi_alt_masked     = np.ma.array(Zi_alt,     mask=outer_mask)
+
+        if gi_vals is None:
+            # --- Default cluster view ---
+            n_clusters = df["cluster"].nunique()
+            cmap_clusters = make_cluster_cmap(n_clusters)
+
+            cmap_clusters_plot = ListedColormap(list(cmap_clusters.colors))
+            try:
+                cmap_clusters_plot.set_bad(alpha=0.0)
+            except Exception:
+                pass
+
+            ax.imshow(Zi_cluster_masked, origin="lower",
+                    extent=(xmn_pad, xmx_pad, ymn_pad, ymx_pad),
+                    cmap=cmap_clusters_plot, alpha=0.25,
+                    interpolation="nearest", zorder=0)
+
+            ax.contour(Xi, Yi, Zi_cluster_masked, levels=np.unique(df["cluster"]),
+                    colors="black", linewidths=0.8, alpha=0.6, zorder=4)
+
+            sm = plt.cm.ScalarMappable(
+                cmap=cmap_clusters,
+                norm=plt.Normalize(vmin=0, vmax=n_clusters - 1)
             )
+            cbar = plt.colorbar(sm, ax=ax, fraction=0.046, pad=0.04,
+                                ticks=np.arange(n_clusters) + 0.5)
+            cbar.ax.set_yticklabels([])
+            cbar.set_label("Clusters")
 
-        merged = pd.merge(df, collapsed, on=["x_r", "y_r"], how="left")
-        merged["gi_sum"] = merged["gi_sum_collapsed"].fillna(0.0).astype(float)
+            colors = cmap_clusters(df["cluster"].to_numpy())
+            ax.scatter(df["x"], df["y"], c=colors, s=150,
+                    edgecolors="black", linewidths=0.2, alpha=0.95, zorder=3)
 
-        gi_vals = merged["gi_sum"].fillna(0.0).astype(float)
-    else:
-        merged = df
+        else:
+            # --- Pathway-specific ---
+            merged["cluster"] = merged["cluster"].astype(int)
+            if collapse == "mean":
+                cluster_scores = merged.groupby("cluster")["gi_sum"].mean()
+            else:
+                cluster_scores = merged.groupby("cluster")["gi_sum"].max()
 
-    # --- Plotting ---
-    fig, ax = plt.subplots(figsize=(6, 6))
-    ax.set_aspect("equal")
-    ax.axis("off")
+            Zi_gi_cluster = np.zeros_like(Zi_cluster, dtype=float)
+            for clust, score in cluster_scores.items():
+                Zi_gi_cluster[Zi_cluster == clust] = score
 
-    xmn, xmx = df["x"].min(), df["x"].max()
-    ymn, ymx = df["y"].min(), df["y"].max()
-    pad_x = 0.05 * (xmx - xmn)
-    pad_y = 0.05 * (ymx - ymn)
-    xmn_pad, xmx_pad = xmn - pad_x, xmx + pad_x
-    ymn_pad, ymx_pad = ymn - pad_y, ymx + pad_y
+            cmap_redgreen = plt.cm.RdYlGn_r
+            vmin_global, vmax_global = get_gi_global_range(gene)
 
-    nx, ny = 400, 400
-    xi = np.linspace(xmn_pad, xmx_pad, nx)
-    yi = np.linspace(ymn_pad, ymx_pad, ny)
-    Xi, Yi = np.meshgrid(xi, yi)
+            # Optional: clamp or pad range a bit for visual balance
+            if vmin_global == vmax_global:
+                vmin_global, vmax_global = 0, max(1.0, vmax_global)
+            else:
+                # symmetric normalization around zero
+                if vmin_global < 0 < vmax_global:
+                    vmax_global = max(abs(vmin_global), abs(vmax_global))
+                    vmin_global = -vmax_global
 
-    # Cluster grid (categorical)
-    Zi_cluster = griddata((df["x"], df["y"]), df["cluster"], (Xi, Yi), method="nearest")
+            norm = plt.Normalize(vmin=vmin_global, vmax=vmax_global)
 
-    # Altitude grid
-    Zi_alt = griddata((df["x"], df["y"]), df["altitude"], (Xi, Yi), method="linear")
-    if isinstance(Zi_alt, np.ma.MaskedArray):
-        Zi_alt = Zi_alt.filled(np.nan)
 
-    # Mask definition from altitude
-    outer_mask = np.isnan(Zi_alt) | (Zi_alt <= np.nanmin(Zi_alt) + 1e-6)
-    inside_mask = (~outer_mask).astype(float)
+            Zi_gi_masked = np.ma.array(Zi_gi_cluster, mask=outer_mask)
+            im = ax.imshow(Zi_gi_masked, origin="lower",
+                        extent=(xmn_pad, xmx_pad, ymn_pad, ymx_pad),
+                        cmap=cmap_redgreen, norm=norm, alpha=0.6,
+                        interpolation="nearest", zorder=1)
 
-    # Precompute masked fields
-    Zi_cluster_masked = np.ma.array(Zi_cluster, mask=outer_mask)
-    Zi_alt_masked     = np.ma.array(Zi_alt,     mask=outer_mask)
+            ax.contour(Xi, Yi, Zi_cluster_masked, levels=np.unique(df["cluster"]),
+                    colors="black", linewidths=1.2, alpha=0.9, zorder=4)
 
-    if gi_vals is None:
-        # --- Default cluster view ---
-        n_clusters = df["cluster"].nunique()
-        cmap_clusters = make_cluster_cmap(n_clusters)
+            ax.scatter(merged["x"], merged["y"], s=150,
+                    edgecolors="darkgrey", facecolors="none", linewidths=0, zorder=3)
 
-        cmap_clusters_plot = ListedColormap(list(cmap_clusters.colors))
+            cb = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+            cb.set_label(f"Cluster GI* ({collapse})\nGreen = Low, Red = High")
+
+        # ---------- Altitude + Border ----------
+        ax.contour(Xi, Yi, Zi_alt_masked, levels=40,
+                colors="darkgrey", alpha=0, linewidths=0.5, zorder=5)
+
+        ax.contour(Xi, Yi, inside_mask, levels=[0.5],
+                colors="black", linewidths=2.5, zorder=6)
+
+        # ---------- Cluster Annotations ----------
         try:
-            cmap_clusters_plot.set_bad(alpha=0.0)
-        except Exception:
-            pass
+            ann_path = DATA_DIR / "annotated_clusters.csv"
+            if ann_path.exists():
+                ann = pd.read_csv(ann_path)
+                # filter to gene
+                ann_sub = ann[ann["gene"].str.upper() == gene.upper()]
 
-        ax.imshow(Zi_cluster_masked, origin="lower",
-                  extent=(xmn_pad, xmx_pad, ymn_pad, ymx_pad),
-                  cmap=cmap_clusters_plot, alpha=0.25,
-                  interpolation="nearest", zorder=0)
+                if not ann_sub.empty:
+                    ann_sub["cluster"] = ann_sub["cluster"].map(mapping)
+                    ann_sub = ann_sub.dropna(subset=["cluster"])
+                    ann_sub["cluster"] = ann_sub["cluster"].astype(int)
+                    # Compute centroids for each cluster
+                    centroids = df.groupby("cluster")[["x", "y"]].mean()
+                    ann_sub["cluster"] = pd.to_numeric(ann_sub["cluster"], errors="coerce").astype("Int64")
+                    df["cluster"] = pd.to_numeric(df["cluster"], errors="coerce").astype("Int64")
 
-        ax.contour(Xi, Yi, Zi_cluster_masked, levels=np.unique(df["cluster"]),
-                   colors="black", linewidths=0.8, alpha=0.6, zorder=4)
+                    for _, row in ann_sub.iterrows():
+                        clust = row["cluster"]
+                        label = str(row["annotation_type"])
+                        if clust in centroids.index:
+                            sub_points = df[df["cluster"] == clust]
+                            if len(sub_points) < 20:
+                                cx, cy = sub_points[["x", "y"]].median()
+                            else:
+                                cx, cy = centroids.loc[clust]
 
-        sm = plt.cm.ScalarMappable(
-            cmap=cmap_clusters,
-            norm=plt.Normalize(vmin=0, vmax=n_clusters - 1)
+                            cx_true, cy_true = cx, cy
+
+                            # Push labels outside if near edge
+                            margin_x = 0.03 * (xmx - xmn)
+                            margin_y = 0.03 * (ymx - ymn)
+                            moved = False
+                            if cx <= xmn + margin_x:
+                                cx = xmn_pad - 0.05 * (xmx - xmn); moved = True
+                            if cx >= xmx - margin_x:
+                                cx = xmx_pad + 0.05 * (xmx - xmn); moved = True
+                            if cy <= ymn + margin_y:
+                                cy = ymn_pad - 0.05 * (ymx - ymn); moved = True
+                            if cy >= ymx - margin_y:
+                                cy = ymx_pad + 0.05 * (ymx - ymn); moved = True
+
+                            if moved:
+                                ax.plot([cx_true, cx], [cy_true, cy],
+                                        color="black", linewidth=0.8, zorder=998)
+
+                            ax.text(
+                                cx, cy, label,
+                                ha="center", va="center",
+                                fontsize=10, fontweight="bold",
+                                color="white",
+                                path_effects=[
+                                    patheffects.Stroke(linewidth=2, foreground="black"),
+                                    patheffects.Normal()
+                                ],
+                                clip_on=False,
+                                zorder=999
+                            )
+
+            ax.set_xlim(xmn_pad - 0.1*(xmx-xmn), xmx_pad + 0.1*(xmx-xmn))
+            ax.set_ylim(ymn_pad - 0.1*(ymx-ymn), ymx_pad + 0.1*(ymx-ymn))
+
+        except Exception as e:
+            print("[flatmap_image][WARN] Could not add annotations:", e)
+
+
+
+        # ------------------------------------------------------------------
+        fig.tight_layout(pad=0)
+
+        buf = io.BytesIO()
+        plt.savefig(buf, format="png", dpi=170, bbox_inches="tight")
+        plt.close(fig)
+        buf.seek(0)
+        return StreamingResponse(
+            buf,
+            media_type="image/png",
+            headers={"Cache-Control": "no-store"}
         )
-        cbar = plt.colorbar(sm, ax=ax, fraction=0.046, pad=0.04,
-                            ticks=np.arange(n_clusters) + 0.5)
-        cbar.ax.set_yticklabels([])
-        cbar.set_label("Clusters")
-
-        colors = cmap_clusters(df["cluster"].to_numpy())
-        ax.scatter(df["x"], df["y"], c=colors, s=150,
-                   edgecolors="black", linewidths=0.2, alpha=0.95, zorder=3)
-
-    else:
-        # --- Pathway-specific ---
-        merged["cluster"] = merged["cluster"].astype(int)
-        if collapse == "mean":
-            cluster_scores = merged.groupby("cluster")["gi_sum"].mean()
-        else:
-            cluster_scores = merged.groupby("cluster")["gi_sum"].max()
-
-        Zi_gi_cluster = np.zeros_like(Zi_cluster, dtype=float)
-        for clust, score in cluster_scores.items():
-            Zi_gi_cluster[Zi_cluster == clust] = score
-
-        cmap_redgreen = plt.cm.RdYlGn_r
-        vmin_global, vmax_global = get_gi_global_range(gene)
-
-        # Optional: clamp or pad range a bit for visual balance
-        if vmin_global == vmax_global:
-            vmin_global, vmax_global = 0, max(1.0, vmax_global)
-        else:
-            # symmetric normalization around zero
-            if vmin_global < 0 < vmax_global:
-                vmax_global = max(abs(vmin_global), abs(vmax_global))
-                vmin_global = -vmax_global
-
-        norm = plt.Normalize(vmin=vmin_global, vmax=vmax_global)
-
-
-        Zi_gi_masked = np.ma.array(Zi_gi_cluster, mask=outer_mask)
-        im = ax.imshow(Zi_gi_masked, origin="lower",
-                       extent=(xmn_pad, xmx_pad, ymn_pad, ymx_pad),
-                       cmap=cmap_redgreen, norm=norm, alpha=0.6,
-                       interpolation="nearest", zorder=1)
-
-        ax.contour(Xi, Yi, Zi_cluster_masked, levels=np.unique(df["cluster"]),
-                   colors="black", linewidths=1.2, alpha=0.9, zorder=4)
-
-        ax.scatter(merged["x"], merged["y"], s=150,
-                   edgecolors="darkgrey", facecolors="none", linewidths=0, zorder=3)
-
-        cb = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
-        cb.set_label(f"Cluster GI* ({collapse})\nGreen = Low, Red = High")
-
-    # ---------- Altitude + Border ----------
-    ax.contour(Xi, Yi, Zi_alt_masked, levels=40,
-               colors="darkgrey", alpha=0, linewidths=0.5, zorder=5)
-
-    ax.contour(Xi, Yi, inside_mask, levels=[0.5],
-               colors="black", linewidths=2.5, zorder=6)
-
-    # ---------- Cluster Annotations ----------
-    try:
-        ann_path = DATA_DIR / "annotated_clusters.csv"
-        if ann_path.exists():
-            ann = pd.read_csv(ann_path)
-            # filter to gene
-            ann_sub = ann[ann["gene"].str.upper() == gene.upper()]
-
-            if not ann_sub.empty:
-                ann_sub["cluster"] = ann_sub["cluster"].map(mapping)
-                ann_sub = ann_sub.dropna(subset=["cluster"])
-                ann_sub["cluster"] = ann_sub["cluster"].astype(int)
-                # Compute centroids for each cluster
-                centroids = df.groupby("cluster")[["x", "y"]].mean()
-                ann_sub["cluster"] = pd.to_numeric(ann_sub["cluster"], errors="coerce").astype("Int64")
-                df["cluster"] = pd.to_numeric(df["cluster"], errors="coerce").astype("Int64")
-
-                for _, row in ann_sub.iterrows():
-                    clust = row["cluster"]
-                    label = str(row["annotation_type"])
-                    if clust in centroids.index:
-                        sub_points = df[df["cluster"] == clust]
-                        if len(sub_points) < 20:
-                            cx, cy = sub_points[["x", "y"]].median()
-                        else:
-                            cx, cy = centroids.loc[clust]
-
-                        cx_true, cy_true = cx, cy
-
-                        # Push labels outside if near edge
-                        margin_x = 0.03 * (xmx - xmn)
-                        margin_y = 0.03 * (ymx - ymn)
-                        moved = False
-                        if cx <= xmn + margin_x:
-                            cx = xmn_pad - 0.05 * (xmx - xmn); moved = True
-                        if cx >= xmx - margin_x:
-                            cx = xmx_pad + 0.05 * (xmx - xmn); moved = True
-                        if cy <= ymn + margin_y:
-                            cy = ymn_pad - 0.05 * (ymx - ymn); moved = True
-                        if cy >= ymx - margin_y:
-                            cy = ymx_pad + 0.05 * (ymx - ymn); moved = True
-
-                        if moved:
-                            ax.plot([cx_true, cx], [cy_true, cy],
-                                    color="black", linewidth=0.8, zorder=998)
-
-                        ax.text(
-                            cx, cy, label,
-                            ha="center", va="center",
-                            fontsize=10, fontweight="bold",
-                            color="white",
-                            path_effects=[
-                                patheffects.Stroke(linewidth=2, foreground="black"),
-                                patheffects.Normal()
-                            ],
-                            clip_on=False,
-                            zorder=999
-                        )
-
-        ax.set_xlim(xmn_pad - 0.1*(xmx-xmn), xmx_pad + 0.1*(xmx-xmn))
-        ax.set_ylim(ymn_pad - 0.1*(ymx-ymn), ymx_pad + 0.1*(ymx-ymn))
-
-    except Exception as e:
-        print("[flatmap_image][WARN] Could not add annotations:", e)
-
-
-
-    # ------------------------------------------------------------------
-    fig.tight_layout(pad=0)
-
-    buf = io.BytesIO()
-    plt.savefig(buf, format="png", dpi=170, bbox_inches="tight")
-    plt.close(fig)
-    buf.seek(0)
-    return StreamingResponse(
-        buf,
-        media_type="image/png",
-        headers={"Cache-Control": "no-store"}
-    )
 
 @app.get("/flatmap/summary")
 def flatmap_summary(gene: str, pathway: str | None = None):
@@ -997,83 +1000,84 @@ def calibration_image(gene: str):
     for the given gene, highlighting the top 10% region.
     If no data exist, returns a JSON message instead of an image.
     """
-    try:
-        sub = load_gene_data(gene)
+    with PLOT_LOCK:
+        try:
+            sub = load_gene_data(gene)
 
-        # ✅ If gene data missing or empty, return JSON response
-        if sub is None or sub.empty:
+            # ✅ If gene data missing or empty, return JSON response
+            if sub is None or sub.empty:
+                return JSONResponse(
+                    {
+                        "error": "There is no single cell perturbation (Perturb-seq) data for this protein."
+                    },
+                    status_code=404,
+                )
+
+            # --- Create the calibration plot ---
+            fig, ax = plt.subplots(figsize=(6, 4))
+            ax.plot(
+                sub["adjusted_rank"],
+                sub["confidence"],
+                marker="o",
+                linestyle="-",
+                linewidth=1.5,
+                alpha=0.8,
+            )
+
+            ax.set_xlabel("Rank of TRNs (predicted using AI)")
+            ax.set_xticks([])
+            ax.set_xticklabels([])
+            ax.set_ylabel(
+                f"Confidence of association between\n{gene} and each TRN\n(validated by Perturb-seq)",
+                fontsize=10,
+                labelpad=8,
+                wrap=True,
+            )
+            ax.grid(False)
+
+            # === Highlight only the top-left 10% region ===
+            if not sub["adjusted_rank"].empty and not sub["confidence"].empty:
+                x_thresh = sub["adjusted_rank"].quantile(0.1)
+                y_thresh = sub["confidence"].quantile(0.9)
+                width = abs(x_thresh - sub["adjusted_rank"].min())
+
+                ax.add_patch(
+                    plt.Rectangle(
+                        (sub["adjusted_rank"].min(), y_thresh),
+                        width,
+                        sub["confidence"].max() - y_thresh,
+                        facecolor="lightgreen",
+                        alpha=0.3,
+                        edgecolor="green",
+                        linewidth=1.5,
+                        linestyle="--",
+                    )
+                )
+
+            # --- Save to PNG buffer ---
+            buf = io.BytesIO()
+            fig.savefig(buf, format="png", bbox_inches="tight")
+            plt.close(fig)
+            buf.seek(0)
+
+            return StreamingResponse(
+                buf,
+                media_type="image/png",
+                headers={
+                    "Cache-Control": "no-store",
+                    "Access-Control-Allow-Origin": "*",
+                },
+            )
+
+        except FileNotFoundError:
             return JSONResponse(
                 {
                     "error": "There is no single cell perturbation (Perturb-seq) data for this protein."
                 },
                 status_code=404,
             )
-
-        # --- Create the calibration plot ---
-        fig, ax = plt.subplots(figsize=(6, 4))
-        ax.plot(
-            sub["adjusted_rank"],
-            sub["confidence"],
-            marker="o",
-            linestyle="-",
-            linewidth=1.5,
-            alpha=0.8,
-        )
-
-        ax.set_xlabel("Rank of TRNs (predicted using AI)")
-        ax.set_xticks([])
-        ax.set_xticklabels([])
-        ax.set_ylabel(
-            f"Confidence of association between\n{gene} and each TRN\n(validated by Perturb-seq)",
-            fontsize=10,
-            labelpad=8,
-            wrap=True,
-        )
-        ax.grid(False)
-
-        # === Highlight only the top-left 10% region ===
-        if not sub["adjusted_rank"].empty and not sub["confidence"].empty:
-            x_thresh = sub["adjusted_rank"].quantile(0.1)
-            y_thresh = sub["confidence"].quantile(0.9)
-            width = abs(x_thresh - sub["adjusted_rank"].min())
-
-            ax.add_patch(
-                plt.Rectangle(
-                    (sub["adjusted_rank"].min(), y_thresh),
-                    width,
-                    sub["confidence"].max() - y_thresh,
-                    facecolor="lightgreen",
-                    alpha=0.3,
-                    edgecolor="green",
-                    linewidth=1.5,
-                    linestyle="--",
-                )
-            )
-
-        # --- Save to PNG buffer ---
-        buf = io.BytesIO()
-        fig.savefig(buf, format="png", bbox_inches="tight")
-        plt.close(fig)
-        buf.seek(0)
-
-        return StreamingResponse(
-            buf,
-            media_type="image/png",
-            headers={
-                "Cache-Control": "no-store",
-                "Access-Control-Allow-Origin": "*",
-            },
-        )
-
-    except FileNotFoundError:
-        return JSONResponse(
-            {
-                "error": "There is no single cell perturbation (Perturb-seq) data for this protein."
-            },
-            status_code=404,
-        )
-    except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=500)
+        except Exception as e:
+            return JSONResponse({"error": str(e)}, status_code=500)
 
 
 
@@ -1459,38 +1463,39 @@ def expression_image(gene: str):
     """
     Return bar plot of drug expression values for a given gene.
     """
-    try:
-        if gene.upper() not in TAHOE_MATRIX.index.str.upper():
-            return Response(status_code=404)
+    with PLOT_LOCK:
+        try:
+            if gene.upper() not in TAHOE_MATRIX.index.str.upper():
+                return Response(status_code=404)
 
-        # Match case-insensitively
-        row = TAHOE_MATRIX.loc[
-            TAHOE_MATRIX.index.str.upper() == gene.upper()
-        ].iloc[0]
+            # Match case-insensitively
+            row = TAHOE_MATRIX.loc[
+                TAHOE_MATRIX.index.str.upper() == gene.upper()
+            ].iloc[0]
 
-        # Sort descending by value
-        sorted_row = row.sort_values(ascending=False)
+            # Sort descending by value
+            sorted_row = row.sort_values(ascending=False)
 
-        # Plot
-        fig, ax = plt.subplots(figsize=(8, 4))
-        ax.bar(sorted_row.index, sorted_row.values)
-        ax.set_ylabel("Avg expression (pseudobulk from Tahoe-100M)")
-        ax.xaxis.set_visible(False)
+            # Plot
+            fig, ax = plt.subplots(figsize=(8, 4))
+            ax.bar(sorted_row.index, sorted_row.values)
+            ax.set_ylabel("Avg expression (pseudobulk from Tahoe-100M)")
+            ax.xaxis.set_visible(False)
 
-        buf = io.BytesIO()
-        fig.tight_layout()
-        fig.savefig(buf, format="png", bbox_inches="tight")
-        plt.close(fig)
-        buf.seek(0)
+            buf = io.BytesIO()
+            fig.tight_layout()
+            fig.savefig(buf, format="png", bbox_inches="tight")
+            plt.close(fig)
+            buf.seek(0)
 
-        return StreamingResponse(
-            buf,
-            media_type="image/png",
-            headers={"Cache-Control": "no-store", "Access-Control-Allow-Origin": "*"},
-        )
+            return StreamingResponse(
+                buf,
+                media_type="image/png",
+                headers={"Cache-Control": "no-store", "Access-Control-Allow-Origin": "*"},
+            )
 
-    except Exception as e:
-        return {"error": str(e)}
+        except Exception as e:
+            return {"error": str(e)}
 
 
 @app.get("/expression/rankings")
@@ -1527,36 +1532,37 @@ def drug_expression_image(drug: str):
     """
     Return bar plot of protein expression values for a given drug.
     """
-    try:
-        if drug not in TAHOE_MATRIX.columns:
-            # Case-insensitive match
-            matches = [c for c in TAHOE_MATRIX.columns if c.lower() == drug.lower()]
-            if not matches:
-                return Response(status_code=404)
-            drug = matches[0]
+    with PLOT_LOCK:
+        try:
+            if drug not in TAHOE_MATRIX.columns:
+                # Case-insensitive match
+                matches = [c for c in TAHOE_MATRIX.columns if c.lower() == drug.lower()]
+                if not matches:
+                    return Response(status_code=404)
+                drug = matches[0]
 
-        col = TAHOE_MATRIX[drug]
-        sorted_col = col.sort_values(ascending=False)
+            col = TAHOE_MATRIX[drug]
+            sorted_col = col.sort_values(ascending=False)
 
-        fig, ax = plt.subplots(figsize=(8, 4))
-        ax.bar(sorted_col.index, sorted_col.values, color="#77A9D8")
-        ax.set_ylabel("Avg expression (pseudobulk from Tahoe-100M)")
-        ax.xaxis.set_visible(False)
+            fig, ax = plt.subplots(figsize=(8, 4))
+            ax.bar(sorted_col.index, sorted_col.values, color="#77A9D8")
+            ax.set_ylabel("Avg expression (pseudobulk from Tahoe-100M)")
+            ax.xaxis.set_visible(False)
 
-        buf = io.BytesIO()
-        fig.tight_layout()
-        fig.savefig(buf, format="png", bbox_inches="tight")
-        plt.close(fig)
-        buf.seek(0)
+            buf = io.BytesIO()
+            fig.tight_layout()
+            fig.savefig(buf, format="png", bbox_inches="tight")
+            plt.close(fig)
+            buf.seek(0)
 
-        return StreamingResponse(
-            buf,
-            media_type="image/png",
-            headers={"Cache-Control": "no-store", "Access-Control-Allow-Origin": "*"},
-        )
+            return StreamingResponse(
+                buf,
+                media_type="image/png",
+                headers={"Cache-Control": "no-store", "Access-Control-Allow-Origin": "*"},
+            )
 
-    except Exception as e:
-        return {"error": str(e)}
+        except Exception as e:
+            return {"error": str(e)}
 
 
 @app.get("/drug_expression/rankings")
