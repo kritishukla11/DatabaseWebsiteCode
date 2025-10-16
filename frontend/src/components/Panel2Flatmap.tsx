@@ -157,7 +157,7 @@ export default function Panel2Flatmap({ gene }: { gene: string }) {
                   </div>
                 )}
                 <img
-                  key={`flatmap1-${imgUrl}`}
+                  key={`flatmap1-${gene}-${Date.now()}`}
                   src={imgUrl}
                   alt={`${gene} Flatmap`}
                   style={{
@@ -199,7 +199,7 @@ export default function Panel2Flatmap({ gene }: { gene: string }) {
                     </div>
                   )}
                   <img
-                    key={`flatmap2-${imgUrl2}`}
+                    key={`flatmap2-${gene}-${Date.now()}`}
                     src={imgUrl2}
                     alt={`${gene} Comparison Flatmap`}
                     style={{

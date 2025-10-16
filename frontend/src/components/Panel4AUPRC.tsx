@@ -50,7 +50,7 @@ export default function Panel4AUPRC({ gene }: { gene: string }) {
           <p className="text-gray-500">Loading AUPRC plot...</p>
         ) : (
           <img
-            key={`auprc-${gene}-${imgUrl}`} // ✅ unique key
+            key={`auprc-${gene}-${Date.now()}`} // ✅ unique key
             src={imgUrl}
             alt={`AUPRC plot for ${gene}`}
             style={{
