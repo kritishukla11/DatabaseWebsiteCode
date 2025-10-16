@@ -12,7 +12,6 @@ COPY . .
 ENV NEXT_DISABLE_ESLINT=1
 ENV NEXT_SKIP_BUILD_STATIC_GENERATION=true
 
-RUN git lfs install --skip-smudge
 
 # --- Build ---
 RUN npm run build
