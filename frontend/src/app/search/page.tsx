@@ -1,8 +1,6 @@
 "use client";
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
-export const revalidate = false;
-export const runtime = "nodejs";
 
 import { useSearchParams } from "next/navigation";
 import nextDynamic from "next/dynamic";
