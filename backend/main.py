@@ -18,6 +18,7 @@ import fsspec
 
 # --- matplotlib headless backend (for Panel 2) ---
 import matplotlib
+os.environ["MPLCONFIGDIR"] = "/tmp/matplotlib_cache"
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from threading import Lock
