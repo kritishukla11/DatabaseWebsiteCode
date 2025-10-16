@@ -1,1 +1,17 @@
-declare module "react-plotly.js";
+declare module "react-plotly.js" {
+  import * as React from "react";
+  import Plotly from "plotly.js-dist-min";
+
+  export interface PlotParams {
+    data: Plotly.Data[];
+    layout?: Partial<Plotly.Layout>;
+    config?: Partial<Plotly.Config>;
+    useResizeHandler?: boolean;
+    style?: React.CSSProperties;
+    className?: string;
+    onInitialized?: (figure: any, graphDiv: HTMLElement) => void;
+    onUpdate?: (figure: any, graphDiv: HTMLElement) => void;
+  }
+
+  export default class Plot extends React.Component<PlotParams> {}
+}
