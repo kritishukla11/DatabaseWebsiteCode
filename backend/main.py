@@ -15,6 +15,7 @@ import traceback
 import hashlib
 from huggingface_hub import hf_hub_download
 import fsspec
+import os
 
 # --- matplotlib headless backend (for Panel 2) ---
 import matplotlib
