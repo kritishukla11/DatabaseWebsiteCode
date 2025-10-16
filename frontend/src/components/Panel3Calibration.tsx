@@ -2,11 +2,11 @@
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
-
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8001";
+const BACKEND =
+  process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8001";
 
 export default function Panel3Calibration({ gene }: { gene: string }) {
   const router = useRouter();
@@ -14,13 +14,15 @@ export default function Panel3Calibration({ gene }: { gene: string }) {
   const [summary, setSummary] = useState<string>("");
   const [showGenes, setShowGenes] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
-  const [genes, setGenes] = useState<{ gene: string; confidence: number }[]>([]);
+  const [genes, setGenes] = useState<{ gene: string; confidence: number }[]>(
+    []
+  );
   const [hasMave, setHasMave] = useState(false);
-  const [error, setError] = useState<string>(""); // ✅ new
+  const [error, setError] = useState<string>("");
 
   // --- Load calibration plot ---
   useEffect(() => {
-    if (!gene) {
+    if (!gene || !gene.trim()) {
       setImgUrl(null);
       setError("");
       return;
@@ -28,21 +30,31 @@ export default function Panel3Calibration({ gene }: { gene: string }) {
 
     const fetchPlot = async () => {
       try {
-        const res = await fetch(`${BACKEND}/calibration/image?gene=${encodeURIComponent(gene)}&_ts=${Date.now()}`);
+        const res = await fetch(
+          `${BACKEND}/calibration/image?gene=${encodeURIComponent(gene)}`,
+          { mode: "cors" }
+        );
 
         if (!res.ok) {
           const data = await res.json().catch(() => ({}));
-          setError(data.error || "There is no single cell perturbation (Perturb-seq) data for this protein.");
+          setError(
+            data.error ||
+              "There is no single-cell perturbation (Perturb-seq) data for this protein."
+          );
           setImgUrl(null);
           return;
         }
 
         // ✅ It's a valid image
         setError("");
-        const url = `${BACKEND}/calibration/image?gene=${encodeURIComponent(gene)}&_ts=${Date.now()}`;
+        const url = `${BACKEND}/calibration/image?gene=${encodeURIComponent(
+          gene
+        )}`;
         setImgUrl(url);
       } catch (err) {
-        setError("There is no single cell perturbation (Perturb-seq) data for this protein.");
+        setError(
+          "There is no single-cell perturbation (Perturb-seq) data for this protein."
+        );
         setImgUrl(null);
       }
     };
@@ -58,7 +70,10 @@ export default function Panel3Calibration({ gene }: { gene: string }) {
     }
     (async () => {
       try {
-        const res = await fetch(`${BACKEND}/calibration/summary?gene=${encodeURIComponent(gene)}`);
+        const res = await fetch(
+          `${BACKEND}/calibration/summary?gene=${encodeURIComponent(gene)}`,
+          { mode: "cors" }
+        );
         const data = await res.json();
         setSummary(data.summary || "");
       } catch (err) {
@@ -71,9 +86,13 @@ export default function Panel3Calibration({ gene }: { gene: string }) {
   // --- Load partner TRNs if button toggled ---
   useEffect(() => {
     if (showGenes && gene) {
-      fetch(`${BACKEND}/calibration/genes?gene=${encodeURIComponent(gene)}`)
+      fetch(`${BACKEND}/calibration/genes?gene=${encodeURIComponent(gene)}`, {
+        mode: "cors",
+      })
         .then((res) => res.json())
-        .then((data) => setGenes(Array.isArray(data) ? data : data.genes || []))
+        .then((data) =>
+          setGenes(Array.isArray(data) ? data : data.genes || [])
+        )
         .catch((err) => {
           console.error("Error fetching partner genes:", err);
           setGenes([]);
@@ -84,7 +103,9 @@ export default function Panel3Calibration({ gene }: { gene: string }) {
   // --- ✅ Check if MAVE data exists ---
   useEffect(() => {
     if (!gene) return;
-    fetch(`${BACKEND}/mave/data?gene=${encodeURIComponent(gene)}`)
+    fetch(`${BACKEND}/mave/data?gene=${encodeURIComponent(gene)}`, {
+      mode: "cors",
+    })
       .then((res) => setHasMave(res.ok))
       .catch(() => setHasMave(false));
   }, [gene]);
@@ -108,7 +129,7 @@ export default function Panel3Calibration({ gene }: { gene: string }) {
           <p className="text-gray-500">Loading calibration plot...</p>
         ) : (
           <img
-            key={`calibration-${gene}-${Date.now()}`}
+            key={`calibration-${gene}`}
             id={`calibration-${gene}`}
             src={imgUrl}
             alt={`Calibration plot for ${gene}`}

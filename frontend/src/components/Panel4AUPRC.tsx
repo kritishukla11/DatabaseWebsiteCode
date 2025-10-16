@@ -4,30 +4,33 @@ export const fetchCache = "force-no-store";
 
 import { useEffect, useState } from "react";
 
-const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8001";
+const BACKEND =
+  process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8001";
 
 export default function Panel4AUPRC({ gene }: { gene: string }) {
   const [imgUrl, setImgUrl] = useState<string | null>(null);
   const [showRankings, setShowRankings] = useState(false);
-  const [rankings, setRankings] = useState<{ drug: string; auprc: number }[]>([]);
+  const [rankings, setRankings] = useState<{ drug: string; auprc: number }[]>(
+    []
+  );
 
-  // set plot URL directly
+  // --- Load AUPRC plot ---
   useEffect(() => {
-    if (!gene) {
+    if (!gene || !gene.trim()) {
       setImgUrl(null);
       return;
     }
-    const url = `${BACKEND}/auprc/image?gene=${encodeURIComponent(
-      gene
-    )}&_ts=${Date.now()}`;
-    console.log("AUPRC image URL:", url);
+
+    const url = `${BACKEND}/auprc/image?gene=${encodeURIComponent(gene)}`;
     setImgUrl(url);
   }, [gene]);
 
-  // fetch rankings when toggled open
+  // --- Fetch drug rankings when toggled open ---
   useEffect(() => {
-    if (showRankings && gene) {
-      fetch(`${BACKEND}/auprc/rankings?gene=${encodeURIComponent(gene)}`)
+    if (showRankings && gene && gene.trim()) {
+      fetch(`${BACKEND}/auprc/rankings?gene=${encodeURIComponent(gene)}`, {
+        mode: "cors",
+      })
         .then((res) => {
           if (!res.ok) throw new Error("Rankings fetch failed");
           return res.json();
@@ -42,7 +45,7 @@ export default function Panel4AUPRC({ gene }: { gene: string }) {
 
   return (
     <div className="border rounded-lg shadow bg-white p-2 flex flex-col items-center">
-      {/* plot */}
+      {/* === Plot === */}
       <div style={{ minHeight: "400px", width: "100%", textAlign: "center" }}>
         {!gene ? (
           <p className="text-gray-500">No gene selected.</p>
@@ -50,7 +53,7 @@ export default function Panel4AUPRC({ gene }: { gene: string }) {
           <p className="text-gray-500">Loading AUPRC plot...</p>
         ) : (
           <img
-            key={`auprc-${gene}-${Date.now()}`} // ✅ unique key
+            key={`auprc-${gene}`}
             src={imgUrl}
             alt={`AUPRC plot for ${gene}`}
             style={{
@@ -66,17 +69,19 @@ export default function Panel4AUPRC({ gene }: { gene: string }) {
         )}
       </div>
 
-      {/* button */}
+      {/* === Button === */}
       {gene && (
         <button
           onClick={() => setShowRankings(!showRankings)}
-          className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+          className="mt-4 px-4 py-2 bg-[#77A9D8] text-white font-semibold rounded-md hover:bg-[#5f94cc] transition"
         >
-          {showRankings ? "Hide drug rankings" : "Click here to see rankings of drugs"}
+          {showRankings
+            ? "Hide drug rankings"
+            : "Click here to see rankings of drugs"}
         </button>
       )}
 
-      {/* scrollable list */}
+      {/* === Scrollable drug list === */}
       {showRankings && rankings.length > 0 && (
         <div
           className="mt-3 border rounded bg-gray-50 w-full max-w-md p-2"

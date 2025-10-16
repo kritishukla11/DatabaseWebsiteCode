@@ -29,6 +29,9 @@ import matplotlib.patheffects as patheffects
 # FastAPI app
 # -----------------------
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi import FastAPI
+
+app = FastAPI()
 
 origins = [
     "https://starmap-frontend-dept-brunklab.apps.cloudapps.unc.edu",
@@ -36,54 +39,14 @@ origins = [
     "http://localhost:3000",
 ]
 
-app = FastAPI()
-
-# --- Apply CORS to everything, including error responses ---
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["Content-Disposition"],  # helpful for file responses
+    expose_headers=["Content-Disposition"],
 )
-
-
-from fastapi import Request
-from fastapi.responses import JSONResponse
-from fastapi.exceptions import RequestValidationError
-from starlette.exceptions import HTTPException as StarletteHTTPException
-
-# --- Ensure CORS headers even for error responses or preflights ---
-@app.exception_handler(StarletteHTTPException)
-async def http_exception_handler(request: Request, exc: StarletteHTTPException):
-    response = JSONResponse(
-        status_code=exc.status_code,
-        content={"detail": exc.detail},
-    )
-    response.headers["Access-Control-Allow-Origin"] = "*"
-    response.headers["Access-Control-Allow-Methods"] = "GET,POST,OPTIONS"
-    response.headers["Access-Control-Allow-Headers"] = "*"
-    return response
-
-@app.exception_handler(RequestValidationError)
-async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    response = JSONResponse(
-        status_code=422,
-        content={"detail": exc.errors()},
-    )
-    response.headers["Access-Control-Allow-Origin"] = "*"
-    response.headers["Access-Control-Allow-Methods"] = "GET,POST,OPTIONS"
-    response.headers["Access-Control-Allow-Headers"] = "*"
-    return response
-
-@app.options("/{rest_of_path:path}")
-async def preflight_handler(rest_of_path: str):
-    response = JSONResponse(content={"message": "CORS preflight OK"})
-    response.headers["Access-Control-Allow-Origin"] = "*"
-    response.headers["Access-Control-Allow-Methods"] = "GET,POST,OPTIONS"
-    response.headers["Access-Control-Allow-Headers"] = "*"
-    return response
 
 
 

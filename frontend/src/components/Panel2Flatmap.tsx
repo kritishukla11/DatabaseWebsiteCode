@@ -24,13 +24,15 @@ export default function Panel2Flatmap({ gene }: { gene: string }) {
 
   // Load available pathways when gene changes
   useEffect(() => {
-    if (!gene) {
+    if (!gene || !gene.trim()) {
       setPathways([]);
       return;
     }
     (async () => {
       try {
-        const res = await fetch(`${BACKEND}/flatmap/pathways?gene=${gene}`);
+        const res = await fetch(`${BACKEND}/flatmap/pathways?gene=${gene}`, {
+          mode: "cors",
+        });
         const data = await res.json();
         setPathways(data.pathways || []);
       } catch (err) {
@@ -41,37 +43,34 @@ export default function Panel2Flatmap({ gene }: { gene: string }) {
 
   // Build image URL for main flatmap
   useEffect(() => {
-    if (!gene) {
+    if (!gene || !gene.trim()) {
       setImgUrl(null);
       return;
     }
     setLoading1(true);
     const url = selected
-      ? `${BACKEND}/flatmap/image?gene=${gene}&name=${encodeURIComponent(
-          selected
-        )}&_ts=${Date.now()}`
-      : `${BACKEND}/flatmap/image?gene=${gene}&_ts=${Date.now()}`;
+      ? `${BACKEND}/flatmap/image?gene=${gene}&name=${encodeURIComponent(selected)}`
+      : `${BACKEND}/flatmap/image?gene=${gene}`;
     setImgUrl(url);
   }, [gene, selected]);
 
   // Build image URL for comparison flatmap (if enabled)
   useEffect(() => {
-    if (!compareMode || !gene) {
+    if (!compareMode || !gene || !gene.trim()) {
       setImgUrl2(null);
       return;
     }
     setLoading2(true);
     const url2 = selected2
-      ? `${BACKEND}/flatmap/image?gene=${gene}&name=${encodeURIComponent(
-          selected2
-        )}&_ts=${Date.now()}`
-      : `${BACKEND}/flatmap/image?gene=${gene}&_ts=${Date.now()}`;
+      ? `${BACKEND}/flatmap/image?gene=${gene}&name=${encodeURIComponent(selected2)}`
+      : `${BACKEND}/flatmap/image?gene=${gene}`;
     setImgUrl2(url2);
   }, [gene, selected2, compareMode]);
 
+
   // 🆕 Fetch summary for first flatmap
   useEffect(() => {
-    if (!gene) {
+    if (!gene || !gene.trim()) {
       setSummary1("");
       return;
     }
@@ -82,7 +81,9 @@ export default function Panel2Flatmap({ gene }: { gene: string }) {
               selected
             )}`
           : `${BACKEND}/flatmap/summary?gene=${gene}`;
-        const res = await fetch(endpoint);
+        const res = await fetch(endpoint, {
+          mode: "cors",
+        });
         const data = await res.json();
         setSummary1(data.summary || "");
       } catch (err) {
@@ -106,7 +107,9 @@ export default function Panel2Flatmap({ gene }: { gene: string }) {
               selected2
             )}`
           : `${BACKEND}/flatmap/summary?gene=${gene}`;
-        const res = await fetch(endpoint2);
+        const res = await fetch(endpoint2, {
+          mode: "cors",
+        });
         const data = await res.json();
         setSummary2(data.summary || "");
       } catch (err) {
@@ -157,7 +160,7 @@ export default function Panel2Flatmap({ gene }: { gene: string }) {
                   </div>
                 )}
                 <img
-                  key={`flatmap1-${gene}-${Date.now()}`}
+                  key={`flatmap1-${gene}-${selected}`}
                   src={imgUrl}
                   alt={`${gene} Flatmap`}
                   style={{
@@ -199,7 +202,7 @@ export default function Panel2Flatmap({ gene }: { gene: string }) {
                     </div>
                   )}
                   <img
-                    key={`flatmap2-${gene}-${Date.now()}`}
+                    key={`flatmap2-${gene}-${selected2}`} 
                     src={imgUrl2}
                     alt={`${gene} Comparison Flatmap`}
                     style={{

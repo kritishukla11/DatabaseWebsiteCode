@@ -9,10 +9,8 @@ import Panel4AUPRC from "@/components/Panel4AUPRC";
 
 const Plot = nextDynamic(() => import("react-plotly.js"), { ssr: false });
 const BACKEND =
-      process.env.NEXT_PUBLIC_BACKEND_URL ||
-      "http://127.0.0.1:8001";
+  process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8001";
 
-// keep your component exactly as-is
 export default function SearchPageContent() {
   const searchParams = useSearchParams();
   const gene = searchParams.get("gene") || "";
@@ -27,93 +25,82 @@ export default function SearchPageContent() {
   const [sharedGroups, setSharedGroups] = useState<any[]>([]);
   const [expandedGroup, setExpandedGroup] = useState<string | null>(null);
 
-  // ✅ Gene Info states
   const [selectedInfoGene, setSelectedInfoGene] = useState<string>("");
-  const [geneInfo, setGeneInfo] = useState<Record<string, string[]> | null>(null);
-  const [expandedInfoGroup, setExpandedInfoGroup] = useState<string | null>(null);
+  const [geneInfo, setGeneInfo] = useState<Record<string, string[]> | null>(
+    null
+  );
+  const [expandedInfoGroup, setExpandedInfoGroup] = useState<string | null>(
+    null
+  );
 
-  // Effect 1: listen for resize messages from iframe
+  // --- Resize listener ---
   useEffect(() => {
     function handleMessage(event: MessageEvent) {
-      if (event.data?.type === "resize-panel") {
-        if (event.data.panel === "panel1") {
-          setIframeHeights((prev) => ({
-            ...prev,
-            [event.data.panel]: event.data.height || 600,
-          }));
-        }
+      if (event.data?.type === "resize-panel" && event.data.panel === "panel1") {
+        setIframeHeights((prev) => ({
+          ...prev,
+          [event.data.panel]: event.data.height || 600,
+        }));
       }
     }
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
   }, []);
 
-  // Effect 2: fetch group label
+  // --- Group label ---
   useEffect(() => {
-    if (!gene) return;
-    fetch(`${BACKEND}/group_label?gene=${encodeURIComponent(gene)}`)
+    if (!gene.trim()) return;
+    fetch(`${BACKEND}/group_label?gene=${encodeURIComponent(gene)}`, {
+      mode: "cors",
+    })
       .then((res) => res.json())
       .then((data) => setGroupLabel(data.group_label || null))
       .catch(() => setGroupLabel(null));
   }, [gene]);
 
-  // Effect 3: fetch network plot + neighbors
+  // --- Network plot + neighbors ---
   useEffect(() => {
-    if (!gene) return;
+    if (!gene.trim()) return;
 
-    // 🔹 Step 1: Verify that the gene exists in master matrix
-    fetch(`${BACKEND}/check_gene?gene=${encodeURIComponent(gene)}`)
+    fetch(`${BACKEND}/check_gene?gene=${encodeURIComponent(gene)}`, {
+      mode: "cors",
+    })
       .then((res) => {
         if (res.status === 404) {
           throw new Error(`Sorry, we don't have info for ${gene}.`);
         }
         return res.json();
       })
-      .then(() => fetch(`${BACKEND}/plot?gene=${encodeURIComponent(gene)}`))
+      .then(() =>
+        fetch(`${BACKEND}/plot?gene=${encodeURIComponent(gene)}`, {
+          mode: "cors",
+        })
+      )
       .then((res) => res.json())
       .then((data) => {
         if (data.error) {
           setError(data.error);
           setPlotJson(null);
           setNeighbors([]);
-          setSelectedGene("");
-          setSharedGroups([]);
-          setExpandedGroup(null);
-          setSelectedInfoGene("");
-          setGeneInfo(null);
-          setExpandedInfoGroup(null);
           return;
         }
-        setPlotJson(data.plot);
         const sorted = (data.neighbors || []).sort(
           (a: any, b: any) => (b.cosine_sim ?? 0) - (a.cosine_sim ?? 0)
         );
+        setPlotJson(data.plot);
         setNeighbors(sorted);
-        setSelectedGene("");
-        setSharedGroups([]);
-        setExpandedGroup(null);
-        setSelectedInfoGene("");
-        setGeneInfo(null);
-        setExpandedInfoGroup(null);
         setError(null);
       })
       .catch((err) => {
         setError(err.message || "No data available for this gene.");
         setPlotJson(null);
         setNeighbors([]);
-        setSelectedGene("");
-        setSharedGroups([]);
-        setExpandedGroup(null);
-        setSelectedInfoGene("");
-        setGeneInfo(null);
-        setExpandedInfoGroup(null);
       });
   }, [gene]);
 
-
-  // Effect 4: fetch shared pathway groups when neighbor selected
+  // --- Shared TRN groups ---
   useEffect(() => {
-    if (!gene || !selectedGene) {
+    if (!gene.trim() || !selectedGene) {
       setSharedGroups([]);
       setExpandedGroup(null);
       return;
@@ -121,20 +108,23 @@ export default function SearchPageContent() {
     fetch(
       `${BACKEND}/shared_pathway_groups?query=${encodeURIComponent(
         gene
-      )}&neighbor=${encodeURIComponent(selectedGene)}`
+      )}&neighbor=${encodeURIComponent(selectedGene)}`,
+      { mode: "cors" }
     )
       .then((res) => res.json())
       .then((data) => setSharedGroups(data.groups || []))
       .catch(() => setSharedGroups([]));
   }, [gene, selectedGene]);
 
-  // Effect 5: fetch gene info when dropdown changes
+  // --- Gene info ---
   useEffect(() => {
-    if (!selectedInfoGene) {
+    if (!selectedInfoGene.trim()) {
       setGeneInfo(null);
       return;
     }
-     fetch(`${BACKEND}/gene_info?gene=${encodeURIComponent(selectedInfoGene)}`)
+    fetch(`${BACKEND}/gene_info?gene=${encodeURIComponent(selectedInfoGene)}`, {
+      mode: "cors",
+    })
       .then((res) => res.json())
       .then((data) => setGeneInfo(data.info || {}))
       .catch(() => setGeneInfo(null));
@@ -175,9 +165,8 @@ export default function SearchPageContent() {
 
             <div className="panel half">
               <h2 className="panel-title">2D Protein Flatmap</h2>
-              {/* --- Panel 2 --- */}
-              <div key={`panel2-wrapper-${gene}`} data-panel="2">
-              <Panel2Flatmap key={`panel2-${gene}-${Date.now()}`} gene={gene} />
+              <div data-panel="2">
+                <Panel2Flatmap key={`panel2-${gene}`} gene={gene} />
               </div>
             </div>
           </div>
@@ -186,27 +175,33 @@ export default function SearchPageContent() {
           <div className="panel-row">
             <div
               className="panel half"
-              style={{ minHeight: "600px", display: "flex", flexDirection: "column" }}
+              style={{
+                minHeight: "600px",
+                display: "flex",
+                flexDirection: "column",
+              }}
             >
-              <h2 className="panel-title">Perturb-Seq Based Confidence of Protein/TRN Association</h2>
-              {/* --- Panel 3 --- */}
-              <div key={`panel3-wrapper-${gene}`} data-panel="3">
-                <Panel3Calibration key={`panel3-${gene}-${Date.now()}`} gene={gene} />
+              <h2 className="panel-title">
+                Perturb-Seq Based Confidence of Protein/TRN Association
+              </h2>
+              <div data-panel="3">
+                <Panel3Calibration key={`panel3-${gene}`} gene={gene} />
               </div>
             </div>
 
             <div className="panel half">
-              <h2 className="panel-title">AUPRC for drugs</h2>
-              {/* --- Panel 4 --- */}
-              <div key={`panel4-wrapper-${gene}`} data-panel="4">
-                <Panel4AUPRC key={`panel4-${gene}-${Date.now()}`} gene={gene} />
+              <h2 className="panel-title">AUPRC for Drugs</h2>
+              <div data-panel="4">
+                <Panel4AUPRC key={`panel4-${gene}`} gene={gene} />
               </div>
             </div>
           </div>
 
           {/* Panel 5 full-width */}
           <div className="panel full panel5">
-            <h2 className="panel-title">Protein Relationship Network Based on Common TRN Associations</h2>
+            <h2 className="panel-title">
+              Protein Relationship Network Based on Common TRN Associations
+            </h2>
             {groupLabel && (
               <p className="group-label">Group Annotation: {groupLabel}</p>
             )}
@@ -236,7 +231,7 @@ export default function SearchPageContent() {
               </div>
 
               <aside className="sidebar">
-                {/* Gene Info box */}
+                {/* Gene Info */}
                 <div className="info-box">
                   <h3 className="sidebar-title">Gene Info</h3>
                   <select
@@ -286,15 +281,13 @@ export default function SearchPageContent() {
                   )}
                 </div>
 
-                {/* Shared Pathways box */}
+                {/* Shared Pathways */}
                 <div className="pathway-box">
                   <h3 className="sidebar-title">Shared TRNs</h3>
-                  {/* Neighbor dropdown */}
                   <select
                     className="dropdown"
                     value={selectedGene}
                     onChange={(e) => setSelectedGene(e.target.value)}
-                    aria-label="Select neighbor gene"
                   >
                     <option value="">Select gene</option>
                     {neighbors.map((n) => (
@@ -304,7 +297,6 @@ export default function SearchPageContent() {
                     ))}
                   </select>
 
-                  {/* Functional group buttons */}
                   {selectedGene ? (
                     sharedGroups.length ? (
                       <div className="group-buttons">
