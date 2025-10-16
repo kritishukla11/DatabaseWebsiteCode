@@ -1,7 +1,9 @@
 "use client";
+export const dynamic = "force-dynamic";  
 
 import { useSearchParams } from "next/navigation";
 import { useState, useEffect, useMemo } from "react";
+
 
 export default function PathwaySearchPage() {
   const searchParams = useSearchParams();
