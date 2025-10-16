@@ -2,7 +2,6 @@
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
-
 import { useEffect, useState } from "react";
 
 const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8001";

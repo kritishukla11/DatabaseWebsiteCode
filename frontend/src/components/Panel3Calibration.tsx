@@ -39,7 +39,8 @@ export default function Panel3Calibration({ gene }: { gene: string }) {
 
         // ✅ It's a valid image
         setError("");
-        setImgUrl(`${BACKEND}/calibration/image?gene=${encodeURIComponent(gene)}&_ts=${Date.now()}`);
+        const url = `${BACKEND}/calibration/image?gene=${encodeURIComponent(gene)}&_ts=${Date.now()}`;
+        setImgUrl(url);
       } catch (err) {
         setError("There is no single cell perturbation (Perturb-seq) data for this protein.");
         setImgUrl(null);
@@ -107,6 +108,8 @@ export default function Panel3Calibration({ gene }: { gene: string }) {
           <p className="text-gray-500">Loading calibration plot...</p>
         ) : (
           <img
+            key={`calibration-${gene}-${Date.now()}`}
+            id={`calibration-${gene}`}
             src={imgUrl}
             alt={`Calibration plot for ${gene}`}
             style={{

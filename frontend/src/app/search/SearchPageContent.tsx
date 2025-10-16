@@ -175,7 +175,10 @@ export default function SearchPageContent() {
 
             <div className="panel half">
               <h2 className="panel-title">2D Protein Flatmap</h2>
-              <Panel2Flatmap key={`flatmap-${gene || "none"}`} gene={gene} />
+              {/* --- Panel 2 --- */}
+              <div key={`panel2-wrapper-${gene}`} data-panel="2">
+              <Panel2Flatmap key={`panel2-${gene}-${Date.now()}`} gene={gene} />
+              </div>
             </div>
           </div>
 
@@ -186,12 +189,18 @@ export default function SearchPageContent() {
               style={{ minHeight: "600px", display: "flex", flexDirection: "column" }}
             >
               <h2 className="panel-title">Perturb-Seq Based Confidence of Protein/TRN Association</h2>
-              <Panel3Calibration key={`calibration-${gene || "none"}`} gene={gene} />
+              {/* --- Panel 3 --- */}
+              <div key={`panel3-wrapper-${gene}`} data-panel="3">
+                <Panel3Calibration key={`panel3-${gene}-${Date.now()}`} gene={gene} />
+              </div>
             </div>
 
             <div className="panel half">
               <h2 className="panel-title">AUPRC for drugs</h2>
-              <Panel4AUPRC key={`auprc-${gene}`} gene={gene} />
+              {/* --- Panel 4 --- */}
+              <div key={`panel4-wrapper-${gene}`} data-panel="4">
+                <Panel4AUPRC key={`panel4-${gene}-${Date.now()}`} gene={gene} />
+              </div>
             </div>
           </div>
 
