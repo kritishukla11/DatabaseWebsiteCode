@@ -2,6 +2,8 @@
 
 import { useSearchParams } from "next/navigation";
 import { useState, useEffect } from "react";
+import DrugPanel4 from "@/components/DrugPanel4";
+
 
 export default function DrugPageContent() {
   const searchParams = useSearchParams();
@@ -324,11 +326,10 @@ export default function DrugPageContent() {
         </div>
 
         <div className="panel half">
-          <h2 className="panel-title">
-            Panel 4: Literature / Clinical Associations
-          </h2>
-          <p>No data yet.</p>
+            <h2 className="panel-title">Expression Across Proteins (Tahoe-100M)</h2>
+            <DrugPanel4 drug={drug} />
         </div>
+
       </div>
 
       {/* ==== Styles ==== */}

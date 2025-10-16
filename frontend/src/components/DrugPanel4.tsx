@@ -7,51 +7,51 @@ import { useEffect, useState } from "react";
 const BACKEND =
   process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8001";
 
-export default function Panel4AUPRC({ gene }: { gene: string }) {
+export default function DrugPanel4({ drug }: { drug: string }) {
   const [imgUrl, setImgUrl] = useState<string | null>(null);
   const [showRankings, setShowRankings] = useState(false);
-  const [rankings, setRankings] = useState<{ drug: string; expression: number }[]>(
+  const [rankings, setRankings] = useState<{ gene: string; expression: number }[]>(
     []
   );
 
-  // --- Load expression plot ---
+  // --- Load protein-expression plot ---
   useEffect(() => {
-    if (!gene || !gene.trim()) {
+    if (!drug || !drug.trim()) {
       setImgUrl(null);
       return;
     }
-    const url = `${BACKEND}/expression/image?gene=${encodeURIComponent(gene)}`;
+    const url = `${BACKEND}/drug_expression/image?drug=${encodeURIComponent(drug)}`;
     setImgUrl(url);
-  }, [gene]);
+  }, [drug]);
 
-  // --- Fetch drug rankings ---
+  // --- Fetch rankings when toggled ---
   useEffect(() => {
-    if (showRankings && gene && gene.trim()) {
-      fetch(`${BACKEND}/expression/rankings?gene=${encodeURIComponent(gene)}`, {
+    if (showRankings && drug && drug.trim()) {
+      fetch(`${BACKEND}/drug_expression/rankings?drug=${encodeURIComponent(drug)}`, {
         mode: "cors",
       })
         .then((res) => res.json())
         .then((data) => setRankings(data.rankings || []))
         .catch((err) => {
-          console.error("Error fetching rankings:", err);
+          console.error("Error fetching protein rankings:", err);
           setRankings([]);
         });
     }
-  }, [showRankings, gene]);
+  }, [showRankings, drug]);
 
   return (
     <div className="border rounded-lg shadow bg-white p-2 flex flex-col items-center">
       {/* === Plot === */}
       <div style={{ minHeight: "400px", width: "100%", textAlign: "center" }}>
-        {!gene ? (
-          <p className="text-gray-500">No gene selected.</p>
+        {!drug ? (
+          <p className="text-gray-500">No drug selected.</p>
         ) : !imgUrl ? (
-          <p className="text-gray-500">Loading expression plot...</p>
+          <p className="text-gray-500">Loading protein-expression plot...</p>
         ) : (
           <img
-            key={`expr-${gene}`}
+            key={`drugexpr-${drug}`}
             src={imgUrl}
-            alt={`Expression plot for ${gene}`}
+            alt={`Protein-expression plot for ${drug}`}
             style={{
               width: "90%",
               height: "90%",
@@ -66,18 +66,18 @@ export default function Panel4AUPRC({ gene }: { gene: string }) {
       </div>
 
       {/* === Button === */}
-      {gene && (
+      {drug && (
         <button
           onClick={() => setShowRankings(!showRankings)}
           className="mt-4 px-4 py-2 bg-[#77A9D8] text-white font-semibold rounded-md hover:bg-[#5f94cc] transition"
         >
           {showRankings
-            ? "Hide drug rankings"
-            : "Click here to see ranked drugs"}
+            ? "Hide ranked proteins"
+            : "Click here to see ranked proteins"}
         </button>
       )}
 
-      {/* === Rankings list === */}
+      {/* === Scrollable list === */}
       {showRankings && rankings.length > 0 && (
         <div
           className="mt-3 border rounded bg-gray-50 w-full max-w-md p-2"
@@ -86,7 +86,7 @@ export default function Panel4AUPRC({ gene }: { gene: string }) {
           <ul>
             {rankings.map((r, i) => (
               <li key={i} className="border-b last:border-none py-1 text-left">
-                {i + 1}. {r.drug} – {r.expression.toFixed(3)}
+                {i + 1}. {r.gene} – {r.expression.toFixed(3)}
               </li>
             ))}
           </ul>
@@ -95,8 +95,3 @@ export default function Panel4AUPRC({ gene }: { gene: string }) {
     </div>
   );
 }
-
-
-
-
-

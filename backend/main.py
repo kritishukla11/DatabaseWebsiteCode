@@ -1441,71 +1441,141 @@ def pathway_description(pathway: str):
 
 
 # =========================================================
-# ========= PANEL 4: AUPRC plot (matplotlib) ==============
+# ========= PANEL 4: Drug–Expression plot (Tahoe Matrix) ===
 # =========================================================
 
-# ✅ Load CSV once globally
-DRUG_AUC_DF = pd.read_csv("drug_AUC.csv")
+import matplotlib.pyplot as plt
+import io
+from fastapi.responses import StreamingResponse, Response
 
-@app.get("/auprc/image")
-def auprc_image(gene: str):
+# ✅ Load once globally
+TAHOE_MATRIX = pd.read_parquet("data/tahoe_matrix.parquet")
+TAHOE_MATRIX.set_index("gene", inplace=True)
+
+@app.get("/expression/image")
+def expression_image(gene: str):
     """
-    Return AUPRC plot for a given gene.
+    Return bar plot of drug expression values for a given gene.
     """
     try:
-        # Subset to this gene
-        sub = DRUG_AUC_DF[DRUG_AUC_DF["gene"].str.upper() == gene.upper()]
-        if sub.empty:
+        if gene.upper() not in TAHOE_MATRIX.index.str.upper():
             return Response(status_code=404)
 
-        fig, ax = plt.subplots()
+        # Match case-insensitively
+        row = TAHOE_MATRIX.loc[
+            TAHOE_MATRIX.index.str.upper() == gene.upper()
+        ].iloc[0]
 
-        # ✅ Plot drug_norm vs AUPRC_mean
-        ax.plot(sub["drug_norm"], sub["AUPRC_mean"], marker="o", linestyle="-")
+        # Sort descending by value
+        sorted_row = row.sort_values(ascending=False)
 
-        # ✅ Formatting: clean minimal plot
-        ax.set_xticks([])                # remove ticks
-        ax.set_xticklabels([])           # remove labels
-        ax.grid(False)                   # remove gridlines
-        ax.set_title("")                 # remove title
-        ax.set_ylabel("AUPRC (mean)")    # keep only y-axis label
+        # Plot
+        fig, ax = plt.subplots(figsize=(8, 4))
+        ax.bar(sorted_row.index, sorted_row.values)
+        ax.set_ylabel("Avg expression (pseudobulk from Tahoe-100M)")
+        ax.xaxis.set_visible(False)
 
-        # Save to PNG buffer
         buf = io.BytesIO()
-        fig.savefig(buf, format="png", bbox_inches="tight") 
+        fig.tight_layout()
+        fig.savefig(buf, format="png", bbox_inches="tight")
         plt.close(fig)
         buf.seek(0)
 
         return StreamingResponse(
             buf,
             media_type="image/png",
-            headers={
-                "Cache-Control": "no-store",
-                "Access-Control-Allow-Origin": "*"
-            }
+            headers={"Cache-Control": "no-store", "Access-Control-Allow-Origin": "*"},
         )
 
     except Exception as e:
         return {"error": str(e)}
 
 
-@app.get("/auprc/rankings")
-def auprc_rankings(gene: str):
+@app.get("/expression/rankings")
+def expression_rankings(gene: str):
     """
-    Return list of drugs ranked for a given gene.
+    Return ranked list of drugs by expression value for a given gene.
     """
     try:
-        sub = DRUG_AUC_DF[DRUG_AUC_DF["gene"].str.upper() == gene.upper()]
-        if sub.empty:
+        if gene.upper() not in TAHOE_MATRIX.index.str.upper():
             return {"rankings": []}
 
-        # Sort by AUPRC_mean descending
-        ranked = sub.sort_values("AUPRC_mean", ascending=False)
+        row = TAHOE_MATRIX.loc[
+            TAHOE_MATRIX.index.str.upper() == gene.upper()
+        ].iloc[0]
+
+        ranked = row.sort_values(ascending=False)
 
         return {
             "rankings": [
-                {"drug": row["drug_norm"], "auprc": row["AUPRC_mean"]}
-                for _, row in ranked.iterrows()
+                {"drug": drug, "expression": float(val)}
+                for drug, val in ranked.items()
+            ]
+        }
+
+    except Exception as e:
+        return {"error": str(e)}
+
+# =========================================================
+# ========= DRUG PAGE PANEL 4: Protein–Expression plot =====
+# =========================================================
+
+@app.get("/drug_expression/image")
+def drug_expression_image(drug: str):
+    """
+    Return bar plot of protein expression values for a given drug.
+    """
+    try:
+        if drug not in TAHOE_MATRIX.columns:
+            # Case-insensitive match
+            matches = [c for c in TAHOE_MATRIX.columns if c.lower() == drug.lower()]
+            if not matches:
+                return Response(status_code=404)
+            drug = matches[0]
+
+        col = TAHOE_MATRIX[drug]
+        sorted_col = col.sort_values(ascending=False)
+
+        fig, ax = plt.subplots(figsize=(8, 4))
+        ax.bar(sorted_col.index, sorted_col.values, color="#77A9D8")
+        ax.set_ylabel("Avg expression (pseudobulk from Tahoe-100M)")
+        ax.xaxis.set_visible(False)
+
+        buf = io.BytesIO()
+        fig.tight_layout()
+        fig.savefig(buf, format="png", bbox_inches="tight")
+        plt.close(fig)
+        buf.seek(0)
+
+        return StreamingResponse(
+            buf,
+            media_type="image/png",
+            headers={"Cache-Control": "no-store", "Access-Control-Allow-Origin": "*"},
+        )
+
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@app.get("/drug_expression/rankings")
+def drug_expression_rankings(drug: str):
+    """
+    Return ranked list of proteins by expression for a given drug.
+    """
+    try:
+        if drug not in TAHOE_MATRIX.columns:
+            matches = [c for c in TAHOE_MATRIX.columns if c.lower() == drug.lower()]
+            if not matches:
+                return {"rankings": []}
+            drug = matches[0]
+
+        col = TAHOE_MATRIX[drug]
+        ranked = col.sort_values(ascending=False)
+
+        return {
+            "rankings": [
+                {"gene": gene, "expression": float(val)}
+                for gene, val in ranked.items()
             ]
         }
 
