@@ -3,10 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint . --ext .js,.jsx,.ts,.tsx"
+  "dev": "next dev",
+  "build": "NEXT_SKIP_BUILD_STATIC_GENERATION=true next build",
+  "start": "next start",
+  "lint": "eslint . --ext .js,.jsx,.ts,.tsx"
   },
   "dependencies": {
     "@nivo/core": "^0.99.0",
