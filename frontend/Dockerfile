@@ -6,7 +6,10 @@ COPY package*.json ./
 RUN npm install
 
 COPY tailwind.config.js postcss.config.js ./
+# Copy environment file
+COPY .env .env
 COPY . .
+
 
 # --- Environment configuration (must come BEFORE build) ---
 ENV NEXT_DISABLE_ESLINT=1

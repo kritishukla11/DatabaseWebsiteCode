@@ -10,7 +10,6 @@ dist/
 
 # Docker
 *.log
-.env
 *.pid
 
 # System
