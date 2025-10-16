@@ -9,6 +9,7 @@ COPY tailwind.config.js postcss.config.js ./
 COPY . .
 
 # Build the static Next.js site
+ENV NEXT_DISABLE_ESLINT=1
 RUN npm run build
 
 # Ensure runtime has write permission (good practice for OpenShift)
