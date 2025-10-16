@@ -67,7 +67,7 @@ export default function PathwaySearchPage() {
           setStringError(null);
 
           const orderMap = new Map(proteins.map((p, i) => [p.id.toUpperCase(), i]));
-          const sorted = (data.interactions || []).sort((a, b) => {
+          const sorted = (data.interactions || []).sort((a: any, b: any) => {
             const aOrd = orderMap.get(a.prediction_protein.toUpperCase()) ?? Infinity;
             const bOrd = orderMap.get(b.prediction_protein.toUpperCase()) ?? Infinity;
             return aOrd - bOrd;
