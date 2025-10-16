@@ -163,39 +163,39 @@ export default function SearchPageContent() {
               )}
             </div>
 
-            <div className="panel half">
-              <h2 className="panel-title">2D Protein Flatmap</h2>
-              <div data-panel="2">
-                <Panel2Flatmap key={`panel2-${gene}`} gene={gene} />
-              </div>
+            <div className="panel half panel2-container" key={`wrap-panel2-${gene}`}>
+                <h2 className="panel-title">2D Protein Flatmap</h2>
+                <div data-panel="2" className="panel-inner">
+                    <Panel2Flatmap key={`panel2-${gene}`} gene={gene} />
+                </div>
             </div>
           </div>
+
 
           {/* Row 2: Panel 3 + Panel 4 */}
           <div className="panel-row">
             <div
-              className="panel half"
-              style={{
-                minHeight: "600px",
-                display: "flex",
-                flexDirection: "column",
-              }}
+                className="panel half panel3-container"
+                key={`wrap-panel3-${gene}`}
+                style={{ minHeight: "600px", display: "flex", flexDirection: "column" }}
             >
-              <h2 className="panel-title">
-                Perturb-Seq Based Confidence of Protein/TRN Association
-              </h2>
-              <div data-panel="3">
-                <Panel3Calibration key={`panel3-${gene}`} gene={gene} />
-              </div>
+                <h2 className="panel-title">
+                    Perturb-Seq Based Confidence of Protein/TRN Association
+                </h2>
+                <div data-panel="3" className="panel-inner">
+                    <Panel3Calibration key={`panel3-${gene}`} gene={gene} />
+                </div>
             </div>
 
-            <div className="panel half">
-              <h2 className="panel-title">AUPRC for Drugs</h2>
-              <div data-panel="4">
-                <Panel4AUPRC key={`panel4-${gene}`} gene={gene} />
-              </div>
+            <div className="panel half panel4-container" key={`wrap-panel4-${gene}`}>
+                <h2 className="panel-title">AUPRC for Drugs</h2>
+                <div data-panel="4" className="panel-inner">
+                    <Panel4AUPRC key={`panel4-${gene}`} gene={gene} />
+                </div>
             </div>
           </div>
+
+
 
           {/* Panel 5 full-width */}
           <div className="panel full panel5">
@@ -493,6 +493,20 @@ export default function SearchPageContent() {
         .error-page {
           text-align: center;
           padding: 4rem 1rem;
+        }
+        .panel2-container,
+        .panel3-container,
+        .panel4-container {
+            background: white;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .panel-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
         }
         @media (max-width: 900px) {
           .panel-row {
