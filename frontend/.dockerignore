@@ -1,0 +1,7 @@
+# Ignore backend entirely
+backend/
+
+# Optional: also ignore other heavy dirs
+.git/
+.gitignore
+.gitmodules
