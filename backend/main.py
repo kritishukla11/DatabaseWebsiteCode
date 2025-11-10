@@ -1513,7 +1513,7 @@ def confidence_image(protein: str):
             ax.plot(x_sorted, logistic_fixed_first(x_sorted, *popt),
                     color="red", label=eq_label)
             ax.set_xlabel("Rank of drugs (AI predicted)")
-            ax.set_ylabel("Confidence (0–1) from Tahoe-100M")
+            ax.set_ylabel(f"Confidence of association (0-1) between\n{protein} and each drug\n(validated by Tahoe-100M)")
             ax.set_title(protein.upper())
             ax.legend(loc="upper right", fontsize=9)
             ax.grid(False)
@@ -1548,11 +1548,11 @@ def confidence_rankings(protein: str):
         # expected columns: norm_drug, score (or similar)
         cols = [c.lower() for c in sub.columns]
         drug_col = "norm_drug" if "norm_drug" in cols else sub.columns[0]
-        score_col = "score" if "score" in cols else sub.columns[-1]
+        score_col = "index" if "index" in cols else sub.columns[-1]
 
         sub = sub.sort_values(score_col, ascending=False)
         rankings = [
-            {"drug": row[drug_col], "expression": float(row[score_col])}
+            {"drug": row[drug_col]}
             for _, row in sub.iterrows()
         ]
         return {"rankings": rankings}
