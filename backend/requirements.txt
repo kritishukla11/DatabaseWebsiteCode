@@ -24,3 +24,7 @@ tqdm      # progress bars (used by HF tools)
 
 # Optional extras for robustness
 python-multipart  # if you add file upload endpoints later
+
+#sklearn
+scikit-learn
+
