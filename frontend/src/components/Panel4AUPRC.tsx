@@ -80,7 +80,7 @@ export default function Panel4AUPRC({ gene }: { gene: string }) {
           <ul>
             {rankings.map((r, i) => (
               <li key={i} className="border-b last:border-none py-1 text-left">
-                {i + 1}. {r.drug} – {r.expression.toFixed(3)}
+                {i + 1}. {r.drug}
               </li>
             ))}
           </ul>
