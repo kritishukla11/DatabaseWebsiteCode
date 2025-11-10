@@ -1454,11 +1454,6 @@ import matplotlib.pyplot as plt
 import io
 from fastapi.responses import StreamingResponse, Response
 
-# ✅ Load once globally
-TAHOE_MATRIX = pd.read_parquet("data/tahoe_matrix.parquet")
-if TAHOE_MATRIX.index.name != "gene":
-    TAHOE_MATRIX.set_index("gene", inplace=True)
-
 
 @app.get("/confidence/image")
 def confidence_image(protein: str):
@@ -1537,6 +1532,34 @@ def confidence_image(protein: str):
 
         except Exception as e:
             return JSONResponse({"error": str(e)}, status_code=500)
+        
+
+@app.get("/confidence/rankings")
+def confidence_rankings(protein: str):
+    """
+    Return ranked drugs for a given protein from drug_rankings.csv.
+    """
+    try:
+        df = pd.read_csv("drug_rankings.csv")
+        sub = df[df["protein"].str.upper() == protein.upper()]
+        if sub.empty:
+            return {"rankings": []}
+
+        # expected columns: norm_drug, score (or similar)
+        cols = [c.lower() for c in sub.columns]
+        drug_col = "norm_drug" if "norm_drug" in cols else sub.columns[0]
+        score_col = "score" if "score" in cols else sub.columns[-1]
+
+        sub = sub.sort_values(score_col, ascending=False)
+        rankings = [
+            {"drug": row[drug_col], "expression": float(row[score_col])}
+            for _, row in sub.iterrows()
+        ]
+        return {"rankings": rankings}
+
+    except Exception as e:
+        return {"error": str(e)}
+
 
 # =========================================================
 # ========= DRUG PAGE PANEL 4: Protein–Expression plot =====
@@ -1578,32 +1601,6 @@ def drug_expression_image(drug: str):
 
         except Exception as e:
             return {"error": str(e)}
-
-
-@app.get("/drug_expression/rankings")
-def drug_expression_rankings(drug: str):
-    """
-    Return ranked list of proteins by expression for a given drug.
-    """
-    try:
-        if drug not in TAHOE_MATRIX.columns:
-            matches = [c for c in TAHOE_MATRIX.columns if c.lower() == drug.lower()]
-            if not matches:
-                return {"rankings": []}
-            drug = matches[0]
-
-        col = TAHOE_MATRIX[drug]
-        ranked = col.sort_values(ascending=False)
-
-        return {
-            "rankings": [
-                {"gene": gene, "expression": float(val)}
-                for gene, val in ranked.items()
-            ]
-        }
-
-    except Exception as e:
-        return {"error": str(e)}
 
 
 
