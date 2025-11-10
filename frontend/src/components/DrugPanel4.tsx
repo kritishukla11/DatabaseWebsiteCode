@@ -10,9 +10,8 @@ const BACKEND =
 export default function DrugPanel4({ drug }: { drug: string }) {
   const [imgUrl, setImgUrl] = useState<string | null>(null);
   const [showRankings, setShowRankings] = useState(false);
-  const [rankings, setRankings] = useState<{ gene: string; expression: number }[]>(
-    []
-  );
+  // 👇 fix: expect { drug: string }
+  const [rankings, setRankings] = useState<{ drug: string }[]>([]);
 
   // --- Load protein-expression plot ---
   useEffect(() => {
@@ -86,7 +85,7 @@ export default function DrugPanel4({ drug }: { drug: string }) {
           <ul>
             {rankings.map((r, i) => (
               <li key={i} className="border-b last:border-none py-1 text-left">
-                {i + 1}. {r.gene} – {r.expression.toFixed(3)}
+                {i + 1}. {r.drug}
               </li>
             ))}
           </ul>

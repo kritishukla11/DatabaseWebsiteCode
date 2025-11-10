@@ -188,7 +188,7 @@ export default function SearchPageContent() {
             </div>
 
             <div className="panel half panel4-container" key={`wrap-panel4-${gene}`}>
-                <h2 className="panel-title">Expression Across Drug Treatment Conditions (Tahoe-100M)</h2>
+                <h2 className="panel-title">Tahoe-100M Based Confidence of Protein/Drug Association</h2>
                 <div data-panel="4" className="panel-inner">
                     <Panel4AUPRC key={`panel4-${gene}`} gene={gene} />
                 </div>
