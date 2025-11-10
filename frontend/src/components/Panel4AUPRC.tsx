@@ -10,34 +10,28 @@ const BACKEND =
 export default function Panel4AUPRC({ gene }: { gene: string }) {
   const [imgUrl, setImgUrl] = useState<string | null>(null);
   const [showRankings, setShowRankings] = useState(false);
-  const [rankings, setRankings] = useState<{ drug: string; expression: number }[]>(
-    []
-  );
+  const [rankings, setRankings] = useState<{ drug: string; expression: number }[]>([]);
 
-  // --- Load expression plot ---
   useEffect(() => {
     if (!gene || !gene.trim()) {
       setImgUrl(null);
       return;
     }
-    const url = `${BACKEND}/expression/image?gene=${encodeURIComponent(gene)}`;
+    const url = `${BACKEND}/confidence/image?protein=${encodeURIComponent(gene)}`;
     setImgUrl(url);
   }, [gene]);
 
-  // --- Fetch drug rankings ---
   useEffect(() => {
     if (showRankings && gene && gene.trim()) {
-      fetch(`${BACKEND}/expression/rankings?gene=${encodeURIComponent(gene)}`, {
+      fetch(`${BACKEND}/confidence/rankings?protein=${encodeURIComponent(gene)}`, {
         mode: "cors",
       })
         .then((res) => res.json())
         .then((data) => setRankings(data.rankings || []))
-        .catch((err) => {
-          console.error("Error fetching rankings:", err);
-          setRankings([]);
-        });
+        .catch(() => setRankings([]));
     }
   }, [showRankings, gene]);
+
 
   return (
     <div className="border rounded-lg shadow bg-white p-2 flex flex-col items-center">

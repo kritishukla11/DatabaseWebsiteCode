@@ -1460,70 +1460,83 @@ if TAHOE_MATRIX.index.name != "gene":
     TAHOE_MATRIX.set_index("gene", inplace=True)
 
 
-@app.get("/expression/image")
-def expression_image(gene: str):
+@app.get("/confidence/image")
+def confidence_image(protein: str):
     """
-    Return bar plot of drug expression values for a given gene.
+    Returns logistic fit plot (PNG) for the given protein
+    using data from tahoe_confidence_metrics.csv.
     """
+    import numpy as np
+    from scipy.optimize import curve_fit
+    from sklearn.metrics import r2_score
+
     with PLOT_LOCK:
         try:
-            if gene.upper() not in TAHOE_MATRIX.index.str.upper():
-                return Response(status_code=404)
+            df = pd.read_csv("tahoe_confidence_metrics.csv")
+            emp = df[df["protein"].str.upper() == protein.upper()].copy()
+            if emp.empty:
+                return JSONResponse(
+                    {"error": f"No confidence data found for {protein}"},
+                    status_code=404,
+                )
 
-            # Match case-insensitively
-            row = TAHOE_MATRIX.loc[
-                TAHOE_MATRIX.index.str.upper() == gene.upper()
-            ].iloc[0]
+            # ensure numeric
+            emp = emp.reset_index(drop=True)
+            if "index" not in emp.columns:
+                emp = emp.reset_index(names="index")
+            emp["norm_confidence"] = pd.to_numeric(
+                emp["norm_confidence"], errors="coerce"
+            ).fillna(0)
 
-            # Sort descending by value
-            sorted_row = row.sort_values(ascending=False)
+            x = emp["index"].values
+            y = emp["norm_confidence"].values
+            x0, y0 = x[0], y[0]
 
-            # Plot
-            fig, ax = plt.subplots(figsize=(8, 4))
-            ax.bar(sorted_row.index, sorted_row.values)
-            ax.set_ylabel("Avg expression (pseudobulk from Tahoe-100M)")
-            ax.xaxis.set_visible(False)
+            # logistic function constrained to first point
+            def logistic_fixed_first(x, k, xmid, c):
+                L = (y0 - c) * (1 + np.exp(k * (x0 - xmid)))
+                return c + L / (1 + np.exp(k * (x - xmid)))
+
+            p0 = [-0.05, np.median(x), min(y)]
+            popt, _ = curve_fit(logistic_fixed_first, x, y, p0=p0, maxfev=10000)
+            k, xmid, c = popt
+            y_pred = logistic_fixed_first(x, *popt)
+            r2 = r2_score(y, y_pred)
+
+            # equation label
+            eq_label = (
+                "Logistic fit:\n"
+                r"$y = c + \frac{L}{1 + e^{k(x - x_{mid})}}$" "\n"
+                f"$k={k:.3f},\, x_{{mid}}={xmid:.2f},\, c={c:.3f}$\n"
+                f"$R^2={r2:.3f}$"
+            )
+
+            # plot
+            fig, ax = plt.subplots(figsize=(6, 4))
+            ax.scatter(x, y, s=30, alpha=0.7, label="Data")
+            x_sorted = np.sort(x)
+            ax.plot(x_sorted, logistic_fixed_first(x_sorted, *popt),
+                    color="red", label=eq_label)
+            ax.set_xlabel("Rank of drugs (AI predicted)")
+            ax.set_ylabel("Confidence (0–1) from Tahoe-100M")
+            ax.set_title(protein.upper())
+            ax.legend(loc="upper right", fontsize=9)
+            ax.grid(False)
 
             buf = io.BytesIO()
             fig.tight_layout()
-            fig.savefig(buf, format="png", bbox_inches="tight")
+            fig.savefig(buf, format="png", bbox_inches="tight", dpi=160)
             plt.close(fig)
             buf.seek(0)
 
             return StreamingResponse(
                 buf,
                 media_type="image/png",
-                headers={"Cache-Control": "no-store", "Access-Control-Allow-Origin": "*"},
+                headers={"Cache-Control": "no-store"},
             )
 
         except Exception as e:
-            return {"error": str(e)}
-
-
-@app.get("/expression/rankings")
-def expression_rankings(gene: str):
-    """
-    Return ranked list of drugs by expression value for a given gene.
-    """
-    try:
-        if gene.upper() not in TAHOE_MATRIX.index.str.upper():
-            return {"rankings": []}
-
-        row = TAHOE_MATRIX.loc[
-            TAHOE_MATRIX.index.str.upper() == gene.upper()
-        ].iloc[0]
-
-        ranked = row.sort_values(ascending=False)
-
-        return {
-            "rankings": [
-                {"drug": drug, "expression": float(val)}
-                for drug, val in ranked.items()
-            ]
-        }
-
-    except Exception as e:
-        return {"error": str(e)}
+            return JSONResponse({"error": str(e)}, status_code=500)
 
 # =========================================================
 # ========= DRUG PAGE PANEL 4: Protein–Expression plot =====
