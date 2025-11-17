@@ -729,10 +729,7 @@ def flatmap_image(gene: str, name: str | None = None, collapse: str = "max"):
         else:
             # --- Pathway-specific ---
             merged["cluster"] = merged["cluster"].astype(int)
-            if collapse == "mean":
-                cluster_scores = merged.groupby("cluster")["gi_sum"].mean()
-            else:
-                cluster_scores = merged.groupby("cluster")["gi_sum"].max()
+            cluster_scores = merged.groupby("cluster")["gi_sum"].mean()
 
             Zi_gi_cluster = np.zeros_like(Zi_cluster, dtype=float)
             for clust, score in cluster_scores.items():
