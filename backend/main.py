@@ -751,6 +751,7 @@ def flatmap_image(gene: str, name: str | None = None, collapse: str = "max"):
 
         ax.contour(Xi, Yi, inside_mask, levels=[0.5],
                 colors="black", linewidths=2.5, zorder=6)
+        
 
         # ---------- Cluster Annotations ----------
         try:
@@ -810,6 +811,10 @@ def flatmap_image(gene: str, name: str | None = None, collapse: str = "max"):
                                 clip_on=False,
                                 zorder=999
                             )
+                            logger.info(f"cluster_scores: {cluster_scores}")
+                            logger.info(f"vmin={float(cluster_scores.min())}, vmax={float(cluster_scores.max())}")
+                            logger.info(f"unique_clusters_in_slice={merged['cluster'].unique()}")
+
 
             ax.set_xlim(xmn_pad - 0.1*(xmx-xmn), xmx_pad + 0.1*(xmx-xmn))
             ax.set_ylim(ymn_pad - 0.1*(ymx-ymn), ymx_pad + 0.1*(ymx-ymn))
