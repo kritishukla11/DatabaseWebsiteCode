@@ -604,7 +604,7 @@ def list_pathways_for_gene(gene: str) -> list[str]:
 
 @lru_cache(maxsize=128)
 def load_global_max_scores() -> pd.DataFrame:
-    path = DATA_DIR / "all_proteins_max_score_matrix_cleaned.csv"
+    path = "all_proteins_max_score_matrix_cleaned.csv"
     df = pd.read_csv(path)
     df.columns = df.columns.str.upper()
     df.index = df[df.columns[0]].str.upper()   # first col = gene name
