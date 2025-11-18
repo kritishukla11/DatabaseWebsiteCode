@@ -22,6 +22,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Hugging Face optimization (optional but nice)
 ENV HF_HUB_ENABLE_HF_TRANSFER=1
 ENV HF_HUB_CACHE=/app/.cache/huggingface
+ENV MPLCONFIGDIR=/tmp/matplotlib_cache
+RUN mkdir -p /tmp/matplotlib_cache && chmod 777 /tmp/matplotlib_cache
+
 
 # Copy app code and resources
 COPY protein_map_outputs ./protein_map_outputs
