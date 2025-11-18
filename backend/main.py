@@ -242,11 +242,11 @@ def _plot_network(query: str, nbrs_df: pd.DataFrame, nn_edge_threshold: float = 
         xaxis=dict(visible=False, showgrid=False, zeroline=False),
         yaxis=dict(visible=False, showgrid=False, zeroline=False),
         margin=dict(l=10, r=10, t=50, b=10),
-        showlegend=True,  # ✅ keep legend visible
+        showlegend=True, 
         legend=dict(
             orientation="h",
             yanchor="bottom",
-            y=-0.2,          # 👈 space below the plot
+            y=-0.2,          
             xanchor="center",
             x=0.5,
             bgcolor="rgba(255,255,255,0.7)",
@@ -517,7 +517,7 @@ def load_gene_parquet(gene: str) -> pd.DataFrame:
     if df.empty:
         raise HTTPException(status_code=404, detail=f"No data for {gene} in {filename}")
 
-    # ✅ normalize column names once, everywhere else use lowercase
+    # normalize column names once, everywhere else use lowercase
     df.columns = df.columns.str.lower()
 
     # (optional) keep pathway tidy without turning NaN into "nan"
@@ -545,7 +545,7 @@ def load_scores_csv(gene: str) -> pd.DataFrame:
     if df.empty:
         raise HTTPException(status_code=404, detail=f"No data for {gene} in {filename}")
 
-    # ✅ normalize column names once, everywhere else use lowercase
+    # normalize column names once, everywhere else use lowercase
     df.columns = df.columns.str.lower()
 
     # Convert score columns to numeric
@@ -602,6 +602,14 @@ def list_pathways_for_gene(gene: str) -> list[str]:
 
     return sorted(valid["pathway"].dropna().unique().tolist())
 
+@lru_cache(maxsize=128)
+def load_global_max_scores() -> pd.DataFrame:
+    path = DATA_DIR / "all_proteins_max_score_matrix_cleaned.csv"
+    df = pd.read_csv(path)
+    df.columns = df.columns.str.upper()
+    df.index = df[df.columns[0]].str.upper()   # first col = gene name
+    return df.drop(columns=df.columns[0])
+
 
 
 # ---------------- Endpoints ----------------
@@ -619,7 +627,7 @@ def flatmap_image(gene: str, name: str | None = None, collapse: str = "max"):
     - Pathway-specific: clusters colored by GI* (mean/max), clipped to mask.
     - collapse: "max" or "mean".
     """
-    with PLOT_LOCK:  # 🧠 Prevent concurrent matplotlib writes
+    with PLOT_LOCK:  # Prevent concurrent matplotlib writes
         df, mapping = load_nmf(gene)
 
         gi_vals = None
@@ -724,11 +732,18 @@ def flatmap_image(gene: str, name: str | None = None, collapse: str = "max"):
                 Zi_gi_cluster[Zi_cluster == clust] = score
 
             cmap_redgreen = plt.cm.RdYlGn_r
-            vmin = float(cluster_scores.min())
-            vmax = float(cluster_scores.max())
-            norm = plt.Normalize(vmin=vmin, vmax=vmax)
+            # Load global matrix
+            global_df = load_global_max_scores()
 
+            if gene.upper() in global_df.index:
+                vi_max = global_df.loc[gene.upper()].max()   # max across all pathways
+                vi_min = -vi_max                              # symmetric
+            else:
+                # fallback
+                vi_max = float(cluster_scores.abs().max())
+                vi_min = -vi_max
 
+            norm = plt.Normalize(vmin=vi_min, vmax=vi_max)
 
             Zi_gi_masked = np.ma.array(Zi_gi_cluster, mask=outer_mask)
             im = ax.imshow(Zi_gi_masked, origin="lower",
@@ -969,7 +984,7 @@ def calibration_image(gene: str):
         try:
             sub = load_gene_data(gene)
 
-            # ✅ If gene data missing or empty, return JSON response
+            # If gene data missing or empty, return JSON response
             if sub is None or sub.empty:
                 return JSONResponse(
                     {
@@ -1172,7 +1187,7 @@ def get_residues(gene: str):
     df = df.rename(columns={"clust": "cluster", "res": "residue"})
     df = df[df["gene"].str.upper() == gene.upper()].copy()
 
-    # ✅ Normalize residues and clusters as ints
+    # Normalize residues and clusters as ints
     df["residue"] = pd.to_numeric(df["residue"], errors="coerce")
     df["cluster"] = pd.to_numeric(df["cluster"], errors="coerce")
 
@@ -1196,7 +1211,7 @@ def get_residues_with_pathways(gene: str):
     df = df.rename(columns={"clust": "cluster", "res": "residue"})
     df = df[df["gene"].str.upper() == gene.upper()].copy()
 
-    # ✅ Normalize types
+    # Normalize types
     df["residue"] = pd.to_numeric(df["residue"], errors="coerce")
     df["cluster"] = pd.to_numeric(df["cluster"], errors="coerce")
     df["score"] = pd.to_numeric(df["score"], errors="coerce")
