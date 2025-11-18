@@ -811,9 +811,12 @@ def flatmap_image(gene: str, name: str | None = None, collapse: str = "max"):
                                 clip_on=False,
                                 zorder=999
                             )
-                            logger.info(f"cluster_scores: {cluster_scores}")
-                            logger.info(f"vmin={float(cluster_scores.min())}, vmax={float(cluster_scores.max())}")
-                            logger.info(f"unique_clusters_in_slice={merged['cluster'].unique()}")
+                            cluster_scores = merged.groupby("cluster")["gi_sum"].mean()
+                            print("DEBUG cluster_scores:", cluster_scores)
+                            print("DEBUG cluster min/max:", cluster_scores.min(), cluster_scores.max())
+                            print("DEBUG merged clusters:", merged["cluster"].unique())
+                            print("DEBUG gi_vals unique:", gi_vals.unique())
+
 
 
             ax.set_xlim(xmn_pad - 0.1*(xmx-xmn), xmx_pad + 0.1*(xmx-xmn))
