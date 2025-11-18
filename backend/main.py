@@ -636,6 +636,8 @@ def flatmap_image(gene: str, name: str | None = None, collapse: str = "max"):
             slice = df_scores[df_scores['pathway'].str.upper()== name.upper()][scores_list].copy().T.reset_index().reset_index()
             slice = slice.rename(columns={'level_0': 'cluster'})
             slice = slice.rename(columns={0: 'gi_sum'})
+            slice["gi_sum"] = pd.to_numeric(slice["gi_sum"], errors="coerce")
+
 
             merged = pd.merge(df, slice, on=["cluster"], how="left")
 
@@ -878,6 +880,8 @@ def flatmap_summary(gene: str, pathway: str | None = None):
         slice = df_scores[df_scores['pathway'].str.upper()== pathway.upper()][scores_list].copy().T.reset_index().reset_index()
         slice = slice.rename(columns={'level_0': 'cluster'})
         slice = slice.rename(columns={0: 'gi_sum'})
+        slice["gi_sum"] = pd.to_numeric(slice["gi_sum"], errors="coerce")
+
 
         max_val = slice[slice['gi_sum']==slice['gi_sum'].max()].reset_index(drop=True)
         top_cluster = max_val['cluster'][0]
