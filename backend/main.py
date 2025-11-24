@@ -736,12 +736,12 @@ def flatmap_image(gene: str, name: str | None = None, collapse: str = "max"):
             global_df = load_global_max_scores()
 
             if gene.upper() in global_df.index:
-                vi_max = global_df.loc[gene.upper()].max()   # max across all pathways
-                vi_min = -vi_max                              # symmetric
+                vi_max = global_df.loc[gene.upper()].max()  # global upper bound
+                vi_min = cluster_scores.min()               # pathway-specific lower bound
             else:
-                # fallback
+                # fallback to local values
                 vi_max = float(cluster_scores.abs().max())
-                vi_min = -vi_max
+                vi_min = cluster_scores.min()
 
             norm = plt.Normalize(vmin=vi_min, vmax=vi_max)
 
