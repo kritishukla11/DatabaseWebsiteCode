@@ -1623,6 +1623,8 @@ def flatmap_drug(gene: str, drug: str):
     Comparison rule: punctuation-insensitive
     """
     import string
+    from matplotlib import patheffects
+
     with PLOT_LOCK:
         nmf, mapping = load_nmf(gene)
         logodds_df = load_logodds_csv(gene)
@@ -1651,14 +1653,14 @@ def flatmap_drug(gene: str, drug: str):
         if not drug_col:
             raise HTTPException(status_code=404, detail=f"Drug {drug} not found in log-odds file")
 
-        # --- continue as before ---
+        # --- Merge and prepare ---
         merged = pd.merge(
             nmf, logodds_df[["cluster_id", drug_col]],
             left_on="cluster", right_on="cluster_id", how="left"
         )
         merged[drug_col] = pd.to_numeric(merged[drug_col], errors="coerce").fillna(0.0)
 
-        # grid + plot (unchanged)
+        # --- Grid setup ---
         xmn, xmx = merged["x"].min(), merged["x"].max()
         ymn, ymx = merged["y"].min(), merged["y"].max()
         pad_x = 0.05 * (xmx - xmn)
@@ -1671,6 +1673,7 @@ def flatmap_drug(gene: str, drug: str):
         yi = np.linspace(ymn_pad, ymx_pad, ny)
         Xi, Yi = np.meshgrid(xi, yi)
 
+        # --- Interpolate grids ---
         Zi_cluster = griddata(
             (merged["x"], merged["y"]),
             merged["cluster"],
@@ -1683,19 +1686,26 @@ def flatmap_drug(gene: str, drug: str):
             (Xi, Yi),
             method="linear"
         )
-        outer_mask = np.isnan(Zi_alt) | (Zi_alt <= np.nanmin(Zi_alt) + 1e-6)
 
+        # --- Masks for inside/outside region ---
+        outer_mask = np.isnan(Zi_alt) | (Zi_alt <= np.nanmin(Zi_alt) + 1e-6)
+        inside_mask = (~outer_mask).astype(float)
+
+        # --- Values per cluster ---
         cluster_values = merged.groupby("cluster")[drug_col].mean()
         Zi_val = np.zeros_like(Zi_cluster, dtype=float)
         for clust, val in cluster_values.items():
             Zi_val[Zi_cluster == clust] = val
         Zi_masked = np.ma.array(Zi_val, mask=outer_mask)
 
+        # --- Plot setup ---
         fig, ax = plt.subplots(figsize=(6, 6))
         ax.set_aspect("equal")
         ax.axis("off")
         cmap = plt.cm.coolwarm
         norm = plt.Normalize(vmin=cluster_values.min(), vmax=cluster_values.max())
+
+        # --- Main heatmap ---
         im = ax.imshow(
             Zi_masked,
             origin="lower",
@@ -1705,18 +1715,92 @@ def flatmap_drug(gene: str, drug: str):
             interpolation="nearest",
             alpha=0.7
         )
+
+        # --- Cluster boundaries ---
         ax.contour(
             Xi, Yi, Zi_cluster,
             levels=np.unique(merged["cluster"]),
-            colors="black", linewidths=0.8, alpha=0.6
+            colors="black", linewidths=0.8, alpha=0.6, zorder=4
         )
+
+        # --- Background + outer boundary (like pathway plots) ---
+        ax.contour(Xi, Yi, Zi_alt, levels=40,
+                   colors="darkgrey", alpha=0, linewidths=0.5, zorder=5)
+        ax.contour(Xi, Yi, inside_mask, levels=[0.5],
+                   colors="black", linewidths=2.5, zorder=6)
+
+        # --- Colorbar ---
         cb = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
         cb.set_label(f"Log-odds for {drug}")
 
+        # ---------- Cluster Annotations ----------
+        try:
+            ann_path = Path(__file__).resolve().parent / "data" / "annotated_clusters.csv"
+            if ann_path.exists():
+                ann = pd.read_csv(ann_path)
+                ann_sub = ann[ann["gene"].str.upper() == gene.upper()]
+
+                if not ann_sub.empty:
+                    ann_sub["cluster"] = ann_sub["cluster"].map(mapping)
+                    ann_sub = ann_sub.dropna(subset=["cluster"])
+                    ann_sub["cluster"] = ann_sub["cluster"].astype(int)
+
+                    centroids = nmf.groupby("cluster")[["x", "y"]].mean()
+
+                    for _, row in ann_sub.iterrows():
+                        clust = row["cluster"]
+                        label = str(row["annotation_type"])
+                        if clust in centroids.index:
+                            sub_points = nmf[nmf["cluster"] == clust]
+                            if len(sub_points) < 20:
+                                cx, cy = sub_points[["x", "y"]].median()
+                            else:
+                                cx, cy = centroids.loc[clust]
+
+                            cx_true, cy_true = cx, cy
+
+                            # Push labels outward near edges
+                            margin_x = 0.03 * (xmx - xmn)
+                            margin_y = 0.03 * (ymx - ymn)
+                            moved = False
+                            if cx <= xmn + margin_x:
+                                cx = xmn_pad - 0.05 * (xmx - xmn); moved = True
+                            if cx >= xmx - margin_x:
+                                cx = xmx_pad + 0.05 * (xmx - xmn); moved = True
+                            if cy <= ymn + margin_y:
+                                cy = ymn_pad - 0.05 * (ymx - ymn); moved = True
+                            if cy >= ymx - margin_y:
+                                cy = ymx_pad + 0.05 * (ymx - ymn); moved = True
+
+                            if moved:
+                                ax.plot([cx_true, cx], [cy_true, cy],
+                                        color="black", linewidth=0.8, zorder=998)
+
+                            ax.text(
+                                cx, cy, label,
+                                ha="center", va="center",
+                                fontsize=10, fontweight="bold",
+                                color="white",
+                                path_effects=[
+                                    patheffects.Stroke(linewidth=2, foreground="black"),
+                                    patheffects.Normal()
+                                ],
+                                clip_on=False,
+                                zorder=999
+                            )
+
+            ax.set_xlim(xmn_pad - 0.1*(xmx-xmn), xmx_pad + 0.1*(xmx-xmn))
+            ax.set_ylim(ymn_pad - 0.1*(ymx-ymn), ymx_pad + 0.1*(ymx-ymn))
+
+        except Exception as e:
+            print("[flatmap_drug][WARN] Could not add annotations:", e)
+
+        # --- Save figure ---
         buf = io.BytesIO()
         plt.savefig(buf, format="png", dpi=170, bbox_inches="tight")
         plt.close(fig)
         buf.seek(0)
+
         return StreamingResponse(buf, media_type="image/png")
 
 

@@ -8,27 +8,29 @@ const BACKEND =
 
 export default function DrugPageContent() {
   const searchParams = useSearchParams();
-  const drug = searchParams.get("drug") || "";
-  const cleanedDrug = drug.toLowerCase().trim();
+  const drugParam = searchParams.get("drug") || "";
+  const cleanedDrug = drugParam.toLowerCase().trim();
 
   const [panel1Data, setPanel1Data] = useState<any>(null);
   const [proteinList, setProteinList] = useState<string[]>([]);
   const [selectedProtein, setSelectedProtein] = useState<string>("");
   const [flatmapUrl, setFlatmapUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [pubchemError, setPubchemError] = useState<string | null>(null);
 
   // ============================================================
   // Main fetch block (PubChem only)
   // ============================================================
   useEffect(() => {
-    if (!drug) return;
+    if (!drugParam) return;
 
     async function fetchDrug() {
-      try {
-        setError(null);
-        setPanel1Data(null);
+      setError(null);
+      setPubchemError(null);
+      setPanel1Data(null);
 
-        // --- ✅ Check if drug exists in backend list first ---
+      try {
+        // --- Check if drug exists in backend list first ---
         const resp = await fetch(`${BACKEND}/drugs/list`);
         const listJson = await resp.json();
         const knownDrugs = (listJson.drugs || []).map((d: string) =>
@@ -36,76 +38,85 @@ export default function DrugPageContent() {
         );
 
         if (!knownDrugs.includes(cleanedDrug)) {
-          setError(`No data available for “${drug}”.`);
+          setError(`No data available for “${drugParam}”.`);
           return;
         }
 
         // === 1️⃣ PubChem: name → CID ===
-        const cidResp = await fetch(
-          `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/${encodeURIComponent(
-            cleanedDrug
-          )}/cids/JSON`
-        );
-        if (!cidResp.ok) throw new Error("Failed to get CID");
-        const cidJson = await cidResp.json();
-        const cid = cidJson?.IdentifierList?.CID?.[0];
-        if (!cid) throw new Error("No PubChem CID found");
+        let cid = null;
+        try {
+          const cidResp = await fetch(
+            `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/${encodeURIComponent(
+              cleanedDrug
+            )}/cids/JSON`
+          );
+          if (!cidResp.ok) throw new Error("Failed to get CID");
+          const cidJson = await cidResp.json();
+          cid = cidJson?.IdentifierList?.CID?.[0];
+          if (!cid) throw new Error("No PubChem CID found");
+        } catch {
+          setPubchemError("Can't find entry in PubChem");
+        }
 
         // === 2️⃣ PubChem: structure + description ===
         let description = "No description available";
-        try {
-          const summaryResp = await fetch(
-            `https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/data/compound/${cid}/JSON`
-          );
-          if (summaryResp.ok) {
-            const summaryJson = await summaryResp.json();
+        let structureUrlVal = null;
 
-            function extractSections(section: any): any[] {
-              if (!section) return [];
-              const list = Array.isArray(section) ? section : [section];
-              return list.flatMap((s: any) => {
-                const subs = s.Section ? extractSections(s.Section) : [];
-                return [s, ...subs];
-              });
+        if (cid) {
+          try {
+            const summaryResp = await fetch(
+              `https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/data/compound/${cid}/JSON`
+            );
+            if (summaryResp.ok) {
+              const summaryJson = await summaryResp.json();
+
+              function extractSections(section: any): any[] {
+                if (!section) return [];
+                const list = Array.isArray(section) ? section : [section];
+                return list.flatMap((s: any) => {
+                  const subs = s.Section ? extractSections(s.Section) : [];
+                  return [s, ...subs];
+                });
+              }
+
+              const sections = extractSections(summaryJson?.Record?.Section);
+              const descCandidates = [
+                "Description",
+                "Pharmacology",
+                "Pharmacology and Biochemistry",
+                "Therapeutic Uses",
+                "Drug Indication",
+                "Mechanism of Action",
+                "Drug and Medication Information",
+              ];
+
+              const texts: string[] = sections
+                .filter((s: any) => descCandidates.includes(s?.TOCHeading))
+                .map(
+                  (s: any) =>
+                    s?.Information?.[0]?.Value?.StringWithMarkup?.[0]?.String?.trim() ||
+                    ""
+                )
+                .filter((t) => t.length > 0);
+
+              if (texts.length > 0) {
+                description = texts.reduce((a, b) =>
+                  a.length > b.length ? a : b
+                );
+              } else {
+                const fallback =
+                  summaryJson?.Record?.Description ||
+                  summaryJson?.Record?.RecordTitle ||
+                  null;
+                if (fallback && fallback.trim().length > 0)
+                  description = fallback.trim();
+              }
             }
-
-            const sections = extractSections(summaryJson?.Record?.Section);
-            const descCandidates = [
-              "Description",
-              "Pharmacology",
-              "Pharmacology and Biochemistry",
-              "Therapeutic Uses",
-              "Drug Indication",
-              "Mechanism of Action",
-              "Drug and Medication Information",
-            ];
-
-            const texts: string[] = sections
-              .filter((s: any) => descCandidates.includes(s?.TOCHeading))
-              .map(
-                (s: any) =>
-                  s?.Information?.[0]?.Value?.StringWithMarkup?.[0]?.String?.trim() ||
-                  ""
-              )
-              .filter((t) => t.length > 0);
-
-            if (texts.length > 0) {
-              const longest = texts.reduce((a, b) => (a.length > b.length ? a : b));
-              description = longest;
-            } else {
-              const fallback =
-                summaryJson?.Record?.Description ||
-                summaryJson?.Record?.RecordTitle ||
-                null;
-              if (fallback && fallback.trim().length > 0)
-                description = fallback.trim();
-            }
+            structureUrlVal = `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/${cid}/PNG`;
+          } catch {
+            setPubchemError("Can't find entry in PubChem");
           }
-        } catch (e) {
-          console.warn("PubChem summary not found:", e);
         }
-
-        const structureUrlVal = `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/${cid}/PNG`;
 
         setPanel1Data({
           cid,
@@ -119,13 +130,13 @@ export default function DrugPageContent() {
     }
 
     fetchDrug();
-  }, [drug]);
+  }, [drugParam]);
 
   // ============================================================
   // Protein list + flatmap
   // ============================================================
   useEffect(() => {
-    if (!drug) return;
+    if (!drugParam) return;
     async function fetchProteins() {
       try {
         const resp = await fetch(
@@ -140,10 +151,10 @@ export default function DrugPageContent() {
       }
     }
     fetchProteins();
-  }, [drug]);
+  }, [drugParam]);
 
   useEffect(() => {
-    if (!drug || !selectedProtein) {
+    if (!drugParam || !selectedProtein) {
       setFlatmapUrl(null);
       return;
     }
@@ -151,7 +162,7 @@ export default function DrugPageContent() {
       selectedProtein
     )}&drug=${encodeURIComponent(cleanedDrug)}`;
     setFlatmapUrl(url);
-  }, [drug, selectedProtein]);
+  }, [drugParam, selectedProtein]);
 
   // ============================================================
   // Render
@@ -160,25 +171,44 @@ export default function DrugPageContent() {
     <main className="container">
       {error ? (
         <div className="error-page">
-          <h1 className="title">Results for: {drug}</h1>
+          <h1 className="title">Results for: {drugParam}</h1>
           <p className="error">{error}</p>
         </div>
       ) : (
         <>
-          <h1 className="title">Results for: {drug}</h1>
+          <h1 className="title">Results for: {drugParam}</h1>
 
           {/* ==== Row 1 ==== */}
           <div className="panel-row">
+            {/* --- Panel 1: Drug Information --- */}
             <div className="panel half">
               <h2 className="panel-title">Drug Information</h2>
-              {!panel1Data ? (
+              {pubchemError ? (
+                <p style={{ color: "gray" }}>
+                  {pubchemError}.{" "}
+                  <a
+                    href={`https://pubchem.ncbi.nlm.nih.gov/#query=${encodeURIComponent(
+                      drugParam
+                    )}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      color: "#4B9CD3",
+                      textDecoration: "underline",
+                      marginLeft: "4px",
+                    }}
+                  >
+                    Search on PubChem
+                  </a>
+                </p>
+              ) : !panel1Data ? (
                 <p>Loading…</p>
               ) : (
                 <div>
                   {panel1Data.structureUrl && (
                     <img
                       src={panel1Data.structureUrl}
-                      alt={`${drug} structure`}
+                      alt={`${drugParam} structure`}
                       style={{
                         maxWidth: "280px",
                         marginBottom: "1rem",
@@ -187,11 +217,14 @@ export default function DrugPageContent() {
                       }}
                     />
                   )}
-                  <p className="description-text">{panel1Data.description}</p>
+                  <p className="description-text">
+                    {panel1Data.description || "No description available."}
+                  </p>
                 </div>
               )}
             </div>
 
+            {/* --- Panel 2: Flatmaps --- */}
             <div className="panel half">
               <h2 className="panel-title">Drug Flatmaps</h2>
               <div style={{ marginBottom: "1rem" }}>
