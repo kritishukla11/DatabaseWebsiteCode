@@ -91,7 +91,7 @@ export default function HomePage() {
     if (!query) return;
     let normalizedQuery = query;
     if (searchType === "drug") {
-      normalizedQuery = query.toLowerCase().replace(/[^\w\s]/g, "").trim();
+      normalizedQuery = query.toLowerCase().trim();
     } else {
       normalizedQuery = query.toUpperCase();
     }
