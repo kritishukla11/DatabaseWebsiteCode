@@ -11,6 +11,7 @@ export default function HomePage() {
   const [searchType, setSearchType] = useState("protein");
   const [allPathways, setAllPathways] = useState<string[]>([]);
   const [allProteins, setAllProteins] = useState<string[]>([]);
+  const [allDrugs, setAllDrugs] = useState<string[]>([]);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showInfo, setShowInfo] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
@@ -34,6 +35,11 @@ export default function HomePage() {
       .then((r) => r.json())
       .then((d) => setAllPathways((d.pathways || []).sort()))
       .catch(() => setAllPathways([]));
+
+    fetch(`${BACKEND}/drugs/list`)
+      .then((r) => r.json())
+      .then((d) => setAllDrugs((d.drugs || []).sort()))
+      .catch(() => setAllDrugs([]));
   }, []);
 
   // -----------------------------
@@ -44,6 +50,7 @@ export default function HomePage() {
     let src: string[] = [];
     if (searchType === "protein") src = allProteins;
     else if (searchType === "pathway") src = allPathways;
+    else if (searchType === "drug") src = allDrugs;
     else src = []; // drug has no autocomplete
 
     if (!focused) {
@@ -57,7 +64,7 @@ export default function HomePage() {
     }
 
     const filtered = src
-      .filter((x) => x.toLowerCase().startsWith(val.toLowerCase()))
+      .filter((x) => x.toLowerCase().includes(val.toLowerCase()))
       .slice(0, 10);
     setSuggestions(filtered);
   };
@@ -82,7 +89,12 @@ export default function HomePage() {
   // -----------------------------
   const handleSearch = () => {
     if (!query) return;
-    const normalizedQuery = query.toUpperCase();
+    let normalizedQuery = query;
+    if (searchType === "drug") {
+      normalizedQuery = query.toLowerCase().replace(/[^\w\s]/g, "").trim();
+    } else {
+      normalizedQuery = query.toUpperCase();
+    }
 
     if (searchType === "protein") {
       router.push(`/search?gene=${encodeURIComponent(normalizedQuery)}`);

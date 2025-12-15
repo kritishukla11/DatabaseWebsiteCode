@@ -966,9 +966,6 @@ def load_gene_data(gene: str) -> pd.DataFrame:
 
     df = pd.read_parquet(file_path)
     sub = df[df["gene"].str.upper() == gene.upper()]
-    sub['confidence'] = sub['confidence']*10
-    sub = sub.sort_values("confidence", ascending=False).reset_index(drop=True)
-    sub["adjusted_rank"] = range(1, len(sub) + 1)
     return sub
 
 
@@ -1539,46 +1536,149 @@ def confidence_rankings(protein: str):
         return {"error": str(e)}
 
 
+
 # =========================================================
-# ========= DRUG PAGE PANEL 4: Protein–Expression plot =====
+# ========= DRUG PAGE Drug Flatmap ======
 # =========================================================
 
-@app.get("/drug_expression/image")
-def drug_expression_image(drug: str):
+@lru_cache(maxsize=128)
+def load_logodds_csv(gene: str) -> pd.DataFrame:
+    import string
+
+    letter = gene[0].upper() if gene and gene[0].isalpha() else "OTHER"
+    base_dir = Path(__file__).resolve().parent / "logodds_cluster"
+    filepath = base_dir / letter / f"{gene.upper()}_logodds_cluster.csv"
+
+    if not filepath.exists():
+        raise HTTPException(status_code=404, detail=f"No log-odds file found for {gene}")
+
+    try:
+        df = pd.read_csv(filepath)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to load {filepath.name}: {e}")
+
+    # Normalize all column names EXCEPT 'cluster_id'
+    table = str.maketrans("", "", string.punctuation)
+    new_cols = []
+    for c in df.columns:
+        c_clean = c.strip().lower()
+        if c_clean == "cluster_id":
+            new_cols.append("cluster_id")
+        else:
+            c_clean = c_clean.translate(table).replace(" ", "")
+            new_cols.append(c_clean)
+    df.columns = new_cols
+
+    return df
+
+
+@app.get("/flatmap/proteins")
+def flatmap_proteins(drug: str):
+    base_dir = Path(__file__).resolve().parent / "logodds_cluster"
+    proteins = []
+    for letter_dir in base_dir.iterdir():
+        if letter_dir.is_dir():
+            for csv in letter_dir.glob("*_logodds_cluster.csv"):
+                df = pd.read_csv(csv, nrows=1)
+                if drug.lower() in [c.lower() for c in df.columns]:
+                    proteins.append(csv.stem.replace("_logodds_cluster", ""))
+    return {"proteins": sorted(set(proteins))}
+
+
+@app.get("/flatmap/drug")
+def flatmap_drug(gene: str, drug: str):
     """
-    Return bar plot of protein expression values for a given drug.
+    Returns a PNG flatmap colored by log-odds values for a given drug.
+    - gene: protein name (e.g., BRAF)
+    - drug: drug column name in the CSV (case-insensitive)
     """
     with PLOT_LOCK:
-        try:
-            if drug not in TAHOE_MATRIX.columns:
-                # Case-insensitive match
-                matches = [c for c in TAHOE_MATRIX.columns if c.lower() == drug.lower()]
-                if not matches:
-                    return Response(status_code=404)
-                drug = matches[0]
+        nmf, mapping = load_nmf(gene)
+        logodds_df = load_logodds_csv(gene)
 
-            col = TAHOE_MATRIX[drug]
-            sorted_col = col.sort_values(ascending=False)
+        # match cluster column names
+        if "cluster_id" not in logodds_df.columns:
+            raise HTTPException(status_code=400, detail="Missing cluster_id column in CSV")
 
-            fig, ax = plt.subplots(figsize=(8, 4))
-            ax.bar(sorted_col.index, sorted_col.values, color="#77A9D8")
-            ax.set_ylabel("Avg expression (pseudobulk from Tahoe-100M)")
-            ax.xaxis.set_visible(False)
+        # normalize cluster numbering to same as NMF
+        logodds_df["cluster_id"] = logodds_df["cluster_id"].astype(int)
+        nmf["cluster"] = nmf["cluster"].astype(int)
 
-            buf = io.BytesIO()
-            fig.tight_layout()
-            fig.savefig(buf, format="png", bbox_inches="tight")
-            plt.close(fig)
-            buf.seek(0)
+        # find matching drug column
+        drug_col = next((c for c in logodds_df.columns if c.lower() == drug.lower()), None)
+        if not drug_col:
+            raise HTTPException(status_code=404, detail=f"Drug {drug} not found in log-odds file")
 
-            return StreamingResponse(
-                buf,
-                media_type="image/png",
-                headers={"Cache-Control": "no-store", "Access-Control-Allow-Origin": "*"},
-            )
+        merged = pd.merge(nmf, logodds_df[["cluster_id", drug_col]], 
+                          left_on="cluster", right_on="cluster_id", how="left")
 
-        except Exception as e:
-            return {"error": str(e)}
+        merged[drug_col] = pd.to_numeric(merged[drug_col], errors="coerce").fillna(0.0)
+
+        # grid setup
+        xmn, xmx = merged["x"].min(), merged["x"].max()
+        ymn, ymx = merged["y"].min(), merged["y"].max()
+        pad_x = 0.05 * (xmx - xmn)
+        pad_y = 0.05 * (ymx - ymn)
+        xmn_pad, xmx_pad = xmn - pad_x, xmx + pad_x
+        ymn_pad, ymx_pad = ymn - pad_y, ymx + pad_y
+
+        nx, ny = 400, 400
+        xi = np.linspace(xmn_pad, xmx_pad, nx)
+        yi = np.linspace(ymn_pad, ymx_pad, ny)
+        Xi, Yi = np.meshgrid(xi, yi)
+
+        Zi_cluster = griddata(
+            (merged["x"], merged["y"]),
+            merged["cluster"],
+            (Xi, Yi),
+            method="nearest"
+        )
+        Zi_alt = griddata(
+            (merged["x"], merged["y"]),
+            merged["altitude"],
+            (Xi, Yi),
+            method="linear"
+        )
+        outer_mask = np.isnan(Zi_alt) | (Zi_alt <= np.nanmin(Zi_alt) + 1e-6)
+
+        # color by log-odds
+        cluster_values = merged.groupby("cluster")[drug_col].mean()
+        Zi_val = np.zeros_like(Zi_cluster, dtype=float)
+        for clust, val in cluster_values.items():
+            Zi_val[Zi_cluster == clust] = val
+
+        Zi_masked = np.ma.array(Zi_val, mask=outer_mask)
+
+        fig, ax = plt.subplots(figsize=(6,6))
+        ax.set_aspect("equal")
+        ax.axis("off")
+
+        cmap = plt.cm.coolwarm
+        norm = plt.Normalize(vmin=cluster_values.min(), vmax=cluster_values.max())
+
+        im = ax.imshow(
+            Zi_masked,
+            origin="lower",
+            extent=(xmn_pad, xmx_pad, ymn_pad, ymx_pad),
+            cmap=cmap,
+            norm=norm,
+            interpolation="nearest",
+            alpha=0.7
+        )
+
+        ax.contour(Xi, Yi, Zi_cluster, levels=np.unique(merged["cluster"]),
+                   colors="black", linewidths=0.8, alpha=0.6)
+
+        cb = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+        cb.set_label(f"Log-odds for {drug}")
+
+        buf = io.BytesIO()
+        plt.savefig(buf, format="png", dpi=170, bbox_inches="tight")
+        plt.close(fig)
+        buf.seek(0)
+
+        return StreamingResponse(buf, media_type="image/png")
+
 
 
 
@@ -1766,3 +1866,22 @@ def pathways_list():
         return {"pathways": pathways}
     except Exception as e:
         return {"error": str(e)}
+    
+@app.get("/drugs/list")
+def drugs_list():
+    import string
+    from pathlib import Path
+    import pandas as pd
+    from fastapi import HTTPException
+
+    csv_path = Path("drugs.csv")
+    if not csv_path.exists():
+        raise HTTPException(status_code=404, detail="drugs.csv not found")
+
+    df = pd.read_csv(csv_path)
+    col = df.columns[0]
+    drugs = df[col].dropna().astype(str)
+    table = str.maketrans("", "", string.punctuation)
+    cleaned = sorted({d.lower().translate(table).strip() for d in drugs if d.strip()})
+    return {"drugs": cleaned}
+

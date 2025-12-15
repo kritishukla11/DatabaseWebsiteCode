@@ -2,19 +2,24 @@
 
 import { useSearchParams } from "next/navigation";
 import { useState, useEffect } from "react";
-import DrugPanel4 from "@/components/DrugPanel4";
 
+const BACKEND =
+  process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8001";
 
 export default function DrugPageContent() {
   const searchParams = useSearchParams();
   const drug = searchParams.get("drug") || "";
+  const cleanedDrug = drug.toLowerCase().replace(/[^\w\s]/g, "").trim();
 
   const [panel1Data, setPanel1Data] = useState<any>(null);
-  const [panel2Data, setPanel2Data] = useState<any[]>([]);
-  const [panel3Data, setPanel3Data] = useState<any[]>([]);
-  const [panel4Data, setPanel4Data] = useState<any[]>([]);
+  const [proteinList, setProteinList] = useState<string[]>([]);
+  const [selectedProtein, setSelectedProtein] = useState<string>("");
+  const [flatmapUrl, setFlatmapUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // ============================================================
+  // Main fetch block
+  // ============================================================
   useEffect(() => {
     if (!drug) return;
 
@@ -23,10 +28,22 @@ export default function DrugPageContent() {
         setError(null);
         setPanel1Data(null);
 
+        // --- ✅ 0. Check if drug exists in backend list first ---
+        const resp = await fetch(`${BACKEND}/drugs/list`);
+        const listJson = await resp.json();
+        const knownDrugs = (listJson.drugs || []).map((d: string) =>
+          d.toLowerCase().replace(/[^\w\s]/g, "").trim()
+        );
+
+        if (!knownDrugs.includes(cleanedDrug)) {
+          setError(`No data available for “${drug}”.`);
+          return;
+        }
+
         // === 1️⃣ PubChem: name → CID ===
         const cidResp = await fetch(
           `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/${encodeURIComponent(
-            drug
+            cleanedDrug
           )}/cids/JSON`
         );
         if (!cidResp.ok) throw new Error("Failed to get CID");
@@ -93,7 +110,7 @@ export default function DrugPageContent() {
         // === 3️⃣ ChEMBL: mechanism + targets ===
         const chemblSearch = await fetch(
           `https://www.ebi.ac.uk/chembl/api/data/molecule?search=${encodeURIComponent(
-            drug
+            cleanedDrug
           )}&format=json`
         );
         const chemblJson = await chemblSearch.json();
@@ -130,7 +147,6 @@ export default function DrugPageContent() {
           return results;
         }
 
-        // Helper to fetch target name by chembl id
         async function getTargetName(chemblId: string) {
           try {
             const tResp = await fetch(
@@ -148,15 +164,11 @@ export default function DrugPageContent() {
           const mechTexts = mechanisms
             .map((m: any) => m.mechanism_of_action)
             .filter(Boolean);
-
           let targets: string[] = [];
 
           for (const m of mechanisms) {
-            // Target names directly from mechanism
             if (m.target_name) targets.push(m.target_name);
             if (m.target_pref_name) targets.push(m.target_pref_name);
-
-            // Target components nested inside
             if (m.target_components?.length) {
               m.target_components.forEach((tc: any) => {
                 if (tc.component_name) targets.push(tc.component_name);
@@ -164,8 +176,6 @@ export default function DrugPageContent() {
                 if (tc.accession) targets.push(tc.accession);
               });
             }
-
-            // If still missing, resolve by target_chembl_id
             if (m.target_chembl_id) {
               const tname = await getTargetName(m.target_chembl_id);
               if (tname) targets.push(tname);
@@ -213,7 +223,6 @@ export default function DrugPageContent() {
               }
             }
           }
-
           if (mechanism !== "Unknown") break;
         }
 
@@ -228,7 +237,6 @@ export default function DrugPageContent() {
           targets = ["EGFR", "ERBB2"];
         }
 
-        // ✅ Final Data
         setPanel1Data({
           cid,
           structureUrl: structureUrlVal,
@@ -248,92 +256,184 @@ export default function DrugPageContent() {
     fetchDrug();
   }, [drug]);
 
+  // ============================================================
+  // Protein list + flatmap
+  // ============================================================
+  useEffect(() => {
+    if (!drug) return;
+    async function fetchProteins() {
+      try {
+        const resp = await fetch(`/flatmap/proteins?drug=${encodeURIComponent(cleanedDrug)}`);
+        if (!resp.ok) throw new Error("Failed to fetch protein list");
+        const data = await resp.json();
+        setProteinList(data.proteins || []);
+      } catch (err) {
+        console.error("Protein fetch error:", err);
+        setProteinList([]);
+      }
+    }
+    fetchProteins();
+  }, [drug]);
+
+  useEffect(() => {
+    if (!drug || !selectedProtein) {
+      setFlatmapUrl(null);
+      return;
+    }
+    const url = `/flatmap/drug?gene=${encodeURIComponent(
+      selectedProtein
+    )}&drug=${encodeURIComponent(cleanedDrug)}`;
+    setFlatmapUrl(url);
+  }, [drug, selectedProtein]);
+
+  // ============================================================
+  // Render
+  // ============================================================
   return (
     <main className="container">
-      <h1 className="title">Results for: {drug}</h1>
+      {error ? (
+        <div className="error-page">
+          <h1 className="title">Results for: {drug}</h1>
+          <p className="error">{error}</p>
+        </div>
+      ) : (
+        <>
+          <h1 className="title">Results for: {drug}</h1>
 
-      {/* ==== Row 1 ==== */}
-      <div className="panel-row">
-        <div className="panel half">
-          <h2 className="panel-title">Panel 1: Drug Info</h2>
-          {error && <p style={{ color: "red" }}>{error}</p>}
-          {!panel1Data ? (
-            <p>Loading…</p>
-          ) : (
-            <div>
-              <h4 className="subsection-title">From PubChem</h4>
-              {panel1Data.structureUrl && (
-                <img
-                  src={panel1Data.structureUrl}
-                  alt={`${drug} structure`}
+          {/* ==== Row 1 ==== */}
+          <div className="panel-row">
+            <div className="panel half">
+              <h2 className="panel-title">Panel 1: Drug Info</h2>
+              {!panel1Data ? (
+                <p>Loading…</p>
+              ) : (
+                <div>
+                  <h4 className="subsection-title">From PubChem</h4>
+                  {panel1Data.structureUrl && (
+                    <img
+                      src={panel1Data.structureUrl}
+                      alt={`${drug} structure`}
+                      style={{
+                        maxWidth: "280px",
+                        marginBottom: "1rem",
+                        border: "1px solid #ccc",
+                        borderRadius: "8px",
+                      }}
+                    />
+                  )}
+                  <p className="description-text">{panel1Data.description}</p>
+
+                  <h4 className="subsection-title">From ChEMBL</h4>
+                  {panel1Data.mechanismSource &&
+                    panel1Data.chemblId &&
+                    panel1Data.mechanismSource !== panel1Data.chemblId && (
+                      <p className="alt-form-note">
+                        Showing info for{" "}
+                        <a
+                          href={`https://www.ebi.ac.uk/chembl/compound_report_card/${panel1Data.mechanismSource}/`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            color: "#7bafd4",
+                            fontWeight: 600,
+                            textDecoration: "none",
+                          }}
+                        >
+                          {panel1Data.mechanismSourceName}
+                        </a>
+                        .
+                      </p>
+                    )}
+                  <p>
+                    <strong>Mechanism of Action:</strong>{" "}
+                    {panel1Data.mechanism || "N/A"}
+                  </p>
+                  <p>
+                    <strong>Targets:</strong>{" "}
+                    {panel1Data.targets?.length
+                      ? panel1Data.targets.join(", ")
+                      : "N/A"}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="panel half">
+              <h2 className="panel-title">Drug Flatmaps</h2>
+              <div style={{ marginBottom: "1rem" }}>
+                <label
+                  htmlFor="proteinSelect"
+                  style={{ fontWeight: 600, marginRight: "0.5rem" }}
+                >
+                  Select Protein:
+                </label>
+                <select
+                  id="proteinSelect"
+                  value={selectedProtein}
+                  onChange={(e) => setSelectedProtein(e.target.value)}
                   style={{
-                    maxWidth: "280px",
-                    marginBottom: "1rem",
-                    border: "1px solid #ccc",
+                    padding: "0.4rem",
+                    borderRadius: "6px",
+                    border: "1px solid #7bafd4",
+                    color: "#333",
+                    fontWeight: 500,
+                  }}
+                >
+                  <option value="">(Select a protein)</option>
+                  {proteinList.map((p) => (
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {flatmapUrl ? (
+                <img
+                  src={flatmapUrl}
+                  alt={`${selectedProtein} flatmap`}
+                  style={{
+                    width: "100%",
                     borderRadius: "8px",
+                    border: "1px solid #ccc",
+                    boxShadow: "0 2px 6px rgba(0,0,0,0.1)",
                   }}
                 />
+              ) : (
+                <p style={{ color: "#666" }}>
+                  Select a protein to view its cluster flatmap.
+                </p>
               )}
-              <p className="description-text">{panel1Data.description}</p>
-
-              <h4 className="subsection-title">From ChEMBL</h4>
-              {panel1Data.mechanismSource &&
-                panel1Data.chemblId &&
-                panel1Data.mechanismSource !== panel1Data.chemblId && (
-                  <p className="alt-form-note">
-                    Showing info for
-                    {" "}
-                    <a
-                      href={`https://www.ebi.ac.uk/chembl/compound_report_card/${panel1Data.mechanismSource}/`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{
-                        color: "#7bafd4",
-                        fontWeight: 600,
-                        textDecoration: "none",
-                      }}
-                    >
-                      {panel1Data.mechanismSourceName}
-                    </a>
-                    .
-                  </p>
-                )}
-              <p>
-                <strong>Mechanism of Action:</strong>{" "}
-                {panel1Data.mechanism || "N/A"}
-              </p>
-              <p>
-                <strong>Targets:</strong>{" "}
-                {panel1Data.targets?.length
-                  ? panel1Data.targets.join(", ")
-                  : "N/A"}
-              </p>
             </div>
-          )}
-        </div>
+          </div>
 
-        <div className="panel half">
-          <h2 className="panel-title">Panel 2: Associated Pathways</h2>
-          <p>No data yet.</p>
-        </div>
-      </div>
+          {/* ==== Row 2 ==== */}
+          <div className="panel-row">
+            <div className="panel half">
+              <h2 className="panel-title">Panel 3: Predicted Gene Effects</h2>
+              <p>No data yet.</p>
+            </div>
 
-      {/* ==== Row 2 ==== */}
-      <div className="panel-row">
-        <div className="panel half">
-          <h2 className="panel-title">Panel 3: Predicted Gene Effects</h2>
-          <p>No data yet.</p>
-        </div>
+            <div className="panel half">
+              <h2 className="panel-title">
+                Expression Across Proteins (Tahoe-100M)
+              </h2>
+              <p>No data yet.</p>
+            </div>
+          </div>
+        </>
+      )}
 
-        <div className="panel half">
-            <h2 className="panel-title">Expression Across Proteins (Tahoe-100M)</h2>
-            <DrugPanel4 drug={drug} />
-        </div>
-
-      </div>
-
-      {/* ==== Styles ==== */}
       <style jsx>{`
+        .error {
+          color: red;
+          font-size: 1.2rem;
+          text-align: center;
+        }
+        .error-page {
+          text-align: center;
+          padding: 4rem 1rem;
+        }
         .container {
           background: #ffffff;
           min-height: 100vh;

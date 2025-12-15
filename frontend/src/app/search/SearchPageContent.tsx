@@ -32,6 +32,7 @@ export default function SearchPageContent() {
   const [expandedInfoGroup, setExpandedInfoGroup] = useState<string | null>(
     null
   );
+  
 
   // --- Resize listener ---
   useEffect(() => {
