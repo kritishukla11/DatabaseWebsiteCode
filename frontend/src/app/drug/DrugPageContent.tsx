@@ -18,7 +18,7 @@ export default function DrugPageContent() {
   const [error, setError] = useState<string | null>(null);
 
   // ============================================================
-  // Main fetch block
+  // Main fetch block (PubChem only)
   // ============================================================
   useEffect(() => {
     if (!drug) return;
@@ -28,7 +28,7 @@ export default function DrugPageContent() {
         setError(null);
         setPanel1Data(null);
 
-        // --- ✅ 0. Check if drug exists in backend list first ---
+        // --- ✅ Check if drug exists in backend list first ---
         const resp = await fetch(`${BACKEND}/drugs/list`);
         const listJson = await resp.json();
         const knownDrugs = (listJson.drugs || []).map((d: string) =>
@@ -51,7 +51,7 @@ export default function DrugPageContent() {
         const cid = cidJson?.IdentifierList?.CID?.[0];
         if (!cid) throw new Error("No PubChem CID found");
 
-        // === 2️⃣ PubChem: structure + best description ===
+        // === 2️⃣ PubChem: structure + description ===
         let description = "No description available";
         try {
           const summaryResp = await fetch(
@@ -107,145 +107,10 @@ export default function DrugPageContent() {
 
         const structureUrlVal = `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/${cid}/PNG`;
 
-        // === 3️⃣ ChEMBL: mechanism + targets ===
-        const chemblSearch = await fetch(
-          `https://www.ebi.ac.uk/chembl/api/data/molecule?search=${encodeURIComponent(
-            cleanedDrug
-          )}&format=json`
-        );
-        const chemblJson = await chemblSearch.json();
-        let molecules = chemblJson?.molecules || [];
-        const primaryChemblId = molecules[0]?.molecule_chembl_id || null;
-
-        // Try to find exact name match
-        const exactMatch = molecules.find(
-          (m: any) =>
-            m.pref_name?.toLowerCase() === drug.toLowerCase() ||
-            m.synonyms?.some(
-              (s: any) => s?.toLowerCase?.() === drug.toLowerCase()
-            )
-        );
-        if (exactMatch) molecules = [exactMatch, ...molecules];
-
-        // Known fallback for docetaxel
-        if (drug.toLowerCase() === "docetaxel") {
-          molecules.unshift({
-            molecule_chembl_id: "CHEMBL3545252",
-            pref_name: "Docetaxel",
-          });
-        }
-
-        async function fetchAllMechanisms(chemblId: string) {
-          let results: any[] = [];
-          let url = `https://www.ebi.ac.uk/chembl/api/data/mechanism.json?molecule_chembl_id=${chemblId}`;
-          while (url) {
-            const r = await fetch(url, { headers: { Accept: "application/json" } });
-            const j = await r.json();
-            if (j?.mechanisms?.length) results.push(...j.mechanisms);
-            url = j.page_meta?.next ?? null;
-          }
-          return results;
-        }
-
-        async function getTargetName(chemblId: string) {
-          try {
-            const tResp = await fetch(
-              `https://www.ebi.ac.uk/chembl/api/data/target/${chemblId}.json`
-            );
-            if (!tResp.ok) return null;
-            const tJson = await tResp.json();
-            return tJson.pref_name || tJson.target_components?.[0]?.component_name;
-          } catch {
-            return null;
-          }
-        }
-
-        async function extractMechInfo(mechanisms: any[]) {
-          const mechTexts = mechanisms
-            .map((m: any) => m.mechanism_of_action)
-            .filter(Boolean);
-          let targets: string[] = [];
-
-          for (const m of mechanisms) {
-            if (m.target_name) targets.push(m.target_name);
-            if (m.target_pref_name) targets.push(m.target_pref_name);
-            if (m.target_components?.length) {
-              m.target_components.forEach((tc: any) => {
-                if (tc.component_name) targets.push(tc.component_name);
-                if (tc.description) targets.push(tc.description);
-                if (tc.accession) targets.push(tc.accession);
-              });
-            }
-            if (m.target_chembl_id) {
-              const tname = await getTargetName(m.target_chembl_id);
-              if (tname) targets.push(tname);
-            }
-          }
-
-          const cleanTargets = [...new Set(targets.map((t) => t.trim()))].filter(
-            (t) =>
-              t &&
-              !t.toLowerCase().includes("carbonic anhydrase") &&
-              !t.toLowerCase().includes("muscarinic") &&
-              !t.toLowerCase().includes("cytochrome")
-          );
-
-          return {
-            mechanism: mechTexts.join("; "),
-            targets: cleanTargets,
-          };
-        }
-
-        let mechanism = "Unknown";
-        let targets: string[] = [];
-        let mechanismSource: string | null = null;
-        let mechanismSourceName: string | null = null;
-
-        for (const mol of molecules) {
-          const idsToTry = [
-            mol.molecule_chembl_id,
-            mol.parent_molecule_chembl_id,
-            ...(mol.molecule_hierarchy?.child_molecules?.map(
-              (c: any) => c.molecule_chembl_id
-            ) || []),
-          ].filter(Boolean);
-
-          for (const chemblId of idsToTry) {
-            const mechList = await fetchAllMechanisms(chemblId);
-            if (mechList.length > 0) {
-              const info = await extractMechInfo(mechList);
-              if (info.mechanism || info.targets.length > 0) {
-                mechanism = info.mechanism || "Unknown";
-                targets = info.targets;
-                mechanismSource = chemblId;
-                mechanismSourceName = mol.pref_name || chemblId;
-                break;
-              }
-            }
-          }
-          if (mechanism !== "Unknown") break;
-        }
-
-        // === Fallbacks for known drugs ===
-        if (mechanism === "Unknown" && drug.toLowerCase() === "erlotinib") {
-          mechanism = "Epidermal growth factor receptor (EGFR) inhibitor";
-          targets = ["EGFR"];
-        }
-        if (mechanism === "Unknown" && drug.toLowerCase() === "lapatinib") {
-          mechanism =
-            "Dual inhibitor of EGFR (ErbB1) and HER2 (ErbB2) receptor tyrosine kinases";
-          targets = ["EGFR", "ERBB2"];
-        }
-
         setPanel1Data({
           cid,
           structureUrl: structureUrlVal,
           description,
-          mechanism,
-          targets,
-          mechanismSource,
-          mechanismSourceName,
-          chemblId: primaryChemblId,
         });
       } catch (e: any) {
         console.error(e);
@@ -263,7 +128,9 @@ export default function DrugPageContent() {
     if (!drug) return;
     async function fetchProteins() {
       try {
-        const resp = await fetch(`${BACKEND}/flatmap/proteins?drug=${encodeURIComponent(cleanedDrug)}`);
+        const resp = await fetch(
+          `${BACKEND}/flatmap/proteins?drug=${encodeURIComponent(cleanedDrug)}`
+        );
         if (!resp.ok) throw new Error("Failed to fetch protein list");
         const data = await resp.json();
         setProteinList(data.proteins || []);
@@ -280,7 +147,9 @@ export default function DrugPageContent() {
       setFlatmapUrl(null);
       return;
     }
-    const url = `${BACKEND}/flatmap/drug?gene=${encodeURIComponent(selectedProtein)}&drug=${encodeURIComponent(cleanedDrug)}`;
+    const url = `${BACKEND}/flatmap/drug?gene=${encodeURIComponent(
+      selectedProtein
+    )}&drug=${encodeURIComponent(cleanedDrug)}`;
     setFlatmapUrl(url);
   }, [drug, selectedProtein]);
 
@@ -301,12 +170,11 @@ export default function DrugPageContent() {
           {/* ==== Row 1 ==== */}
           <div className="panel-row">
             <div className="panel half">
-              <h2 className="panel-title">Panel 1: Drug Info</h2>
+              <h2 className="panel-title">Drug Information</h2>
               {!panel1Data ? (
                 <p>Loading…</p>
               ) : (
                 <div>
-                  <h4 className="subsection-title">From PubChem</h4>
                   {panel1Data.structureUrl && (
                     <img
                       src={panel1Data.structureUrl}
@@ -320,38 +188,6 @@ export default function DrugPageContent() {
                     />
                   )}
                   <p className="description-text">{panel1Data.description}</p>
-
-                  <h4 className="subsection-title">From ChEMBL</h4>
-                  {panel1Data.mechanismSource &&
-                    panel1Data.chemblId &&
-                    panel1Data.mechanismSource !== panel1Data.chemblId && (
-                      <p className="alt-form-note">
-                        Showing info for{" "}
-                        <a
-                          href={`https://www.ebi.ac.uk/chembl/compound_report_card/${panel1Data.mechanismSource}/`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          style={{
-                            color: "#7bafd4",
-                            fontWeight: 600,
-                            textDecoration: "none",
-                          }}
-                        >
-                          {panel1Data.mechanismSourceName}
-                        </a>
-                        .
-                      </p>
-                    )}
-                  <p>
-                    <strong>Mechanism of Action:</strong>{" "}
-                    {panel1Data.mechanism || "N/A"}
-                  </p>
-                  <p>
-                    <strong>Targets:</strong>{" "}
-                    {panel1Data.targets?.length
-                      ? panel1Data.targets.join(", ")
-                      : "N/A"}
-                  </p>
                 </div>
               )}
             </div>
@@ -404,21 +240,6 @@ export default function DrugPageContent() {
               )}
             </div>
           </div>
-
-          {/* ==== Row 2 ==== */}
-          <div className="panel-row">
-            <div className="panel half">
-              <h2 className="panel-title">Panel 3: Predicted Gene Effects</h2>
-              <p>No data yet.</p>
-            </div>
-
-            <div className="panel half">
-              <h2 className="panel-title">
-                Expression Across Proteins (Tahoe-100M)
-              </h2>
-              <p>No data yet.</p>
-            </div>
-          </div>
         </>
       )}
 
@@ -463,23 +284,10 @@ export default function DrugPageContent() {
           gap: 1.5rem;
           margin-bottom: 2rem;
         }
-        .subsection-title {
-          color: #7bafd4;
-          font-weight: 600;
-          font-size: 1rem;
-          margin-bottom: 0.5rem;
-        }
         .description-text {
           color: #333;
           margin-bottom: 1.2rem;
           font-size: 0.95rem;
-        }
-        .alt-form-note {
-          color: #6b7280;
-          font-style: italic;
-          font-size: 0.9rem;
-          margin-top: -0.5rem;
-          margin-bottom: 0.5rem;
         }
       `}</style>
     </main>
