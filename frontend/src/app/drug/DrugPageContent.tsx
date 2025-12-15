@@ -9,7 +9,7 @@ const BACKEND =
 export default function DrugPageContent() {
   const searchParams = useSearchParams();
   const drug = searchParams.get("drug") || "";
-  const cleanedDrug = drug.toLowerCase().replace(/[^\w\s]/g, "").trim();
+  const cleanedDrug = drug.toLowerCase().trim();
 
   const [panel1Data, setPanel1Data] = useState<any>(null);
   const [proteinList, setProteinList] = useState<string[]>([]);
@@ -32,7 +32,7 @@ export default function DrugPageContent() {
         const resp = await fetch(`${BACKEND}/drugs/list`);
         const listJson = await resp.json();
         const knownDrugs = (listJson.drugs || []).map((d: string) =>
-          d.toLowerCase().replace(/[^\w\s]/g, "").trim()
+          d.toLowerCase().trim()
         );
 
         if (!knownDrugs.includes(cleanedDrug)) {
@@ -263,7 +263,7 @@ export default function DrugPageContent() {
     if (!drug) return;
     async function fetchProteins() {
       try {
-        const resp = await fetch(`/flatmap/proteins?drug=${encodeURIComponent(cleanedDrug)}`);
+        const resp = await fetch(`${BACKEND}/flatmap/proteins?drug=${encodeURIComponent(cleanedDrug)}`);
         if (!resp.ok) throw new Error("Failed to fetch protein list");
         const data = await resp.json();
         setProteinList(data.proteins || []);
@@ -280,9 +280,7 @@ export default function DrugPageContent() {
       setFlatmapUrl(null);
       return;
     }
-    const url = `/flatmap/drug?gene=${encodeURIComponent(
-      selectedProtein
-    )}&drug=${encodeURIComponent(cleanedDrug)}`;
+    const url = `${BACKEND}/flatmap/drug?gene=${encodeURIComponent(selectedProtein)}&drug=${encodeURIComponent(cleanedDrug)}`;
     setFlatmapUrl(url);
   }, [drug, selectedProtein]);
 

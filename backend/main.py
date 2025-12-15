@@ -1574,15 +1574,46 @@ def load_logodds_csv(gene: str) -> pd.DataFrame:
 
 @app.get("/flatmap/proteins")
 def flatmap_proteins(drug: str):
+    """
+    Scans all log-odds CSVs in logodds_cluster/** and returns proteins that
+    have data columns matching the given drug (case- and punctuation-insensitive).
+    """
+    import string
+
     base_dir = Path(__file__).resolve().parent / "logodds_cluster"
+    if not base_dir.exists():
+        raise HTTPException(status_code=404, detail="No logodds_cluster directory found")
+
+    # Normalize drug: lowercase, strip punctuation/spaces
+    table = str.maketrans("", "", string.punctuation)
+    drug_clean = drug.lower().translate(table).replace(" ", "")
+
     proteins = []
     for letter_dir in base_dir.iterdir():
-        if letter_dir.is_dir():
-            for csv in letter_dir.glob("*_logodds_cluster.csv"):
-                df = pd.read_csv(csv, nrows=1)
-                if drug.lower() in [c.lower() for c in df.columns]:
-                    proteins.append(csv.stem.replace("_logodds_cluster", ""))
+        if not letter_dir.is_dir():
+            continue
+
+        for csv_path in letter_dir.glob("*_logodds_cluster.csv"):
+            try:
+                df = pd.read_csv(csv_path, nrows=1)
+            except Exception:
+                continue
+
+            # Normalize all column names (like load_logodds_csv)
+            cols_clean = []
+            for c in df.columns:
+                c_clean = c.strip().lower()
+                if c_clean != "cluster_id":
+                    c_clean = c_clean.translate(table).replace(" ", "")
+                cols_clean.append(c_clean)
+
+            # Match against normalized drug name
+            if drug_clean in cols_clean:
+                protein_name = csv_path.stem.replace("_logodds_cluster", "")
+                proteins.append(protein_name)
+    
     return {"proteins": sorted(set(proteins))}
+
 
 
 @app.get("/flatmap/drug")
@@ -1592,29 +1623,40 @@ def flatmap_drug(gene: str, drug: str):
     - gene: protein name (e.g., BRAF)
     - drug: drug column name in the CSV (case-insensitive)
     """
+    import string
     with PLOT_LOCK:
         nmf, mapping = load_nmf(gene)
         logodds_df = load_logodds_csv(gene)
 
-        # match cluster column names
         if "cluster_id" not in logodds_df.columns:
             raise HTTPException(status_code=400, detail="Missing cluster_id column in CSV")
 
-        # normalize cluster numbering to same as NMF
         logodds_df["cluster_id"] = logodds_df["cluster_id"].astype(int)
         nmf["cluster"] = nmf["cluster"].astype(int)
 
-        # find matching drug column
-        drug_col = next((c for c in logodds_df.columns if c.lower() == drug.lower()), None)
+        # --- ✅ Internal punctuation-insensitive matching ---
+        table = str.maketrans("", "", string.punctuation)
+        drug_stripped = drug.lower().translate(table).replace(" ", "")
+
+        drug_col = next(
+            (
+                c for c in logodds_df.columns
+                if c.lower().translate(table).replace(" ", "") == drug_stripped
+            ),
+            None
+        )
+
         if not drug_col:
             raise HTTPException(status_code=404, detail=f"Drug {drug} not found in log-odds file")
 
-        merged = pd.merge(nmf, logodds_df[["cluster_id", drug_col]], 
-                          left_on="cluster", right_on="cluster_id", how="left")
-
+        # --- continue as before ---
+        merged = pd.merge(
+            nmf, logodds_df[["cluster_id", drug_col]],
+            left_on="cluster", right_on="cluster_id", how="left"
+        )
         merged[drug_col] = pd.to_numeric(merged[drug_col], errors="coerce").fillna(0.0)
 
-        # grid setup
+        # grid + plot (unchanged)
         xmn, xmx = merged["x"].min(), merged["x"].max()
         ymn, ymx = merged["y"].min(), merged["y"].max()
         pad_x = 0.05 * (xmx - xmn)
@@ -1641,21 +1683,17 @@ def flatmap_drug(gene: str, drug: str):
         )
         outer_mask = np.isnan(Zi_alt) | (Zi_alt <= np.nanmin(Zi_alt) + 1e-6)
 
-        # color by log-odds
         cluster_values = merged.groupby("cluster")[drug_col].mean()
         Zi_val = np.zeros_like(Zi_cluster, dtype=float)
         for clust, val in cluster_values.items():
             Zi_val[Zi_cluster == clust] = val
-
         Zi_masked = np.ma.array(Zi_val, mask=outer_mask)
 
-        fig, ax = plt.subplots(figsize=(6,6))
+        fig, ax = plt.subplots(figsize=(6, 6))
         ax.set_aspect("equal")
         ax.axis("off")
-
         cmap = plt.cm.coolwarm
         norm = plt.Normalize(vmin=cluster_values.min(), vmax=cluster_values.max())
-
         im = ax.imshow(
             Zi_masked,
             origin="lower",
@@ -1665,10 +1703,11 @@ def flatmap_drug(gene: str, drug: str):
             interpolation="nearest",
             alpha=0.7
         )
-
-        ax.contour(Xi, Yi, Zi_cluster, levels=np.unique(merged["cluster"]),
-                   colors="black", linewidths=0.8, alpha=0.6)
-
+        ax.contour(
+            Xi, Yi, Zi_cluster,
+            levels=np.unique(merged["cluster"]),
+            colors="black", linewidths=0.8, alpha=0.6
+        )
         cb = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
         cb.set_label(f"Log-odds for {drug}")
 
@@ -1676,9 +1715,7 @@ def flatmap_drug(gene: str, drug: str):
         plt.savefig(buf, format="png", dpi=170, bbox_inches="tight")
         plt.close(fig)
         buf.seek(0)
-
         return StreamingResponse(buf, media_type="image/png")
-
 
 
 
@@ -1881,7 +1918,6 @@ def drugs_list():
     df = pd.read_csv(csv_path)
     col = df.columns[0]
     drugs = df[col].dropna().astype(str)
-    table = str.maketrans("", "", string.punctuation)
-    cleaned = sorted({d.lower().translate(table).strip() for d in drugs if d.strip()})
+    cleaned = sorted({d.lower().strip() for d in drugs if d.strip()})
     return {"drugs": cleaned}
 
