@@ -1575,44 +1575,41 @@ def load_logodds_csv(gene: str) -> pd.DataFrame:
 @app.get("/flatmap/proteins")
 def flatmap_proteins(drug: str):
     """
-    Scans all log-odds CSVs in logodds_cluster/** and returns proteins that
-    have data columns matching the given drug (case- and punctuation-insensitive).
+    Returns all proteins listed in drug_lists/[drug].csv.
+    The search is case-insensitive and punctuation-insensitive,
+    but canonical filenames remain lowercase with no spaces.
     """
     import string
-
-    base_dir = Path(__file__).resolve().parent / "logodds_cluster"
+    base_dir = Path(__file__).resolve().parent / "drug_lists"
     if not base_dir.exists():
-        raise HTTPException(status_code=404, detail="No logodds_cluster directory found")
+        raise HTTPException(status_code=404, detail="No drug_lists directory found")
 
-    # Normalize drug: lowercase, strip punctuation/spaces
+    # --- Canonical normalization (for storage and filenames) ---
+    drug_canonical = drug.lower().replace(" ", "")
+
+    # --- For comparison only, also remove punctuation ---
     table = str.maketrans("", "", string.punctuation)
-    drug_clean = drug.lower().translate(table).replace(" ", "")
+    drug_cmp = drug_canonical.translate(table)
 
-    proteins = []
-    for letter_dir in base_dir.iterdir():
-        if not letter_dir.is_dir():
-            continue
+    # --- Check filenames ---
+    for csv_path in base_dir.glob("*.csv"):
+        name_canonical = csv_path.stem.lower().replace(" ", "")
+        name_cmp = name_canonical.translate(table)
 
-        for csv_path in letter_dir.glob("*_logodds_cluster.csv"):
+        if name_cmp == drug_cmp:  # punctuation-insensitive match
             try:
-                df = pd.read_csv(csv_path, nrows=1)
-            except Exception:
-                continue
+                df = pd.read_csv(csv_path)
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Failed to load {csv_path.name}: {e}")
 
-            # Normalize all column names (like load_logodds_csv)
-            cols_clean = []
-            for c in df.columns:
-                c_clean = c.strip().lower()
-                if c_clean != "cluster_id":
-                    c_clean = c_clean.translate(table).replace(" ", "")
-                cols_clean.append(c_clean)
+            if "protein" not in df.columns:
+                raise HTTPException(status_code=400, detail=f"No 'protein' column in {csv_path.name}")
 
-            # Match against normalized drug name
-            if drug_clean in cols_clean:
-                protein_name = csv_path.stem.replace("_logodds_cluster", "")
-                proteins.append(protein_name)
-    
-    return {"proteins": sorted(set(proteins))}
+            proteins = sorted(df["protein"].dropna().unique().tolist())
+            return {"proteins": proteins}
+
+    raise HTTPException(status_code=404, detail=f"No matching file for drug '{drug}' found")
+
 
 
 
@@ -1622,6 +1619,8 @@ def flatmap_drug(gene: str, drug: str):
     Returns a PNG flatmap colored by log-odds values for a given drug.
     - gene: protein name (e.g., BRAF)
     - drug: drug column name in the CSV (case-insensitive)
+    Canonical rule: lowercase + no spaces
+    Comparison rule: punctuation-insensitive
     """
     import string
     with PLOT_LOCK:
@@ -1634,14 +1633,17 @@ def flatmap_drug(gene: str, drug: str):
         logodds_df["cluster_id"] = logodds_df["cluster_id"].astype(int)
         nmf["cluster"] = nmf["cluster"].astype(int)
 
-        # --- ✅ Internal punctuation-insensitive matching ---
+        # --- Canonical normalization ---
+        drug_canonical = drug.lower().replace(" ", "")
+
+        # --- Comparison normalization (ignore punctuation only for matching) ---
         table = str.maketrans("", "", string.punctuation)
-        drug_stripped = drug.lower().translate(table).replace(" ", "")
+        drug_cmp = drug_canonical.translate(table)
 
         drug_col = next(
             (
                 c for c in logodds_df.columns
-                if c.lower().translate(table).replace(" ", "") == drug_stripped
+                if c.lower().replace(" ", "").translate(table) == drug_cmp
             ),
             None
         )
@@ -1716,6 +1718,7 @@ def flatmap_drug(gene: str, drug: str):
         plt.close(fig)
         buf.seek(0)
         return StreamingResponse(buf, media_type="image/png")
+
 
 
 
