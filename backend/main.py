@@ -1723,11 +1723,23 @@ def flatmap_drug(gene: str, drug: str):
             colors="black", linewidths=0.8, alpha=0.6, zorder=4
         )
 
-        # --- Background + outer boundary (like pathway plots) ---
-        ax.contour(Xi, Yi, Zi_alt, levels=40,
-                   colors="darkgrey", alpha=0, linewidths=0.5, zorder=5)
-        ax.contour(Xi, Yi, inside_mask, levels=[0.5],
-                   colors="black", linewidths=2.5, zorder=6)
+        # --- Mask outside region before contouring ---
+        Zi_cluster_masked = np.ma.array(Zi_cluster, mask=outer_mask)
+
+        # --- Draw internal cluster boundaries (masked so they stop at outline) ---
+        ax.contour(
+            Xi, Yi, Zi_cluster_masked,
+            levels=np.unique(merged["cluster"]),
+            colors="black", linewidths=0.8, alpha=0.6, zorder=4
+        )
+
+        # --- Draw thick outer outline ---
+        ax.contour(
+            Xi, Yi, inside_mask,
+            levels=[0.5],
+            colors="black", linewidths=2.5, zorder=6
+        )
+
 
         # --- Colorbar ---
         cb = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
