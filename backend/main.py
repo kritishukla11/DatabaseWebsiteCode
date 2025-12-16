@@ -1716,13 +1716,6 @@ def flatmap_drug(gene: str, drug: str):
             alpha=0.7
         )
 
-        # --- Cluster boundaries ---
-        ax.contour(
-            Xi, Yi, Zi_cluster,
-            levels=np.unique(merged["cluster"]),
-            colors="black", linewidths=0.8, alpha=0.6, zorder=4
-        )
-
         # --- Mask outside region before contouring ---
         Zi_cluster_masked = np.ma.array(Zi_cluster, mask=outer_mask)
 
