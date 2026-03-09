@@ -1444,16 +1444,38 @@ def confidence_image(protein: str):
         try:
             df = pd.read_csv("tahoe_confidence_metrics.csv")
             emp = df[df["protein"].str.upper() == protein.upper()].copy()
+
+            # ---- If no data exists for this protein ----
             if emp.empty:
-                return JSONResponse(
-                    {"error": f"No confidence data found for {protein}"},
-                    status_code=404,
+                fig, ax = plt.subplots(figsize=(6, 4))
+                ax.axis("off")
+                ax.text(
+                    0.5,
+                    0.5,
+                    "We don't have AI predictions for drug associations\nwith this protein.",
+                    ha="center",
+                    va="center",
+                    fontsize=12,
+                    wrap=True,
                 )
 
-            # ensure numeric
+                buf = io.BytesIO()
+                fig.tight_layout()
+                fig.savefig(buf, format="png", bbox_inches="tight", dpi=160)
+                plt.close(fig)
+                buf.seek(0)
+
+                return StreamingResponse(
+                    buf,
+                    media_type="image/png",
+                    headers={"Cache-Control": "no-store"},
+                )
+
+            # ---- Normal processing ----
             emp = emp.reset_index(drop=True)
             if "index" not in emp.columns:
                 emp = emp.reset_index(names="index")
+
             emp["norm_confidence"] = pd.to_numeric(
                 emp["norm_confidence"], errors="coerce"
             ).fillna(0)
@@ -1462,33 +1484,34 @@ def confidence_image(protein: str):
             y = emp["norm_confidence"].values
             x0, y0 = x[0], y[0]
 
-            # logistic function constrained to first point
             def logistic_fixed_first(x, k, xmid, c):
                 L = (y0 - c) * (1 + np.exp(k * (x0 - xmid)))
                 return c + L / (1 + np.exp(k * (x - xmid)))
 
             p0 = [-0.05, np.median(x), min(y)]
             popt, _ = curve_fit(logistic_fixed_first, x, y, p0=p0, maxfev=10000)
-            k, xmid, c = popt
+
             y_pred = logistic_fixed_first(x, *popt)
             r2 = r2_score(y, y_pred)
 
-            # equation label
-            eq_label = (
-                "Logistic fit:\n"
-                r"$y = c + \frac{L}{1 + e^{k(x - x_{mid})}}$" "\n"
-                f"$k={k:.3f},\, x_{{mid}}={xmid:.2f},\, c={c:.3f}$\n"
-                f"$R^2={r2:.3f}$"
-            )
+            # ---- Legend label only shows R² ----
+            legend_label = f"$R^2 = {r2:.3f}$"
 
-            # plot
             fig, ax = plt.subplots(figsize=(6, 4))
             ax.scatter(x, y, s=30, alpha=0.7, label="Data")
+
             x_sorted = np.sort(x)
-            ax.plot(x_sorted, logistic_fixed_first(x_sorted, *popt),
-                    color="red", label=eq_label)
+            ax.plot(
+                x_sorted,
+                logistic_fixed_first(x_sorted, *popt),
+                color="red",
+                label=legend_label,
+            )
+
             ax.set_xlabel("Rank of drugs (AI predicted)")
-            ax.set_ylabel(f"Confidence of association (0-1) between\n{protein} and each drug\n(validated by Tahoe-100M)")
+            ax.set_ylabel(
+                f"Confidence of association (0–1) between\n{protein} and each drug\n(validated by Tahoe-100M)"
+            )
             ax.set_title(protein.upper())
             ax.legend(loc="upper right", fontsize=9)
             ax.grid(False)
