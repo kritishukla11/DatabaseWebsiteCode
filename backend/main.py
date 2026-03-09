@@ -1512,24 +1512,28 @@ def confidence_image(protein: str):
 @app.get("/confidence/rankings")
 def confidence_rankings(protein: str):
     """
-    Return ranked drugs for a given protein from drug_rankings.csv.
+    Rank drugs for a protein based on the highest cluster log-odds value.
     """
     try:
-        df = pd.read_csv("drug_rankings.csv")
-        sub = df[df["protein"].str.upper() == protein.upper()]
-        if sub.empty:
+        logodds_df = load_logodds_csv(protein)
+
+        if "cluster_id" not in logodds_df.columns:
             return {"rankings": []}
 
-        # expected columns: norm_drug, score (or similar)
-        cols = [c.lower() for c in sub.columns]
-        drug_col = "norm_drug" if "norm_drug" in cols else sub.columns[0]
-        score_col = "index" if "index" in cols else sub.columns[-1]
+        drug_cols = [c for c in logodds_df.columns if c != "cluster_id"]
+        rankings = []
 
-        sub = sub.sort_values(score_col, ascending=False)
-        rankings = [
-            {"drug": row[drug_col]}
-            for _, row in sub.iterrows()
-        ]
+        for drug in drug_cols:
+            vals = pd.to_numeric(logodds_df[drug], errors="coerce").dropna()
+            if vals.empty:
+                continue
+
+            rankings.append({
+                "drug": drug,
+                "score": float(vals.max())
+            })
+
+        rankings = sorted(rankings, key=lambda x: x["score"], reverse=True)
         return {"rankings": rankings}
 
     except Exception as e:

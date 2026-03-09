@@ -7,10 +7,15 @@ import { useEffect, useState } from "react";
 const BACKEND =
   process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8001";
 
+type DrugRanking = {
+  drug: string;
+  score: number;
+};
+
 export default function Panel4AUPRC({ gene }: { gene: string }) {
   const [imgUrl, setImgUrl] = useState<string | null>(null);
   const [showRankings, setShowRankings] = useState(false);
-  const [rankings, setRankings] = useState<{ drug: string; expression: number }[]>([]);
+  const [rankings, setRankings] = useState<DrugRanking[]>([]);
 
   useEffect(() => {
     if (!gene || !gene.trim()) {
@@ -32,10 +37,8 @@ export default function Panel4AUPRC({ gene }: { gene: string }) {
     }
   }, [showRankings, gene]);
 
-
   return (
     <div className="border rounded-lg shadow bg-white p-2 flex flex-col items-center">
-      {/* === Plot === */}
       <div style={{ minHeight: "400px", width: "100%", textAlign: "center" }}>
         {!gene ? (
           <p className="text-gray-500">No gene selected.</p>
@@ -59,7 +62,6 @@ export default function Panel4AUPRC({ gene }: { gene: string }) {
         )}
       </div>
 
-      {/* === Button === */}
       {gene && (
         <button
           onClick={() => setShowRankings(!showRankings)}
@@ -71,7 +73,6 @@ export default function Panel4AUPRC({ gene }: { gene: string }) {
         </button>
       )}
 
-      {/* === Rankings list === */}
       {showRankings && rankings.length > 0 && (
         <div
           className="mt-3 border rounded bg-gray-50 w-full max-w-md p-2"
@@ -79,8 +80,14 @@ export default function Panel4AUPRC({ gene }: { gene: string }) {
         >
           <ul>
             {rankings.map((r, i) => (
-              <li key={i} className="border-b last:border-none py-1 text-left">
-                {i + 1}. {r.drug}
+              <li
+                key={i}
+                className="border-b last:border-none py-1 text-left flex justify-between gap-3"
+              >
+                <span>
+                  {i + 1}. {r.drug}
+                </span>
+                <span className="text-gray-600">{r.score.toFixed(3)}</span>
               </li>
             ))}
           </ul>
@@ -89,8 +96,3 @@ export default function Panel4AUPRC({ gene }: { gene: string }) {
     </div>
   );
 }
-
-
-
-
-
