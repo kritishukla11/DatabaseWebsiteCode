@@ -974,32 +974,131 @@ def load_gene_data(gene: str) -> pd.DataFrame:
 def calibration_image(gene: str):
     """
     Returns a matplotlib plot (PNG) of adjusted_rank vs confidence
-    for the given gene, highlighting the top 10% region.
-    If no data exist, returns a JSON message instead of an image.
+    for the given gene, with a logistic fit and R^2 shown in the legend.
+    Highlights the top 10% region.
+    If no data exist, returns a text image instead.
     """
+    import io
+    import numpy as np
+    import matplotlib.pyplot as plt
+    from scipy.optimize import curve_fit
+    from sklearn.metrics import r2_score
+    from fastapi.responses import StreamingResponse, JSONResponse
+
     with PLOT_LOCK:
         try:
             sub = load_gene_data(gene)
 
-            # If gene data missing or empty, return JSON response
+            # ---- If gene data missing or empty ----
             if sub is None or sub.empty:
-                return JSONResponse(
-                    {
-                        "error": "There is no single cell perturbation (Perturb-seq) data for this protein."
-                    },
-                    status_code=404,
+                fig, ax = plt.subplots(figsize=(6, 4))
+                ax.axis("off")
+                ax.text(
+                    0.5,
+                    0.5,
+                    "We don't have Perturb-seq data\nfor this protein.",
+                    ha="center",
+                    va="center",
+                    fontsize=12,
+                    wrap=True,
                 )
 
-            # --- Create the calibration plot ---
+                buf = io.BytesIO()
+                fig.tight_layout()
+                fig.savefig(buf, format="png", bbox_inches="tight", dpi=160)
+                plt.close(fig)
+                buf.seek(0)
+
+                return StreamingResponse(
+                    buf,
+                    media_type="image/png",
+                    headers={
+                        "Cache-Control": "no-store",
+                        "Access-Control-Allow-Origin": "*",
+                    },
+                )
+
+            # ---- Clean numeric columns ----
+            sub = sub.copy()
+            sub["adjusted_rank"] = pd.to_numeric(sub["adjusted_rank"], errors="coerce")
+            sub["confidence"] = pd.to_numeric(sub["confidence"], errors="coerce")
+            sub = sub.dropna(subset=["adjusted_rank", "confidence"]).reset_index(drop=True)
+
+            if sub.empty:
+                fig, ax = plt.subplots(figsize=(6, 4))
+                ax.axis("off")
+                ax.text(
+                    0.5,
+                    0.5,
+                    "We don't have Perturb-seq data\nfor this protein.",
+                    ha="center",
+                    va="center",
+                    fontsize=12,
+                    wrap=True,
+                )
+
+                buf = io.BytesIO()
+                fig.tight_layout()
+                fig.savefig(buf, format="png", bbox_inches="tight", dpi=160)
+                plt.close(fig)
+                buf.seek(0)
+
+                return StreamingResponse(
+                    buf,
+                    media_type="image/png",
+                    headers={
+                        "Cache-Control": "no-store",
+                        "Access-Control-Allow-Origin": "*",
+                    },
+                )
+
+            x = sub["adjusted_rank"].values
+            y = sub["confidence"].values
+
+            # ---- Logistic function constrained to pass through first point ----
+            x0, y0 = x[0], y[0]
+
+            def logistic_fixed_first(x, k, xmid, c):
+                L = (y0 - c) * (1 + np.exp(k * (x0 - xmid)))
+                return c + L / (1 + np.exp(k * (x - xmid)))
+
+            # ---- Fit curve safely ----
+            fit_success = False
+            r2 = np.nan
+            y_fit = None
+
+            if len(x) >= 4 and len(np.unique(x)) >= 3:
+                try:
+                    p0 = [-0.05, np.median(x), np.min(y)]
+                    popt, _ = curve_fit(
+                        logistic_fixed_first,
+                        x,
+                        y,
+                        p0=p0,
+                        maxfev=10000,
+                    )
+                    y_pred = logistic_fixed_first(x, *popt)
+                    r2 = r2_score(y, y_pred)
+
+                    x_sorted = np.sort(x)
+                    y_fit = logistic_fixed_first(x_sorted, *popt)
+                    fit_success = True
+                except Exception:
+                    fit_success = False
+
+            # ---- Create plot ----
             fig, ax = plt.subplots(figsize=(6, 4))
-            ax.plot(
-                sub["adjusted_rank"],
-                sub["confidence"],
-                marker="o",
-                linestyle="-",
-                linewidth=1.5,
-                alpha=0.8,
-            )
+
+            ax.scatter(x, y, s=30, alpha=0.7, label="Data")
+
+            if fit_success:
+                ax.plot(
+                    x_sorted,
+                    y_fit,
+                    color="red",
+                    linewidth=2,
+                    label=f"$R^2 = {r2:.3f}$",
+                )
 
             ax.set_xlabel("Rank of TRNs (predicted using AI)")
             ax.set_xticks([])
@@ -1012,28 +1111,31 @@ def calibration_image(gene: str):
             )
             ax.grid(False)
 
-            # === Highlight only the top-left 10% region ===
-            if not sub["adjusted_rank"].empty and not sub["confidence"].empty:
-                x_thresh = sub["adjusted_rank"].quantile(0.1)
-                y_thresh = sub["confidence"].quantile(0.9)
-                width = abs(x_thresh - sub["adjusted_rank"].min())
+            if fit_success:
+                ax.legend(loc="upper right", fontsize=9)
 
-                ax.add_patch(
-                    plt.Rectangle(
-                        (sub["adjusted_rank"].min(), y_thresh),
-                        width,
-                        sub["confidence"].max() - y_thresh,
-                        facecolor="lightgreen",
-                        alpha=0.3,
-                        edgecolor="green",
-                        linewidth=1.5,
-                        linestyle="--",
-                    )
+            # ---- Highlight only the top-left 10% region ----
+            x_thresh = sub["adjusted_rank"].quantile(0.1)
+            y_thresh = sub["confidence"].quantile(0.9)
+            width = abs(x_thresh - sub["adjusted_rank"].min())
+
+            ax.add_patch(
+                plt.Rectangle(
+                    (sub["adjusted_rank"].min(), y_thresh),
+                    width,
+                    sub["confidence"].max() - y_thresh,
+                    facecolor="lightgreen",
+                    alpha=0.3,
+                    edgecolor="green",
+                    linewidth=1.5,
+                    linestyle="--",
                 )
+            )
 
-            # --- Save to PNG buffer ---
+            # ---- Save to PNG buffer ----
             buf = io.BytesIO()
-            fig.savefig(buf, format="png", bbox_inches="tight")
+            fig.tight_layout()
+            fig.savefig(buf, format="png", bbox_inches="tight", dpi=160)
             plt.close(fig)
             buf.seek(0)
 
@@ -1047,12 +1149,33 @@ def calibration_image(gene: str):
             )
 
         except FileNotFoundError:
-            return JSONResponse(
-                {
-                    "error": "There is no single cell perturbation (Perturb-seq) data for this protein."
-                },
-                status_code=404,
+            fig, ax = plt.subplots(figsize=(6, 4))
+            ax.axis("off")
+            ax.text(
+                0.5,
+                0.5,
+                "We don't have Perturb-seq data\nfor this protein.",
+                ha="center",
+                va="center",
+                fontsize=12,
+                wrap=True,
             )
+
+            buf = io.BytesIO()
+            fig.tight_layout()
+            fig.savefig(buf, format="png", bbox_inches="tight", dpi=160)
+            plt.close(fig)
+            buf.seek(0)
+
+            return StreamingResponse(
+                buf,
+                media_type="image/png",
+                headers={
+                    "Cache-Control": "no-store",
+                    "Access-Control-Allow-Origin": "*",
+                },
+            )
+
         except Exception as e:
             return JSONResponse({"error": str(e)}, status_code=500)
 
