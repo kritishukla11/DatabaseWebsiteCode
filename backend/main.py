@@ -973,8 +973,9 @@ def load_gene_data(gene: str) -> pd.DataFrame:
 def calibration_image(gene: str):
     """
     Returns a matplotlib plot (PNG) of adjusted_rank vs confidence
-    for the given gene, with the best-fit regression curve chosen
+    for the given gene, with the best constrained regression curve chosen
     automatically from several candidate models.
+    Each model is forced to pass through the first point.
     Highlights the top 10% region.
     If no data exist, returns a text image instead.
     """
@@ -1030,96 +1031,161 @@ def calibration_image(gene: str):
             y = sub["confidence"].to_numpy(dtype=float)
 
             if len(x) < 3 or len(np.unique(x)) < 3:
-                best_model = None
-            else:
-                # Sort once for cleaner fitting/plotting
-                order = np.argsort(x)
-                x = x[order]
-                y = y[order]
+                # Not enough points to fit safely; just plot the points
+                fig, ax = plt.subplots(figsize=(6, 4))
+                ax.scatter(x, y, s=30, alpha=0.7, label="Data")
 
-                # ---- Candidate models ----
-                def exponential_decay(x, a, b, c):
-                    return a * np.exp(-b * x) + c
+                ax.set_xlabel("Rank of TRNs (predicted using AI)")
+                ax.set_xticks([])
+                ax.set_xticklabels([])
+                ax.set_ylabel(
+                    f"Confidence of association between\n{gene} and each TRN\n(validated by Perturb-seq)",
+                    fontsize=10,
+                    labelpad=8,
+                    wrap=True,
+                )
+                ax.grid(False)
 
-                def logistic_decay(x, L, k, x0, c):
-                    return c + L / (1 + np.exp(k * (x - x0)))
+                x_thresh = sub["adjusted_rank"].quantile(0.1)
+                y_thresh = sub["confidence"].quantile(0.9)
+                width = abs(x_thresh - sub["adjusted_rank"].min())
 
-                def linear_model(x, m, b):
-                    return m * x + b
-
-                candidates = []
-
-                # Exponential decay
-                try:
-                    p0 = [max(y) - min(y), 0.01, min(y)]
-                    bounds = ([0, 0, -np.inf], [np.inf, np.inf, np.inf])
-                    popt, _ = curve_fit(
-                        exponential_decay,
-                        x,
-                        y,
-                        p0=p0,
-                        bounds=bounds,
-                        maxfev=20000,
+                ax.add_patch(
+                    plt.Rectangle(
+                        (sub["adjusted_rank"].min(), y_thresh),
+                        width,
+                        sub["confidence"].max() - y_thresh,
+                        facecolor="lightgreen",
+                        alpha=0.3,
+                        edgecolor="green",
+                        linewidth=1.5,
+                        linestyle="--",
                     )
-                    y_pred = exponential_decay(x, *popt)
-                    r2 = r2_score(y, y_pred)
+                )
+
+                buf = io.BytesIO()
+                fig.tight_layout()
+                fig.savefig(buf, format="png", bbox_inches="tight", dpi=160)
+                plt.close(fig)
+                buf.seek(0)
+
+                return StreamingResponse(
+                    buf,
+                    media_type="image/png",
+                    headers={
+                        "Cache-Control": "no-store",
+                        "Access-Control-Allow-Origin": "*",
+                    },
+                )
+
+            # Sort for fitting and plotting
+            order = np.argsort(x)
+            x = x[order]
+            y = y[order]
+
+            # Anchor point
+            x0 = x[0]
+            y0 = y[0]
+
+            # ---- Constrained candidate models ----
+            # 1) Exponential decay: y = a * exp(-b*x) + c
+            # Force through (x0, y0):
+            # a = (y0 - c) / exp(-b*x0)
+            def exp_decay_fixed_first(x, b, c):
+                a = (y0 - c) / np.exp(-b * x0)
+                return a * np.exp(-b * x) + c
+
+            # 2) Logistic decay: y = c + L / (1 + exp(k*(x - xmid)))
+            # Force through (x0, y0):
+            # L = (y0 - c) * (1 + exp(k*(x0 - xmid)))
+            def logistic_fixed_first(x, k, xmid, c):
+                L = (y0 - c) * (1 + np.exp(k * (x0 - xmid)))
+                return c + L / (1 + np.exp(k * (x - xmid)))
+
+            # 3) Linear: y = m*x + b
+            # Force through (x0, y0):
+            # b = y0 - m*x0
+            def linear_fixed_first(x, m):
+                b = y0 - m * x0
+                return m * x + b
+
+            candidates = []
+
+            # Exponential
+            try:
+                p0 = [0.01, np.min(y)]
+                bounds = ([0, -np.inf], [np.inf, np.inf])
+                popt, _ = curve_fit(
+                    exp_decay_fixed_first,
+                    x,
+                    y,
+                    p0=p0,
+                    bounds=bounds,
+                    maxfev=20000,
+                )
+                y_pred = exp_decay_fixed_first(x, *popt)
+                r2 = r2_score(y, y_pred)
+                if np.isfinite(r2):
                     candidates.append(
                         {
                             "name": "Exponential",
-                            "func": exponential_decay,
+                            "func": exp_decay_fixed_first,
                             "params": popt,
                             "r2": r2,
                         }
                     )
-                except Exception:
-                    pass
+            except Exception:
+                pass
 
-                # Logistic decay
-                try:
-                    p0 = [max(y) - min(y), 0.01, np.median(x), min(y)]
-                    popt, _ = curve_fit(
-                        logistic_decay,
-                        x,
-                        y,
-                        p0=p0,
-                        maxfev=20000,
-                    )
-                    y_pred = logistic_decay(x, *popt)
-                    r2 = r2_score(y, y_pred)
+            # Logistic
+            try:
+                p0 = [0.01, np.median(x), np.min(y)]
+                popt, _ = curve_fit(
+                    logistic_fixed_first,
+                    x,
+                    y,
+                    p0=p0,
+                    maxfev=20000,
+                )
+                y_pred = logistic_fixed_first(x, *popt)
+                r2 = r2_score(y, y_pred)
+                if np.isfinite(r2):
                     candidates.append(
                         {
                             "name": "Logistic",
-                            "func": logistic_decay,
+                            "func": logistic_fixed_first,
                             "params": popt,
                             "r2": r2,
                         }
                     )
-                except Exception:
-                    pass
+            except Exception:
+                pass
 
-                # Linear
-                try:
-                    popt = np.polyfit(x, y, 1)
-                    y_pred = linear_model(x, *popt)
-                    r2 = r2_score(y, y_pred)
+            # Linear
+            try:
+                p0 = [-0.001]
+                popt, _ = curve_fit(
+                    linear_fixed_first,
+                    x,
+                    y,
+                    p0=p0,
+                    maxfev=10000,
+                )
+                y_pred = linear_fixed_first(x, *popt)
+                r2 = r2_score(y, y_pred)
+                if np.isfinite(r2):
                     candidates.append(
                         {
                             "name": "Linear",
-                            "func": linear_model,
+                            "func": linear_fixed_first,
                             "params": popt,
                             "r2": r2,
                         }
                     )
-                except Exception:
-                    pass
+            except Exception:
+                pass
 
-                # Keep only finite R² values
-                candidates = [
-                    c for c in candidates
-                    if np.isfinite(c["r2"])
-                ]
-
-                best_model = max(candidates, key=lambda c: c["r2"]) if candidates else None
+            best_model = max(candidates, key=lambda c: c["r2"]) if candidates else None
 
             # ---- Plot ----
             fig, ax = plt.subplots(figsize=(6, 4))
