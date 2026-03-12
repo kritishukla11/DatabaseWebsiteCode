@@ -969,12 +969,12 @@ def load_gene_data(gene: str) -> pd.DataFrame:
     return sub
 
 
-# ====== /calibration/image ======
 @app.get("/calibration/image")
 def calibration_image(gene: str):
     """
     Returns a matplotlib plot (PNG) of adjusted_rank vs confidence
-    for the given gene, with a logistic fit and R^2 shown in the legend.
+    for the given gene, with the best-fit regression curve chosen
+    automatically from several candidate models.
     Highlights the top 10% region.
     If no data exist, returns a text image instead.
     """
@@ -985,120 +985,157 @@ def calibration_image(gene: str):
     from sklearn.metrics import r2_score
     from fastapi.responses import StreamingResponse, JSONResponse
 
+    def no_data_image():
+        fig, ax = plt.subplots(figsize=(6, 4))
+        ax.axis("off")
+        ax.text(
+            0.5,
+            0.5,
+            "We don't have Perturb-seq data\nfor this protein.",
+            ha="center",
+            va="center",
+            fontsize=12,
+            wrap=True,
+        )
+        buf = io.BytesIO()
+        fig.tight_layout()
+        fig.savefig(buf, format="png", bbox_inches="tight", dpi=160)
+        plt.close(fig)
+        buf.seek(0)
+        return StreamingResponse(
+            buf,
+            media_type="image/png",
+            headers={
+                "Cache-Control": "no-store",
+                "Access-Control-Allow-Origin": "*",
+            },
+        )
+
     with PLOT_LOCK:
         try:
             sub = load_gene_data(gene)
 
-            # ---- If gene data missing or empty ----
             if sub is None or sub.empty:
-                fig, ax = plt.subplots(figsize=(6, 4))
-                ax.axis("off")
-                ax.text(
-                    0.5,
-                    0.5,
-                    "We don't have Perturb-seq data\nfor this protein.",
-                    ha="center",
-                    va="center",
-                    fontsize=12,
-                    wrap=True,
-                )
+                return no_data_image()
 
-                buf = io.BytesIO()
-                fig.tight_layout()
-                fig.savefig(buf, format="png", bbox_inches="tight", dpi=160)
-                plt.close(fig)
-                buf.seek(0)
-
-                return StreamingResponse(
-                    buf,
-                    media_type="image/png",
-                    headers={
-                        "Cache-Control": "no-store",
-                        "Access-Control-Allow-Origin": "*",
-                    },
-                )
-
-            # ---- Clean numeric columns ----
             sub = sub.copy()
             sub["adjusted_rank"] = pd.to_numeric(sub["adjusted_rank"], errors="coerce")
             sub["confidence"] = pd.to_numeric(sub["confidence"], errors="coerce")
             sub = sub.dropna(subset=["adjusted_rank", "confidence"]).reset_index(drop=True)
 
             if sub.empty:
-                fig, ax = plt.subplots(figsize=(6, 4))
-                ax.axis("off")
-                ax.text(
-                    0.5,
-                    0.5,
-                    "We don't have Perturb-seq data\nfor this protein.",
-                    ha="center",
-                    va="center",
-                    fontsize=12,
-                    wrap=True,
-                )
+                return no_data_image()
 
-                buf = io.BytesIO()
-                fig.tight_layout()
-                fig.savefig(buf, format="png", bbox_inches="tight", dpi=160)
-                plt.close(fig)
-                buf.seek(0)
+            x = sub["adjusted_rank"].to_numpy(dtype=float)
+            y = sub["confidence"].to_numpy(dtype=float)
 
-                return StreamingResponse(
-                    buf,
-                    media_type="image/png",
-                    headers={
-                        "Cache-Control": "no-store",
-                        "Access-Control-Allow-Origin": "*",
-                    },
-                )
+            if len(x) < 3 or len(np.unique(x)) < 3:
+                best_model = None
+            else:
+                # Sort once for cleaner fitting/plotting
+                order = np.argsort(x)
+                x = x[order]
+                y = y[order]
 
-            x = sub["adjusted_rank"].values
-            y = sub["confidence"].values
+                # ---- Candidate models ----
+                def exponential_decay(x, a, b, c):
+                    return a * np.exp(-b * x) + c
 
-            # ---- Logistic function constrained to pass through first point ----
-            x0, y0 = x[0], y[0]
+                def logistic_decay(x, L, k, x0, c):
+                    return c + L / (1 + np.exp(k * (x - x0)))
 
-            def logistic_fixed_first(x, k, xmid, c):
-                L = (y0 - c) * (1 + np.exp(k * (x0 - xmid)))
-                return c + L / (1 + np.exp(k * (x - xmid)))
+                def linear_model(x, m, b):
+                    return m * x + b
 
-            # ---- Fit curve safely ----
-            fit_success = False
-            r2 = np.nan
-            y_fit = None
+                candidates = []
 
-            if len(x) >= 4 and len(np.unique(x)) >= 3:
+                # Exponential decay
                 try:
-                    p0 = [-0.05, np.median(x), np.min(y)]
+                    p0 = [max(y) - min(y), 0.01, min(y)]
+                    bounds = ([0, 0, -np.inf], [np.inf, np.inf, np.inf])
                     popt, _ = curve_fit(
-                        logistic_fixed_first,
+                        exponential_decay,
                         x,
                         y,
                         p0=p0,
-                        maxfev=10000,
+                        bounds=bounds,
+                        maxfev=20000,
                     )
-                    y_pred = logistic_fixed_first(x, *popt)
+                    y_pred = exponential_decay(x, *popt)
                     r2 = r2_score(y, y_pred)
-
-                    x_sorted = np.sort(x)
-                    y_fit = logistic_fixed_first(x_sorted, *popt)
-                    fit_success = True
+                    candidates.append(
+                        {
+                            "name": "Exponential",
+                            "func": exponential_decay,
+                            "params": popt,
+                            "r2": r2,
+                        }
+                    )
                 except Exception:
-                    fit_success = False
+                    pass
 
-            # ---- Create plot ----
+                # Logistic decay
+                try:
+                    p0 = [max(y) - min(y), 0.01, np.median(x), min(y)]
+                    popt, _ = curve_fit(
+                        logistic_decay,
+                        x,
+                        y,
+                        p0=p0,
+                        maxfev=20000,
+                    )
+                    y_pred = logistic_decay(x, *popt)
+                    r2 = r2_score(y, y_pred)
+                    candidates.append(
+                        {
+                            "name": "Logistic",
+                            "func": logistic_decay,
+                            "params": popt,
+                            "r2": r2,
+                        }
+                    )
+                except Exception:
+                    pass
+
+                # Linear
+                try:
+                    popt = np.polyfit(x, y, 1)
+                    y_pred = linear_model(x, *popt)
+                    r2 = r2_score(y, y_pred)
+                    candidates.append(
+                        {
+                            "name": "Linear",
+                            "func": linear_model,
+                            "params": popt,
+                            "r2": r2,
+                        }
+                    )
+                except Exception:
+                    pass
+
+                # Keep only finite R² values
+                candidates = [
+                    c for c in candidates
+                    if np.isfinite(c["r2"])
+                ]
+
+                best_model = max(candidates, key=lambda c: c["r2"]) if candidates else None
+
+            # ---- Plot ----
             fig, ax = plt.subplots(figsize=(6, 4))
-
             ax.scatter(x, y, s=30, alpha=0.7, label="Data")
 
-            if fit_success:
+            if best_model is not None:
+                x_plot = np.linspace(np.min(x), np.max(x), 300)
+                y_plot = best_model["func"](x_plot, *best_model["params"])
                 ax.plot(
-                    x_sorted,
-                    y_fit,
+                    x_plot,
+                    y_plot,
                     color="red",
                     linewidth=2,
-                    label=f"$R^2 = {r2:.3f}$",
+                    label=f'{best_model["name"]}: $R^2 = {best_model["r2"]:.3f}$',
                 )
+                ax.legend(loc="upper right", fontsize=9)
 
             ax.set_xlabel("Rank of TRNs (predicted using AI)")
             ax.set_xticks([])
@@ -1111,10 +1148,7 @@ def calibration_image(gene: str):
             )
             ax.grid(False)
 
-            if fit_success:
-                ax.legend(loc="upper right", fontsize=9)
-
-            # ---- Highlight only the top-left 10% region ----
+            # ---- Highlight top-left 10% region ----
             x_thresh = sub["adjusted_rank"].quantile(0.1)
             y_thresh = sub["confidence"].quantile(0.9)
             width = abs(x_thresh - sub["adjusted_rank"].min())
@@ -1132,7 +1166,6 @@ def calibration_image(gene: str):
                 )
             )
 
-            # ---- Save to PNG buffer ----
             buf = io.BytesIO()
             fig.tight_layout()
             fig.savefig(buf, format="png", bbox_inches="tight", dpi=160)
@@ -1149,36 +1182,9 @@ def calibration_image(gene: str):
             )
 
         except FileNotFoundError:
-            fig, ax = plt.subplots(figsize=(6, 4))
-            ax.axis("off")
-            ax.text(
-                0.5,
-                0.5,
-                "We don't have Perturb-seq data\nfor this protein.",
-                ha="center",
-                va="center",
-                fontsize=12,
-                wrap=True,
-            )
-
-            buf = io.BytesIO()
-            fig.tight_layout()
-            fig.savefig(buf, format="png", bbox_inches="tight", dpi=160)
-            plt.close(fig)
-            buf.seek(0)
-
-            return StreamingResponse(
-                buf,
-                media_type="image/png",
-                headers={
-                    "Cache-Control": "no-store",
-                    "Access-Control-Allow-Origin": "*",
-                },
-            )
-
+            return no_data_image()
         except Exception as e:
             return JSONResponse({"error": str(e)}, status_code=500)
-
 
 
 
