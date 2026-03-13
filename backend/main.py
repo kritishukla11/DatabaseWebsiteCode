@@ -1203,7 +1203,7 @@ def calibration_image(gene: str):
                 )
                 ax.legend(loc="upper right", fontsize=9)
 
-            ax.set_xlabel("Rank of TRNs (predicted using AI)")
+            ax.set_xlabel("Rank of TRNs (predicted using spatial statistics)")
             ax.set_xticks([])
             ax.set_xticklabels([])
             ax.set_ylabel(
