@@ -1027,7 +1027,7 @@ def calibration_image(gene: str):
             if sub.empty:
                 return no_data_image()
 
-            x = sub["adjusted_rank"].to_numpy(dtype=float)
+            x = sub["adjusted_rank"].to_numpy(dtype=float) + 1
             y = sub["confidence"].to_numpy(dtype=float)
 
             if len(x) < 3 or len(np.unique(x)) < 3:
@@ -1682,7 +1682,7 @@ def confidence_image(protein: str):
             if emp.empty or len(emp) < 3:
                 return no_data_image()
 
-            x = emp["index"].to_numpy(dtype=float)
+            x = emp["index"].to_numpy(dtype=float) + 1
             y = emp["norm_confidence"].to_numpy(dtype=float)
 
             # sort so anchor is first ranked drug
