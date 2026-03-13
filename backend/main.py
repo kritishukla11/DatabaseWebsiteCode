@@ -1036,8 +1036,6 @@ def calibration_image(gene: str):
                 ax.scatter(x, y, s=30, alpha=0.7, label="Data")
 
                 ax.set_xlabel("Rank of TRNs (predicted using spatial statistics)")
-                ax.set_xticks([])
-                ax.set_xticklabels([])
                 ax.set_ylabel(
                     f"Confidence of association between\n{gene} and each TRN\n(validated by Perturb-seq)",
                     fontsize=10,
@@ -1204,8 +1202,6 @@ def calibration_image(gene: str):
                 ax.legend(loc="upper right", fontsize=9)
 
             ax.set_xlabel("Rank of TRNs (predicted using spatial statistics)")
-            ax.set_xticks([])
-            ax.set_xticklabels([])
             ax.set_ylabel(
                 f"Confidence of association between\n{gene} and each TRN\n(validated by Perturb-seq)",
                 fontsize=10,
