@@ -1034,6 +1034,7 @@ def calibration_image(gene: str):
                 # Not enough points to fit safely; just plot the points
                 fig, ax = plt.subplots(figsize=(6, 4))
                 ax.scatter(x, y, s=30, alpha=0.7, label="Data")
+                ax.set_xlim(left=1)
 
                 ax.set_xlabel("Rank of TRNs (predicted using spatial statistics)")
                 ax.set_ylabel(
@@ -1044,9 +1045,9 @@ def calibration_image(gene: str):
                 )
                 ax.grid(False)
 
-                x_thresh = sub["adjusted_rank"].quantile(0.1)
-                y_thresh = sub["confidence"].quantile(0.9)
-                width = abs(x_thresh - sub["adjusted_rank"].min())
+                x_thresh = sub["adjusted_rank"].quantile(0.1)+1
+                y_thresh = sub["confidence"].quantile(0.9)+1
+                width = abs(x_thresh - sub["adjusted_rank"].min()+1)
 
                 ax.add_patch(
                     plt.Rectangle(
@@ -1714,6 +1715,7 @@ def confidence_image(protein: str):
                 color="red",
                 label=legend_label,
             )
+            ax.set_xlim(left=1)
 
             ax.set_xlabel("Rank of drugs (predicted using AI)")
             ax.set_ylabel(
