@@ -19,8 +19,9 @@ export default function Panel4AUPRC({ gene }: { gene: string }) {
   const [error, setError] = useState("");
   const [showRankings, setShowRankings] = useState(false);
   const [rankings, setRankings] = useState<DrugRanking[]>([]);
+  const [hasRankings, setHasRankings] = useState(false);
+  const [showInfo, setShowInfo] = useState(false);
 
-  // --- Check if plot/data exists ---
   useEffect(() => {
     if (!gene || !gene.trim()) {
       setImgUrl(null);
@@ -29,6 +30,7 @@ export default function Panel4AUPRC({ gene }: { gene: string }) {
       setSummary("");
       setShowRankings(false);
       setRankings([]);
+      setHasRankings(false);
       return;
     }
 
@@ -55,18 +57,17 @@ export default function Panel4AUPRC({ gene }: { gene: string }) {
               "There is no Tahoe-100M drug association data for this protein."
           );
           setImgUrl(null);
-          setLoading(false);
           return;
         }
 
-        // endpoint returns image even for no-data, so just use it
-        // but we still want button hidden if rankings are empty; we'll control that separately
         if (contentType.includes("image")) {
           setImgUrl(
             `${BACKEND}/confidence/image?protein=${encodeURIComponent(gene)}`
           );
         } else {
-          setError("There is no Tahoe-100M drug association data for this protein.");
+          setError(
+            "There is no Tahoe-100M drug association data for this protein."
+          );
           setImgUrl(null);
         }
       } catch (err) {
@@ -80,7 +81,6 @@ export default function Panel4AUPRC({ gene }: { gene: string }) {
     fetchPlot();
   }, [gene]);
 
-  // --- Load summary only if no error ---
   useEffect(() => {
     if (!gene || error) {
       setSummary("");
@@ -95,27 +95,11 @@ export default function Panel4AUPRC({ gene }: { gene: string }) {
         );
         const data = await res.json();
         setSummary(data.summary || "");
-      } catch (err) {
-        console.error("Error fetching confidence summary:", err);
+      } catch {
         setSummary("");
       }
     })();
   }, [gene, error]);
-
-  // --- Load rankings only when toggled ---
-  useEffect(() => {
-    if (showRankings && gene && gene.trim() && !error) {
-      fetch(`${BACKEND}/confidence/rankings?protein=${encodeURIComponent(gene)}`, {
-        mode: "cors",
-      })
-        .then((res) => res.json())
-        .then((data) => setRankings(data.rankings || []))
-        .catch(() => setRankings([]));
-    }
-  }, [showRankings, gene, error]);
-
-  // --- Pre-check whether rankings exist so button only appears when data exists ---
-  const [hasRankings, setHasRankings] = useState(false);
 
   useEffect(() => {
     if (!gene || !gene.trim() || error) {
@@ -127,22 +111,34 @@ export default function Panel4AUPRC({ gene }: { gene: string }) {
       mode: "cors",
     })
       .then((res) => res.json())
-      .then((data) => {
-        setHasRankings(Array.isArray(data.rankings) && data.rankings.length > 0);
-      })
+      .then((data) =>
+        setHasRankings(Array.isArray(data.rankings) && data.rankings.length > 0)
+      )
       .catch(() => setHasRankings(false));
   }, [gene, error]);
 
+  useEffect(() => {
+    if (showRankings && gene && gene.trim() && !error) {
+      fetch(`${BACKEND}/confidence/rankings?protein=${encodeURIComponent(gene)}`, {
+        mode: "cors",
+      })
+        .then((res) => res.json())
+        .then((data) => setRankings(data.rankings || []))
+        .catch(() => setRankings([]));
+    }
+  }, [showRankings, gene, error]);
+
   return (
     <div className="border rounded-lg shadow bg-white p-4 flex flex-col items-center min-h-[650px]">
-      {/* === Summary sentence === */}
+      
+      {/* Summary */}
       {!error && summary && (
-        <p className="text-sm italic text-gray-700 text-center max-w-md mb-4 transition-opacity duration-500">
+        <p className="text-sm italic text-gray-700 text-center max-w-md mb-4">
           {summary}
         </p>
       )}
 
-      {/* === Plot area === */}
+      {/* Plot */}
       <div className="w-full text-center" style={{ minHeight: "400px" }}>
         {!gene ? (
           <p className="text-gray-500">No gene selected.</p>
@@ -170,17 +166,17 @@ export default function Panel4AUPRC({ gene }: { gene: string }) {
         )}
       </div>
 
-      {/* === Button only if there is data === */}
+      {/* Rankings button */}
       {gene && !error && hasRankings && (
         <button
           onClick={() => setShowRankings(!showRankings)}
           className="mt-4 px-4 py-2 bg-[#77A9D8] text-white font-semibold rounded-md hover:bg-[#5f94cc] transition"
         >
-          {showRankings ? "Hide drug rankings" : "Click here to see ranked drugs"}
+          {showRankings ? "Hide drug rankings" : "Click here to see drug rankings and log odds of association scores"}
         </button>
       )}
 
-      {/* === Rankings list === */}
+      {/* Rankings list */}
       {showRankings && !error && rankings.length > 0 && (
         <div
           className="mt-3 border rounded bg-gray-50 w-full max-w-md p-2"
@@ -188,17 +184,58 @@ export default function Panel4AUPRC({ gene }: { gene: string }) {
         >
           <ul>
             {rankings.map((r, i) => (
-              <li
-                key={i}
-                className="border-b last:border-none py-1 text-left flex justify-between gap-3"
-              >
-                <span>
-                  {i + 1}. {r.drug}
-                </span>
-                <span className="text-gray-600">{r.score.toFixed(3)}</span>
+              <li key={i} className="border-b last:border-none py-1 text-left">
+                {i + 1}. {r.drug} - {r.score.toFixed(3)}
               </li>
             ))}
           </ul>
+        </div>
+      )}
+
+      {/* Info toggle button */}
+      <div className="w-full flex justify-start mt-auto pt-4">
+        <button
+          onClick={() => setShowInfo(!showInfo)}
+          className="mt-4 px-4 py-2 rounded-md border font-medium flex items-center gap-2 transition-colors"
+          style={{
+            backgroundColor: "white",
+            color: "#77A9D8",
+            borderColor: "#77A9D8",
+          }}
+        >
+          <span>{showInfo ? "▼" : "▶"}</span>
+          <span>What does this analysis show?</span>
+        </button>
+      </div>
+
+      {/* Info content */}
+      {showInfo && (
+        <div className="text-sm text-gray-700 bg-gray-50 border rounded-md p-3 mt-2 w-full max-w-3xl">
+          <p className="mb-2">
+            To evaluate whether predicted protein–drug relationships are supported
+            by experimental data, we integrate results from the
+            <b> Tahoe-100M perturbation dataset</b>.
+          </p>
+
+          <p className="mb-2">
+            Tahoe-100M systematically measures how thousands of small molecules
+            affect gene expression across many cellular contexts. These data
+            allow us to quantify how strongly a drug perturbs transcriptional
+            programs associated with specific genes.
+          </p>
+
+          <p className="mb-2">
+            For each protein, we rank drugs based on the strongest
+            region-specific association scores derived from structural mutation
+            hotspots, AI, and log odds analysis.
+          </p>
+
+          <p>
+            The calibration curve compares predicted drug rankings with
+            experimentally observed confidence values, illustrating how well
+            AI-derived protein–drug associations align with large-scale
+            perturbation data.
+          </p>
         </div>
       )}
     </div>

@@ -168,7 +168,7 @@ export default function Panel3Calibration({ gene }: { gene: string }) {
               onClick={() => setShowGenes(!showGenes)}
               className="px-4 py-2 bg-[#77A9D8] text-white font-semibold rounded-md hover:bg-[#5f94cc] transition"
             >
-              {showGenes ? "Hide TRN rankings" : "Click here to see TRN rankings"}
+              {showGenes ? "Hide TRN rankings" : "Click here to see TRN rankings and GI* association scores"}
             </button>
           </div>
         )}
