@@ -1035,7 +1035,7 @@ def calibration_image(gene: str):
                 fig, ax = plt.subplots(figsize=(6, 4))
                 ax.scatter(x, y, s=30, alpha=0.7, label="Data")
 
-                ax.set_xlabel("Rank of TRNs (predicted using AI)")
+                ax.set_xlabel("Rank of TRNs (predicted using spatial statistics)")
                 ax.set_xticks([])
                 ax.set_xticklabels([])
                 ax.set_ylabel(
@@ -1703,7 +1703,7 @@ def confidence_image(protein: str):
                 label=legend_label,
             )
 
-            ax.set_xlabel("Rank of drugs (AI predicted)")
+            ax.set_xlabel("Rank of drugs (predicted using AI)")
             ax.set_ylabel(
                 f"Confidence of association (0–1) between\n{protein} and each drug\n(validated by Tahoe-100M)"
             )
