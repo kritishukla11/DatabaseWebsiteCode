@@ -1707,7 +1707,6 @@ def confidence_image(protein: str):
             ax.set_ylabel(
                 f"Confidence of association (0–1) between\n{protein} and each drug\n(validated by Tahoe-100M)"
             )
-            ax.set_title(protein.upper())
             ax.legend(loc="upper right", fontsize=9)
             ax.grid(False)
 
