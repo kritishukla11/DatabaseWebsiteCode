@@ -1622,7 +1622,8 @@ def pathway_description(pathway: str):
 
 import matplotlib.pyplot as plt
 import io
-from fastapi.responses import StreamingResponse, Response
+from pathlib import Path
+from fastapi.responses import StreamingResponse, Response, JSONResponse
 
 
 @app.get("/confidence/image")
@@ -1635,6 +1636,34 @@ def confidence_image(protein: str):
     from scipy.optimize import curve_fit
     from sklearn.metrics import r2_score
 
+    def no_data_image():
+        fig, ax = plt.subplots(figsize=(6, 4))
+        ax.axis("off")
+        ax.text(
+            0.5,
+            0.5,
+            "We don't have AI predictions for drug associations\nwith this protein.",
+            ha="center",
+            va="center",
+            fontsize=12,
+            wrap=True,
+        )
+
+        buf = io.BytesIO()
+        fig.tight_layout()
+        fig.savefig(buf, format="png", bbox_inches="tight", dpi=160)
+        plt.close(fig)
+        buf.seek(0)
+
+        return StreamingResponse(
+            buf,
+            media_type="image/png",
+            headers={
+                "Cache-Control": "no-store",
+                "Access-Control-Allow-Origin": "*",
+            },
+        )
+
     with PLOT_LOCK:
         try:
             df = pd.read_csv("tahoe_confidence_metrics.csv")
@@ -1642,29 +1671,7 @@ def confidence_image(protein: str):
 
             # ---- If no data exists for this protein ----
             if emp.empty:
-                fig, ax = plt.subplots(figsize=(6, 4))
-                ax.axis("off")
-                ax.text(
-                    0.5,
-                    0.5,
-                    "We don't have AI predictions for drug associations\nwith this protein.",
-                    ha="center",
-                    va="center",
-                    fontsize=12,
-                    wrap=True,
-                )
-
-                buf = io.BytesIO()
-                fig.tight_layout()
-                fig.savefig(buf, format="png", bbox_inches="tight", dpi=160)
-                plt.close(fig)
-                buf.seek(0)
-
-                return StreamingResponse(
-                    buf,
-                    media_type="image/png",
-                    headers={"Cache-Control": "no-store"},
-                )
+                return no_data_image()
 
             # ---- Normal processing ----
             emp = emp.reset_index(drop=True)
@@ -1673,29 +1680,38 @@ def confidence_image(protein: str):
 
             emp["norm_confidence"] = pd.to_numeric(
                 emp["norm_confidence"], errors="coerce"
-            ).fillna(0)
+            )
+            emp = emp.dropna(subset=["index", "norm_confidence"]).reset_index(drop=True)
 
-            x = emp["index"].values
-            y = emp["norm_confidence"].values
+            if emp.empty or len(emp) < 3:
+                return no_data_image()
+
+            x = emp["index"].to_numpy(dtype=float)
+            y = emp["norm_confidence"].to_numpy(dtype=float)
+
+            # sort so anchor is first ranked drug
+            order = np.argsort(x)
+            x = x[order]
+            y = y[order]
+
             x0, y0 = x[0], y[0]
 
             def logistic_fixed_first(x, k, xmid, c):
                 L = (y0 - c) * (1 + np.exp(k * (x0 - xmid)))
                 return c + L / (1 + np.exp(k * (x - xmid)))
 
-            p0 = [-0.05, np.median(x), min(y)]
+            p0 = [-0.05, np.median(x), float(np.min(y))]
             popt, _ = curve_fit(logistic_fixed_first, x, y, p0=p0, maxfev=10000)
 
             y_pred = logistic_fixed_first(x, *popt)
             r2 = r2_score(y, y_pred)
 
-            # ---- Legend label only shows R² ----
             legend_label = f"$R^2 = {r2:.3f}$"
 
             fig, ax = plt.subplots(figsize=(6, 4))
             ax.scatter(x, y, s=30, alpha=0.7, label="Data")
 
-            x_sorted = np.sort(x)
+            x_sorted = np.linspace(np.min(x), np.max(x), 300)
             ax.plot(
                 x_sorted,
                 logistic_fixed_first(x_sorted, *popt),
@@ -1719,12 +1735,15 @@ def confidence_image(protein: str):
             return StreamingResponse(
                 buf,
                 media_type="image/png",
-                headers={"Cache-Control": "no-store"},
+                headers={
+                    "Cache-Control": "no-store",
+                    "Access-Control-Allow-Origin": "*",
+                },
             )
 
         except Exception as e:
             return JSONResponse({"error": str(e)}, status_code=500)
-        
+
 
 @app.get("/confidence/rankings")
 def confidence_rankings(protein: str):
@@ -1756,6 +1775,53 @@ def confidence_rankings(protein: str):
     except Exception as e:
         return {"error": str(e)}
 
+
+@app.get("/confidence/summary")
+def confidence_summary(protein: str):
+    """
+    Return a short descriptive summary for Panel 4:
+    "[protein] has [x] mutations across [y] cell lines... [z] RFIs..."
+    """
+    try:
+        # --- Load mutation + cell line counts ---
+        mut_csv = Path("mutation_counts.csv")
+        n_mut, n_cell = None, None
+        if mut_csv.exists():
+            mdf = pd.read_csv(mut_csv)
+            if {"gene", "mut_count", "cell_line_count"}.issubset(mdf.columns):
+                row = mdf[mdf["gene"].str.upper() == protein.upper()]
+                if not row.empty:
+                    n_mut = int(row.iloc[0]["mut_count"])
+                    n_cell = int(row.iloc[0]["cell_line_count"])
+
+        # --- Load NMF / cluster info ---
+        nmf, _ = load_nmf(protein)
+        n_clusters = nmf["cluster"].nunique() if "cluster" in nmf.columns else "multiple"
+
+        # --- Count ranked drugs if available ---
+        n_drugs = None
+        try:
+            logodds_df = load_logodds_csv(protein)
+            if "cluster_id" in logodds_df.columns:
+                n_drugs = len([c for c in logodds_df.columns if c != "cluster_id"])
+        except Exception:
+            pass
+
+        s = (
+            f"{protein.upper()} has {n_mut if n_mut is not None else 'multiple'} mutations "
+            f"across {n_cell if n_cell is not None else 'several'} cell lines from "
+            f"The Cancer Dependency Map. {protein.upper()} can be divided into "
+            f"{n_clusters} regions of functional interest (RFIs). "
+            f"We rank {n_drugs if n_drugs is not None else 'candidate'} drugs based on "
+            f"the strongest region-specific association scores for {protein.upper()}. "
+            f"This empirical calibration compares AI-predicted drug rankings with "
+            f"confidence estimates derived from Tahoe-100M data."
+        )
+
+        return {"summary": s}
+
+    except Exception as e:
+        return {"error": str(e)}
 
 
 # =========================================================
