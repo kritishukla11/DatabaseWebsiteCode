@@ -4,6 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 
 type Mode = "trn" | "drug";
 
+type ReferenceFile = {
+  name: string;
+  description: string;
+  href: string;
+};
+
 export default function DownloadsPage() {
   const BACKEND =
     process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8001";
@@ -11,6 +17,7 @@ export default function DownloadsPage() {
   const [proteins, setProteins] = useState<string[]>([]);
   const [trns, setTrns] = useState<string[]>([]);
   const [drugs, setDrugs] = useState<string[]>([]);
+  const [referenceFiles, setReferenceFiles] = useState<ReferenceFile[]>([]);
 
   const [protein, setProtein] = useState("");
   const [mode, setMode] = useState<Mode>("trn");
@@ -20,16 +27,8 @@ export default function DownloadsPage() {
   const [loadingProteins, setLoadingProteins] = useState(true);
   const [loadingTrns, setLoadingTrns] = useState(false);
   const [loadingDrugs, setLoadingDrugs] = useState(false);
+  const [loadingReferenceFiles, setLoadingReferenceFiles] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  const referenceFiles = [
-    {
-      name: "gene_ontologies_and_pfam.csv",
-      description:
-        "Gene Ontology info (biological process, cellular component, molecular function) and Protein Families for all proteins",
-      href: `${BACKEND}/download/gene_ontology`,
-    },
-  ];
 
   // Load proteins once
   useEffect(() => {
@@ -152,6 +151,41 @@ export default function DownloadsPage() {
       cancelled = true;
     };
   }, [BACKEND, mode, drugs.length]);
+
+  // Load reference files once
+  useEffect(() => {
+    let cancelled = false;
+
+    async function fetchReferenceFiles() {
+      try {
+        setLoadingReferenceFiles(true);
+
+        const res = await fetch(`${BACKEND}/downloads/reference_files`);
+        if (!res.ok) {
+          throw new Error("Failed to fetch reference files.");
+        }
+
+        const data = await res.json();
+        if (!cancelled) {
+          setReferenceFiles(Array.isArray(data.files) ? data.files : []);
+        }
+      } catch {
+        if (!cancelled) {
+          setReferenceFiles([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingReferenceFiles(false);
+        }
+      }
+    }
+
+    fetchReferenceFiles();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [BACKEND]);
 
   const trnReady = Boolean(protein && selectedTrn);
   const drugReady = Boolean(protein && selectedDrug);
@@ -342,20 +376,30 @@ export default function DownloadsPage() {
       )}
 
       <section className="downloadsCard">
-        <h2 className="sectionTitle">Reference files</h2>
-        <div className="fileList">
-          {referenceFiles.map((file) => (
-            <div key={file.name} className="fileRow">
-              <div className="fileInfo">
-                <div className="fileName">{file.name}</div>
-                <div className="fileDescription">{file.description}</div>
+        <h2 className="sectionTitle">Global files for download:</h2>
+
+        {loadingReferenceFiles ? (
+          <p className="helperText">Loading reference files...</p>
+        ) : referenceFiles.length === 0 ? (
+          <p className="helperText">No reference files available.</p>
+        ) : (
+          <div className="fileList">
+            {referenceFiles.map((file) => (
+              <div key={file.name} className="fileRow">
+                <div className="fileInfo">
+                  <div className="fileName">{file.name}</div>
+                  <div className="fileDescription">{file.description}</div>
+                </div>
+                <a
+                  href={`${BACKEND}${file.href}`}
+                  className="downloadBtn fileDownloadBtn"
+                >
+                  Download
+                </a>
               </div>
-              <a href={file.href} className="downloadBtn fileDownloadBtn">
-                Download
-              </a>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </section>
 
       <style jsx>{`
@@ -554,6 +598,13 @@ export default function DownloadsPage() {
         .fileDownloadBtn {
           min-width: 140px;
           flex-shrink: 0;
+        }
+
+        .helperText {
+          margin: 0;
+          color: #4b5563;
+          font-size: 0.95rem;
+          line-height: 1.5;
         }
 
         .error {

@@ -2281,19 +2281,93 @@ def download_protein_drug_csv(gene: str, drug: str, kind: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+from pathlib import Path
+from fastapi import HTTPException
+from fastapi.responses import FileResponse
+
 BASE_DIR = Path(__file__).resolve().parent
 
-@app.get("/download/gene_ontology")
-def download_gene_ontology():
-    file_path = BASE_DIR / "gene_ontologies_and_pfam.csv"
+
+DOWNLOADABLE_FILES = {
+    "gene_ontologies_and_pfam.csv": {
+        "description": "Gene Ontology info (biological process, cellular component, molecular function) and Protein Families for all proteins",
+        "path": BASE_DIR / "gene_ontologies_and_pfam.csv",
+    },
+    "all_protein_trn_cluster_scores.csv": {
+        "description": "Gi* scores for all TRNs and protein clusters (mass download)",
+        "path": BASE_DIR / "all_protein_trn_cluster_scores.csv",
+    },
+    "all_protein_drug_cluster_scores.csv": {
+        "description": "Log odds scores for all drugs and protein clusters (mass download)",
+        "path": BASE_DIR / "all_protein_drug_cluster_scores.csv",
+    },
+    "protein_trn_category_annotation.csv": {
+        "description": "Proteins annotated by function (categories related to TRNs)",
+        "path": BASE_DIR / "protein_trn_category_annotation.csv",
+    },
+    "protein_drug_category_annotation.csv": {
+        "description": "Proteins annotated by function (categories related to drugs)",
+        "path": BASE_DIR / "protein_drug_category_annotation.csv",
+    },
+    "protein_network_metrics.csv": {
+        "description": "Metrics from protein network analysis; proteins as nodes, TRNs as edges",
+        "path": BASE_DIR / "protein_network_metrics.csv",
+    },
+    "protein_network_edges.csv": {
+        "description": "Network structure from protein network analysis; proteins as nodes, TRNs as edges",
+        "path": BASE_DIR / "protein_network_edges.csv",
+    },
+    "trn_network_metrics.csv": {
+        "description": "Metrics from TRN network analysis; TRNs as nodes, proteins as edges",
+        "path": BASE_DIR / "trn_network_metrics.csv",
+    },
+    "trn_network_edges.csv": {
+        "description": "Network structure from TRN network analysis; TRNs as nodes, proteins as edges",
+        "path": BASE_DIR / "trn_network_edges.csv",
+    },
+    "drug_network_metrics.csv": {
+        "description": "Metrics from drug network analysis; drugs as nodes, proteins as edges",
+        "path": BASE_DIR / "drug_network_metrics.csv",
+    },
+    "drug_network_edges.csv": {
+        "description": "Network structure from drug network analysis; drugs as nodes, proteins as edges",
+        "path": BASE_DIR / "drug_network_edges.csv",
+    },
+}
+
+
+@app.get("/downloads/reference_files")
+def list_reference_files():
+    files = []
+
+    for filename, meta in DOWNLOADABLE_FILES.items():
+        file_path = meta["path"]
+        if file_path.exists():
+            files.append(
+                {
+                    "name": filename,
+                    "description": meta["description"],
+                    "href": f"/downloads/reference/{filename}",
+                }
+            )
+
+    return {"files": files}
+
+
+@app.get("/downloads/reference/{filename:path}")
+def download_reference_file(filename: str):
+    if filename not in DOWNLOADABLE_FILES:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    file_path = DOWNLOADABLE_FILES[filename]["path"]
 
     if not file_path.exists():
-        raise HTTPException(status_code=404, detail="File not found")
+        raise HTTPException(status_code=404, detail="File not found on server")
 
     return FileResponse(
         path=file_path,
         media_type="text/csv",
-        filename="gene_ontologies_and_pfam.csv"
+        filename=filename,
     )
 
 
