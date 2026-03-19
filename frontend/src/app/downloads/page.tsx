@@ -236,13 +236,14 @@ export default function DownloadsPage() {
     <main className="container">
       <div className="hero">
         <h1 className="title">Downloads</h1>
-        <p className="subtitle">
-          Select a protein, then choose either a TRN or a drug to download the
-          CSV files used to build the map.
-        </p>
       </div>
 
       <section className="card">
+        <p className="cardDescription">
+          Select a protein, then choose either a TRN or a drug to download the
+          CSV files used to build the map.
+        </p>
+
         <div className="grid">
           <div className="field">
             <label htmlFor="protein-select" className="label">
@@ -420,15 +421,7 @@ export default function DownloadsPage() {
           color: #7bafd4;
           font-size: 2.5rem;
           font-weight: 800;
-          margin: 0 0 0.5rem 0;
-        }
-
-        .subtitle {
-          margin: 0 auto;
-          max-width: 720px;
-          color: #4b5563;
-          font-size: 1rem;
-          line-height: 1.6;
+          margin: 0;
         }
 
         .card,
@@ -446,6 +439,13 @@ export default function DownloadsPage() {
         .downloadsCard {
           margin-top: 22px;
           padding: 22px;
+        }
+
+        .cardDescription {
+          margin: 0 0 20px 0;
+          color: #4b5563;
+          font-size: 1rem;
+          line-height: 1.6;
         }
 
         .grid {
