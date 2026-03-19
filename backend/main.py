@@ -904,9 +904,6 @@ def flatmap_summary(gene: str, pathway: str | None = None):
         slice = slice.rename(columns={0: 'gi_sum'})
         df = df.drop(columns='gi_sum')
 
-
-
-
         max_val = slice[slice['gi_sum']==slice['gi_sum'].max()].reset_index(drop=True)
         top_cluster = max_val['cluster'][0]
         top_score = max_val['gi_sum'][0]
@@ -2100,43 +2097,188 @@ def flatmap_drug(gene: str, drug: str):
 # =============== DOWNLOADS ENDPOINT ======================
 # =========================================================
 
-from fastapi.responses import FileResponse
+def build_panel2_nmf_csv(gene: str) -> pd.DataFrame:
+    """
+    Downloadable 2D NMF info using the exact same cluster numbering
+    as Panel 2.
+    """
+    df_all = load_gene_parquet(gene)
+    nmf_raw = df_all[df_all["table"] == "nmfinfo"].copy()
 
-DOWNLOADABLES = {
-    "all_proteins_max_score_matrix_cleaned.csv": "Protein–Pathway association scores (max scores per protein–pathway)",
-    "calibration.csv": "Calibration curves for computational ranking confidence",
-    "cleaned_mappings_2.csv": "Gene metadata and aliases used for protein lookup",
-    "gene_to_pdb.csv": "Protein ↔ PDB mapping for structure visualization",
-    "llm_group_labels.csv": "Functional groups assigned to TFs by language model curation",
-    "tf_function_labels_10groups.csv": "10-group functional categorization of transcription factor pathways",
-    "annotated_clusters.csv": "Annotated NMF clusters per gene (structure-space regions)",
-    "residue-pathway-score.csv": "Residue-level association scores with pathways",
-    "data/gsea_gdf_files.zip": "All GSEA pathway results (*.gdf.csv) bundled into a ZIP archive",
-}
+    if nmf_raw.empty:
+        raise HTTPException(status_code=404, detail=f"No nmfinfo data found for {gene}")
 
-@app.get("/downloads/list")
-def list_downloads():
-    """List all downloadable files with descriptions."""
-    return [
-        {"filename": fname, "description": desc}
-        for fname, desc in DOWNLOADABLES.items()
-    ]
+    nmf_raw = nmf_raw.rename(columns={
+        "res": "residue",
+        "x_axis": "x",
+        "y_axis": "y",
+        "clust": "cluster",
+    })
 
-@app.get("/downloads/get/{filename}")
-def get_download(filename: str):
-    """Serve a file for download if it exists in DOWNLOADABLES."""
-    if filename not in DOWNLOADABLES:
-        raise HTTPException(status_code=404, detail="File not found.")
+    # normalize clusters exactly the same way as Panel 2
+    nmf_raw["cluster"] = pd.to_numeric(nmf_raw["cluster"], errors="coerce")
+    nmf_raw = nmf_raw.dropna(subset=["cluster"]).copy()
+    nmf_raw["cluster"], _ = normalize_clusters(nmf_raw["cluster"])
 
-    fpath = Path(filename)
-    if not fpath.exists():
-        # If relative path, resolve from backend folder
-        fpath = Path(__file__).resolve().parent / filename
+    keep_cols = ["gene", "residue", "x", "y", "cluster", "altitude"]
+    nmf_raw = nmf_raw[[c for c in keep_cols if c in nmf_raw.columns]].copy()
 
-    if not fpath.exists():
-        raise HTTPException(status_code=404, detail=f"File {filename} missing on server.")
+    nmf_raw["gene"] = nmf_raw["gene"].astype(str).str.upper()
+    nmf_raw["residue"] = pd.to_numeric(nmf_raw["residue"], errors="coerce")
+    nmf_raw["cluster"] = pd.to_numeric(nmf_raw["cluster"], errors="coerce")
 
-    return FileResponse(path=fpath, filename=fpath.name, media_type="application/octet-stream")
+    nmf_raw = nmf_raw.dropna(subset=["residue", "x", "y", "cluster"]).copy()
+    nmf_raw["residue"] = nmf_raw["residue"].astype(int)
+    nmf_raw["cluster"] = nmf_raw["cluster"].astype(int)
+
+    return nmf_raw.sort_values(["cluster", "residue"]).reset_index(drop=True)
+
+
+def build_panel2_cluster_gi_csv(gene: str, pathway: str) -> pd.DataFrame:
+    """
+    Download cluster-level GI* info using the exact same source logic
+    as Panel 2 flatmap_image: load_scores_csv(gene).
+    """
+    df_scores = load_scores_csv(gene)
+
+    if "pathway" not in df_scores.columns:
+        raise HTTPException(status_code=500, detail="Scores file missing pathway column")
+
+    sub = df_scores[df_scores["pathway"].str.upper() == pathway.upper()].copy()
+    if sub.empty:
+        raise HTTPException(status_code=404, detail=f"No GI* scores found for {gene} and {pathway}")
+
+    score_cols = [c for c in sub.columns if c.startswith("score")]
+    if not score_cols:
+        raise HTTPException(status_code=500, detail="No score columns found in cluster pathway scores file")
+
+    # same transpose logic you use in flatmap_image
+    out = (
+        sub[score_cols]
+        .reset_index(drop=True)
+        .T
+        .reset_index()
+    )
+
+    out.columns = ["score_col", "gi_score"]
+    out["cluster"] = (
+        out["score_col"]
+        .astype(str)
+        .str.extract(r"(\d+)")
+        .iloc[:, 0]
+    )
+
+    out["cluster"] = pd.to_numeric(out["cluster"], errors="coerce")
+    out["gi_score"] = pd.to_numeric(out["gi_score"], errors="coerce")
+    out = out.dropna(subset=["cluster"]).copy()
+    out["cluster"] = out["cluster"].astype(int)
+
+    out.insert(0, "pathway", pathway.upper())
+    out.insert(0, "gene", gene.upper())
+
+    return out[["gene", "pathway", "cluster", "gi_score"]].sort_values("cluster").reset_index(drop=True)
+
+
+def build_panel4_cluster_logodds_csv(gene: str, drug: str) -> pd.DataFrame:
+    """
+    Download cluster-level logodds info using the same source logic
+    as the drug flatmap: load_logodds_csv(gene).
+    """
+    import string
+
+    logodds_df = load_logodds_csv(gene)
+
+    if "cluster_id" not in logodds_df.columns:
+        raise HTTPException(status_code=500, detail="Missing cluster_id column in logodds file")
+
+    drug_canonical = drug.lower().replace(" ", "")
+    table = str.maketrans("", "", string.punctuation)
+    drug_cmp = drug_canonical.translate(table)
+
+    drug_col = next(
+        (
+            c for c in logodds_df.columns
+            if c.lower().replace(" ", "").translate(table) == drug_cmp
+        ),
+        None
+    )
+
+    if not drug_col:
+        raise HTTPException(status_code=404, detail=f"Drug {drug} not found for {gene}")
+
+    out = logodds_df[["cluster_id", drug_col]].copy()
+    out = out.rename(columns={"cluster_id": "cluster", drug_col: "logodds"})
+
+    out["cluster"] = pd.to_numeric(out["cluster"], errors="coerce")
+    out["logodds"] = pd.to_numeric(out["logodds"], errors="coerce")
+    out = out.dropna(subset=["cluster"]).copy()
+    out["cluster"] = out["cluster"].astype(int)
+
+    out.insert(0, "drug", drug)
+    out.insert(0, "gene", gene.upper())
+
+    return out[["gene", "drug", "cluster", "logodds"]].sort_values("cluster").reset_index(drop=True)
+
+@app.get("/downloads/protein_trn_csv")
+def download_protein_trn_csv(gene: str, pathway: str, kind: str):
+    """
+    kind:
+      - nmf2d
+      - cluster_gi
+    """
+    try:
+        safe_pathway = re.sub(r"[^A-Za-z0-9_\-]+", "_", pathway.strip())
+
+        if kind == "nmf2d":
+            df = build_panel2_nmf_csv(gene)
+            filename = f"{gene.upper()}_{safe_pathway}_2d_nmf_info.csv"
+        elif kind == "cluster_gi":
+            df = build_panel2_cluster_gi_csv(gene, pathway)
+            filename = f"{gene.upper()}_{safe_pathway}_cluster_gi_info.csv"
+        else:
+            raise HTTPException(status_code=400, detail="kind must be 'nmf2d' or 'cluster_gi'")
+
+        csv_data = df.to_csv(index=False)
+        return Response(
+            content=csv_data,
+            media_type="text/csv",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/downloads/protein_drug_csv")
+def download_protein_drug_csv(gene: str, drug: str, kind: str):
+    """
+    kind:
+      - nmf2d
+      - cluster_logodds
+    """
+    try:
+        if kind == "nmf2d":
+            df = build_panel2_nmf_csv(gene)
+            safe_drug = re.sub(r"[^A-Za-z0-9_\-]+", "_", drug.strip())
+            filename = f"{gene.upper()}_{safe_drug}_2d_nmf_info.csv"
+        elif kind == "cluster_logodds":
+            df = build_panel4_cluster_logodds_csv(gene, drug)
+            safe_drug = re.sub(r"[^A-Za-z0-9_\-]+", "_", drug.strip())
+            filename = f"{gene.upper()}_{safe_drug}_cluster_logodds_info.csv"
+        else:
+            raise HTTPException(status_code=400, detail="kind must be 'nmf2d' or 'cluster_logodds'")
+
+        csv_data = df.to_csv(index=False)
+        return Response(
+            content=csv_data,
+            media_type="text/csv",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ===========================
@@ -2255,13 +2397,12 @@ def mave_legend(gene: str):
 @app.get("/proteins/list")
 def proteins_list():
     """
-    Return a sorted list of all protein IDs available in the embeddings dataset.
-    Used for homepage autocomplete.
+    Return a sorted list of all proteins available for downloads/homepage autocomplete.
     """
     try:
-        if _VECS_DF.empty:
+        if PATHWAY_MATRIX.empty:
             return {"proteins": []}
-        proteins = sorted(_VECS_DF.index.unique().tolist())
+        proteins = sorted([str(x).strip().upper() for x in PATHWAY_MATRIX.index if pd.notna(x)])
         return {"proteins": proteins}
     except Exception as e:
         return {"error": str(e)}
