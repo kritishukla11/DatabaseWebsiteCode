@@ -1179,7 +1179,7 @@ def calibration_image(gene: str):
                     y_plot,
                     color="red",
                     linewidth=2,
-                    label=f'{best_model["name"]}: $R^2 = {best_model["r2"]:.3f}$',
+                    label=f'$R^2 = {best_model["r2"]:.3f}$',
                 )
                 ax.legend(loc="upper right", fontsize=9)
 
