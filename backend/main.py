@@ -2219,6 +2219,7 @@ def build_panel4_cluster_logodds_csv(gene: str, drug: str) -> pd.DataFrame:
 
     return out[["gene", "drug", "cluster", "logodds"]].sort_values("cluster").reset_index(drop=True)
 
+
 @app.get("/downloads/protein_trn_csv")
 def download_protein_trn_csv(gene: str, pathway: str, kind: str):
     """
@@ -2279,6 +2280,21 @@ def download_protein_drug_csv(gene: str, drug: str, kind: str):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+BASE_DIR = Path(__file__).resolve().parent
+
+@app.get("/download/gene_ontology")
+def download_gene_ontology():
+    file_path = BASE_DIR / "gene_ontologies_and_pfam.csv"
+
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="File not found")
+
+    return FileResponse(
+        path=file_path,
+        media_type="text/csv",
+        filename="gene_ontologies_and_pfam.csv"
+    )
 
 
 # ===========================

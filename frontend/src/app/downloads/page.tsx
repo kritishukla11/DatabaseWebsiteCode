@@ -22,6 +22,15 @@ export default function DownloadsPage() {
   const [loadingDrugs, setLoadingDrugs] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const referenceFiles = [
+    {
+      name: "gene_ontologies_and_pfam.csv",
+      description:
+        "Gene Ontology info (biological process, cellular component, molecular function) and Protein Families for all proteins",
+      href: `${BACKEND}/download/gene_ontology`,
+    },
+  ];
+
   // Load proteins once
   useEffect(() => {
     let cancelled = false;
@@ -332,6 +341,23 @@ export default function DownloadsPage() {
         </section>
       )}
 
+      <section className="downloadsCard">
+        <h2 className="sectionTitle">Reference files</h2>
+        <div className="fileList">
+          {referenceFiles.map((file) => (
+            <div key={file.name} className="fileRow">
+              <div className="fileInfo">
+                <div className="fileName">{file.name}</div>
+                <div className="fileDescription">{file.description}</div>
+              </div>
+              <a href={file.href} className="downloadBtn fileDownloadBtn">
+                Download
+              </a>
+            </div>
+          ))}
+        </div>
+      </section>
+
       <style jsx>{`
         .container {
           min-height: 100vh;
@@ -486,6 +512,50 @@ export default function DownloadsPage() {
           transform: translateY(-1px);
         }
 
+        .fileList {
+          display: flex;
+          flex-direction: column;
+          gap: 14px;
+        }
+
+        .fileRow {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 18px;
+          padding: 16px 0;
+          border-top: 1px solid #e5edf4;
+        }
+
+        .fileRow:first-child {
+          border-top: none;
+          padding-top: 4px;
+        }
+
+        .fileInfo {
+          flex: 1;
+          min-width: 0;
+        }
+
+        .fileName {
+          font-size: 0.98rem;
+          font-weight: 700;
+          color: #1f2937;
+          margin-bottom: 4px;
+          word-break: break-word;
+        }
+
+        .fileDescription {
+          font-size: 0.95rem;
+          color: #4b5563;
+          line-height: 1.5;
+        }
+
+        .fileDownloadBtn {
+          min-width: 140px;
+          flex-shrink: 0;
+        }
+
         .error {
           margin: 18px 2px 0;
           color: #b91c1c;
@@ -512,6 +582,16 @@ export default function DownloadsPage() {
 
           .toggle {
             width: 100%;
+          }
+
+          .fileRow {
+            flex-direction: column;
+            align-items: stretch;
+          }
+
+          .fileDownloadBtn {
+            width: 100%;
+            min-width: 0;
           }
         }
       `}</style>
