@@ -1,6 +1,6 @@
 # backend/main.py
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import JSONResponse, StreamingResponse, PlainTextResponse, Response
+from fastapi.responses import JSONResponse, StreamingResponse, PlainTextResponse, Response, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
 import json
