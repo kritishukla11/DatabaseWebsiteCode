@@ -7,7 +7,6 @@ const BACKEND =
   process.env.NEXT_PUBLIC_BACKEND_URL ||
   "http://127.0.0.1:8001";
 
-
 export default function PathwayPageContent() {
   const searchParams = useSearchParams();
   const pathway = searchParams.get("pathway") || "";
@@ -17,13 +16,91 @@ export default function PathwayPageContent() {
   const [threshold, setThreshold] = useState(0.8);
   const [proteins, setProteins] = useState<{ id: string; score: number }[]>([]);
   const [interactions, setInteractions] = useState<
-    { prediction_protein: string; geneset_protein: string; score: number; ai_score?: number | null }[]
+    {
+      prediction_protein: string;
+      geneset_protein: string;
+      score: number;
+      ai_score?: number | null;
+    }[]
   >([]);
   const [error, setError] = useState<string | null>(null);
   const [stringError, setStringError] = useState<string | null>(null);
   const [description, setDescription] = useState<string | null>(null);
   const [pubmed, setPubmed] = useState<string | null>(null);
   const [authors, setAuthors] = useState<string | null>(null);
+
+  // ─── Helpers for CSV download ────────────────────────────
+  function escapeCsvValue(value: string | number | null | undefined) {
+    if (value == null) return "";
+    const str = String(value);
+    if (str.includes('"') || str.includes(",") || str.includes("\n")) {
+      return `"${str.replace(/"/g, '""')}"`;
+    }
+    return str;
+  }
+
+  function downloadCsv(
+    filename: string,
+    headers: string[],
+    rows: (string | number | null | undefined)[][]
+  ) {
+    const csv = [
+      headers.map(escapeCsvValue).join(","),
+      ...rows.map((row) => row.map(escapeCsvValue).join(",")),
+    ].join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = window.URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    window.URL.revokeObjectURL(url);
+  }
+
+  function handleDownloadProteinsCsv() {
+    const rows = proteins.map((p, idx) => [
+      idx + 1,
+      p.id,
+      p.score.toFixed(3),
+      threshold.toFixed(1),
+      pathway,
+    ]);
+
+    downloadCsv(
+      `${pathway || "pathway"}_predicted_proteins_threshold_${threshold.toFixed(1)}.csv`,
+      ["rank", "protein", "ai_association_score", "threshold", "pathway"],
+      rows
+    );
+  }
+
+  function handleDownloadInteractionsCsv() {
+    const rows = interactions.map((i) => [
+      i.prediction_protein,
+      i.ai_score != null ? i.ai_score.toFixed(3) : "",
+      i.geneset_protein,
+      i.score.toFixed(2),
+      threshold.toFixed(1),
+      pathway,
+    ]);
+
+    downloadCsv(
+      `${pathway || "pathway"}_string_interactions_threshold_${threshold.toFixed(1)}.csv`,
+      [
+        "prediction_protein",
+        "ai_association_score",
+        "geneset_protein",
+        "string_score",
+        "threshold",
+        "pathway",
+      ],
+      rows
+    );
+  }
 
   // ─── Fetch predicted proteins ─────────────────────────────
   useEffect(() => {
@@ -161,7 +238,11 @@ export default function PathwayPageContent() {
             {description ? (
               <>
                 <p>{description}</p>
-                {authors && <p><strong>Authors:</strong> {authors}</p>}
+                {authors && (
+                  <p>
+                    <strong>Authors:</strong> {authors}
+                  </p>
+                )}
                 {pubmed && (
                   <p>
                     <strong>Publication:</strong>{" "}
@@ -184,9 +265,18 @@ export default function PathwayPageContent() {
           <div className="panel-row">
             {/* Left: predicted proteins */}
             <div className="panel half">
-              <h2 className="panel-title">
-                Proteins sorted by AI-predicted Association Scores with the {pathway} TRN
-              </h2>
+              <div className="panel-header">
+                <h2 className="panel-title">
+                  Proteins sorted by AI-predicted Association Scores with the {pathway} TRN
+                </h2>
+                <button
+                  className="download-btn"
+                  onClick={handleDownloadProteinsCsv}
+                  disabled={!proteins.length}
+                >
+                  Download CSV
+                </button>
+              </div>
 
               <label>
                 Minimum Association Score:{" "}
@@ -220,12 +310,20 @@ export default function PathwayPageContent() {
 
             {/* Right: STRING evidence */}
             <div className="panel half">
-              <h2 className="panel-title">
-                STRING-DB Evidence of Associations between AI-predicted Proteins and
-                Known Proteins in the {pathway} Gene Set
-              </h2>
+              <div className="panel-header">
+                <h2 className="panel-title">
+                  STRING-DB Evidence of Associations between AI-predicted Proteins and
+                  Known Proteins in the {pathway} Gene Set
+                </h2>
+                <button
+                  className="download-btn"
+                  onClick={handleDownloadInteractionsCsv}
+                  disabled={!interactions.length}
+                >
+                  Download CSV
+                </button>
+              </div>
 
-              {/* New: Top-10 without STRING evidence */}
               {topWithoutString.length > 0 && (
                 <p className="no-string-summary">
                   <strong>
@@ -268,7 +366,6 @@ export default function PathwayPageContent() {
         </>
       )}
 
-      {/* ─── Styles ────────────────────────────────────────── */}
       <style jsx>{`
         .container {
           background: #fff;
@@ -306,6 +403,35 @@ export default function PathwayPageContent() {
           font-size: 1.5rem;
           font-weight: 700;
           margin-bottom: 0.5rem;
+        }
+        .panel-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          gap: 1rem;
+          margin-bottom: 0.75rem;
+        }
+        .panel-header .panel-title {
+          margin-bottom: 0;
+          flex: 1;
+        }
+        .download-btn {
+          background: #7bafd4;
+          color: white;
+          border: none;
+          border-radius: 8px;
+          padding: 0.55rem 0.9rem;
+          font-size: 0.9rem;
+          font-weight: 600;
+          cursor: pointer;
+          white-space: nowrap;
+        }
+        .download-btn:hover:not(:disabled) {
+          opacity: 0.9;
+        }
+        .download-btn:disabled {
+          background: #b9cddd;
+          cursor: not-allowed;
         }
         .expandable {
           cursor: pointer;
@@ -359,6 +485,10 @@ export default function PathwayPageContent() {
         @media (max-width: 900px) {
           .panel-row {
             grid-template-columns: 1fr;
+          }
+          .panel-header {
+            flex-direction: column;
+            align-items: stretch;
           }
         }
       `}</style>
