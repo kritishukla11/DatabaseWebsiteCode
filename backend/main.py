@@ -620,7 +620,12 @@ def flatmap_pathways(gene: str):
     return {"pathways": list_pathways_for_gene(gene)}
 
 @app.get("/flatmap/image")
-def flatmap_image(gene: str, name: str | None = None, collapse: str = "max"):
+def flatmap_image(
+    gene: str,
+    name: str | None = None,
+    collapse: str = "max",
+    format: str = "png",
+):
     """
     Returns a PNG flatmap.
     - Default (no pathway): categorical clusters, clipped to mask.
