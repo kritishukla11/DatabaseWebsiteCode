@@ -845,14 +845,42 @@ def flatmap_image(
         # ------------------------------------------------------------------
         fig.tight_layout(pad=0)
 
+        fmt = format.lower().strip()
+        if fmt not in {"png", "svg"}:
+            raise HTTPException(status_code=400, detail="format must be 'png' or 'svg'")
+
         buf = io.BytesIO()
-        plt.savefig(buf, format="png", dpi=170, bbox_inches="tight")
+
+        if fmt == "svg":
+            plt.savefig(
+                buf,
+                format="svg",
+                bbox_inches="tight",
+                transparent=True,
+            )
+            media_type = "image/svg+xml"
+            filename = f"{gene.upper()}_{(name or 'flatmap').replace(' ', '_')}.svg"
+        else:
+            plt.savefig(
+                buf,
+                format="png",
+                dpi=170,
+                bbox_inches="tight",
+                transparent=True,
+            )
+            media_type = "image/png"
+            filename = f"{gene.upper()}_{(name or 'flatmap').replace(' ', '_')}.png"
+
         plt.close(fig)
         buf.seek(0)
+
         return StreamingResponse(
             buf,
-            media_type="image/png",
-            headers={"Cache-Control": "no-store"}
+            media_type=media_type,
+            headers={
+                "Cache-Control": "no-store",
+                "Content-Disposition": f'attachment; filename="{filename}"',
+            },
         )
 
 @app.get("/flatmap/summary")
@@ -1885,11 +1913,12 @@ def flatmap_proteins(drug: str):
 
 
 @app.get("/flatmap/drug")
-def flatmap_drug(gene: str, drug: str):
+def flatmap_drug(gene: str, drug: str, format: str = "png"):
     """
-    Returns a PNG flatmap colored by log-odds values for a given drug.
+    Returns a flatmap colored by log-odds values for a given drug.
     - gene: protein name (e.g., BRAF)
     - drug: drug column name in the CSV (case-insensitive)
+    - format: "png" or "svg"
     Canonical rule: lowercase + no spaces
     Comparison rule: punctuation-insensitive
     """
@@ -1926,8 +1955,11 @@ def flatmap_drug(gene: str, drug: str):
 
         # --- Merge and prepare ---
         merged = pd.merge(
-            nmf, logodds_df[["cluster_id", drug_col]],
-            left_on="cluster", right_on="cluster_id", how="left"
+            nmf,
+            logodds_df[["cluster_id", drug_col]],
+            left_on="cluster",
+            right_on="cluster_id",
+            how="left"
         )
         merged[drug_col] = pd.to_numeric(merged[drug_col], errors="coerce").fillna(0.0)
 
@@ -1973,6 +2005,7 @@ def flatmap_drug(gene: str, drug: str):
         fig, ax = plt.subplots(figsize=(6, 6))
         ax.set_aspect("equal")
         ax.axis("off")
+
         cmap = plt.cm.coolwarm
         norm = plt.Normalize(vmin=cluster_values.min(), vmax=cluster_values.max())
 
@@ -1990,7 +2023,7 @@ def flatmap_drug(gene: str, drug: str):
         # --- Mask outside region before contouring ---
         Zi_cluster_masked = np.ma.array(Zi_cluster, mask=outer_mask)
 
-        # --- Draw internal cluster boundaries (masked so they stop at outline) ---
+        # --- Draw internal cluster boundaries ---
         ax.contour(
             Xi, Yi, Zi_cluster_masked,
             levels=np.unique(merged["cluster"]),
@@ -2003,7 +2036,6 @@ def flatmap_drug(gene: str, drug: str):
             levels=[0.5],
             colors="black", linewidths=2.5, zorder=6
         )
-
 
         # --- Colorbar ---
         cb = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
@@ -2035,7 +2067,6 @@ def flatmap_drug(gene: str, drug: str):
 
                             cx_true, cy_true = cx, cy
 
-                            # Push labels outward near edges
                             margin_x = 0.03 * (xmx - xmn)
                             margin_y = 0.03 * (ymx - ymn)
                             moved = False
@@ -2049,8 +2080,13 @@ def flatmap_drug(gene: str, drug: str):
                                 cy = ymx_pad + 0.05 * (ymx - ymn); moved = True
 
                             if moved:
-                                ax.plot([cx_true, cx], [cy_true, cy],
-                                        color="black", linewidth=0.8, zorder=998)
+                                ax.plot(
+                                    [cx_true, cx],
+                                    [cy_true, cy],
+                                    color="black",
+                                    linewidth=0.8,
+                                    zorder=998
+                                )
 
                             ax.text(
                                 cx, cy, label,
@@ -2065,19 +2101,53 @@ def flatmap_drug(gene: str, drug: str):
                                 zorder=999
                             )
 
-            ax.set_xlim(xmn_pad - 0.1*(xmx-xmn), xmx_pad + 0.1*(xmx-xmn))
-            ax.set_ylim(ymn_pad - 0.1*(ymx-ymn), ymx_pad + 0.1*(ymx-ymn))
+            ax.set_xlim(xmn_pad - 0.1 * (xmx - xmn), xmx_pad + 0.1 * (xmx - xmn))
+            ax.set_ylim(ymn_pad - 0.1 * (ymx - ymn), ymx_pad + 0.1 * (ymx - ymn))
 
         except Exception as e:
             print("[flatmap_drug][WARN] Could not add annotations:", e)
 
-        # --- Save figure ---
+        fig.tight_layout(pad=0)
+
+        fmt = format.lower().strip()
+        if fmt not in {"png", "svg"}:
+            raise HTTPException(status_code=400, detail="format must be 'png' or 'svg'")
+
         buf = io.BytesIO()
-        plt.savefig(buf, format="png", dpi=170, bbox_inches="tight")
+
+        safe_drug = re.sub(r"[^A-Za-z0-9._-]+", "_", drug).strip("_") or "drug"
+
+        if fmt == "svg":
+            plt.savefig(
+                buf,
+                format="svg",
+                bbox_inches="tight",
+                transparent=True,
+            )
+            media_type = "image/svg+xml"
+            filename = f"{gene.upper()}_{safe_drug}.svg"
+        else:
+            plt.savefig(
+                buf,
+                format="png",
+                dpi=170,
+                bbox_inches="tight",
+                transparent=True,
+            )
+            media_type = "image/png"
+            filename = f"{gene.upper()}_{safe_drug}.png"
+
         plt.close(fig)
         buf.seek(0)
 
-        return StreamingResponse(buf, media_type="image/png")
+        return StreamingResponse(
+            buf,
+            media_type=media_type,
+            headers={
+                "Cache-Control": "no-store",
+                "Content-Disposition": f'attachment; filename="{filename}"',
+            },
+        )
 
 
 

@@ -15,12 +15,10 @@ export default function DrugPageContent() {
   const [proteinList, setProteinList] = useState<string[]>([]);
   const [selectedProtein, setSelectedProtein] = useState<string>("");
   const [flatmapUrl, setFlatmapUrl] = useState<string | null>(null);
+  const [svgUrl, setSvgUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pubchemError, setPubchemError] = useState<string | null>(null);
 
-  // ============================================================
-  // Main fetch block (PubChem only)
-  // ============================================================
   useEffect(() => {
     if (!drugParam) return;
 
@@ -30,7 +28,6 @@ export default function DrugPageContent() {
       setPanel1Data(null);
 
       try {
-        // --- Check if drug exists in backend list first ---
         const resp = await fetch(`${BACKEND}/drugs/list`);
         const listJson = await resp.json();
         const knownDrugs = (listJson.drugs || []).map((d: string) =>
@@ -42,7 +39,6 @@ export default function DrugPageContent() {
           return;
         }
 
-        // === 1️⃣ PubChem: name → CID ===
         let cid = null;
         try {
           const cidResp = await fetch(
@@ -58,7 +54,6 @@ export default function DrugPageContent() {
           setPubchemError("Can't find entry in PubChem");
         }
 
-        // === 2️⃣ PubChem: structure + description ===
         let description = "No description available";
         let structureUrlVal = null;
 
@@ -108,10 +103,12 @@ export default function DrugPageContent() {
                   summaryJson?.Record?.Description ||
                   summaryJson?.Record?.RecordTitle ||
                   null;
-                if (fallback && fallback.trim().length > 0)
+                if (fallback && fallback.trim().length > 0) {
                   description = fallback.trim();
+                }
               }
             }
+
             structureUrlVal = `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/${cid}/PNG`;
           } catch {
             setPubchemError("Can't find entry in PubChem");
@@ -130,13 +127,11 @@ export default function DrugPageContent() {
     }
 
     fetchDrug();
-  }, [drugParam]);
+  }, [drugParam, cleanedDrug]);
 
-  // ============================================================
-  // Protein list + flatmap
-  // ============================================================
   useEffect(() => {
     if (!drugParam) return;
+
     async function fetchProteins() {
       try {
         const resp = await fetch(
@@ -150,23 +145,52 @@ export default function DrugPageContent() {
         setProteinList([]);
       }
     }
+
     fetchProteins();
-  }, [drugParam]);
+  }, [drugParam, cleanedDrug]);
 
   useEffect(() => {
     if (!drugParam || !selectedProtein) {
       setFlatmapUrl(null);
+      setSvgUrl(null);
       return;
     }
-    const url = `${BACKEND}/flatmap/drug?gene=${encodeURIComponent(
+
+    const baseUrl = `${BACKEND}/flatmap/drug?gene=${encodeURIComponent(
       selectedProtein
     )}&drug=${encodeURIComponent(cleanedDrug)}`;
-    setFlatmapUrl(url);
-  }, [drugParam, selectedProtein]);
 
-  // ============================================================
-  // Render
-  // ============================================================
+    setFlatmapUrl(baseUrl);
+    setSvgUrl(`${baseUrl}&format=svg`);
+  }, [drugParam, selectedProtein, cleanedDrug]);
+
+  async function downloadSvg(url: string, geneName: string, drugName: string) {
+    try {
+      const res = await fetch(url, { mode: "cors" });
+      if (!res.ok) {
+        throw new Error(`Download failed with status ${res.status}`);
+      }
+
+      const blob = await res.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+
+      const safeGene = geneName.toUpperCase().replace(/\s+/g, "_");
+      const safeDrug = drugName.trim().replace(/\s+/g, "_");
+      const filename = `${safeGene}_${safeDrug}.svg`;
+
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      console.error("SVG download failed", err);
+    }
+  }
+
   return (
     <main className="container">
       {error ? (
@@ -178,9 +202,7 @@ export default function DrugPageContent() {
         <>
           <h1 className="title">Results for: {drugParam}</h1>
 
-          {/* ==== Row 1 ==== */}
           <div className="panel-row">
-            {/* --- Panel 1: Drug Information --- */}
             <div className="panel half">
               <h2 className="panel-title">Drug Information</h2>
               {pubchemError ? (
@@ -224,9 +246,9 @@ export default function DrugPageContent() {
               )}
             </div>
 
-            {/* --- Panel 2: Flatmaps --- */}
             <div className="panel half">
               <h2 className="panel-title">Drug Flatmaps</h2>
+
               <div style={{ marginBottom: "1rem" }}>
                 <label
                   htmlFor="proteinSelect"
@@ -256,16 +278,46 @@ export default function DrugPageContent() {
               </div>
 
               {flatmapUrl ? (
-                <img
-                  src={flatmapUrl}
-                  alt={`${selectedProtein} flatmap`}
-                  style={{
-                    width: "100%",
-                    borderRadius: "8px",
-                    border: "1px solid #ccc",
-                    boxShadow: "0 2px 6px rgba(0,0,0,0.1)",
-                  }}
-                />
+                <>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "flex-end",
+                      marginBottom: "0.75rem",
+                    }}
+                  >
+                    {svgUrl && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          downloadSvg(svgUrl, selectedProtein, cleanedDrug)
+                        }
+                        style={{
+                          padding: "0.45rem 0.8rem",
+                          borderRadius: "6px",
+                          border: "1px solid #7bafd4",
+                          background: "#f1f9ff",
+                          color: "#333",
+                          fontWeight: 600,
+                          cursor: "pointer",
+                        }}
+                      >
+                        Save as SVG
+                      </button>
+                    )}
+                  </div>
+
+                  <img
+                    src={flatmapUrl}
+                    alt={`${selectedProtein} flatmap`}
+                    style={{
+                      width: "100%",
+                      borderRadius: "8px",
+                      border: "1px solid #ccc",
+                      boxShadow: "0 2px 6px rgba(0,0,0,0.1)",
+                    }}
+                  />
+                </>
               ) : (
                 <p style={{ color: "#666" }}>
                   Select a protein to view its cluster flatmap.
