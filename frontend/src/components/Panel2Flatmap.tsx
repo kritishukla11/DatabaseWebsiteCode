@@ -133,6 +133,35 @@ export default function Panel2Flatmap({ gene }: { gene: string }) {
     fetchSummary2();
   }, [gene, selected2, compareMode]);
 
+  async function downloadSvg(url: string, geneName: string, pathway?: string) {
+    try {
+      const res = await fetch(url, { mode: "cors" });
+      if (!res.ok) {
+        throw new Error(`Download failed with status ${res.status}`);
+      }
+
+      const blob = await res.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+
+      const safeGene = geneName.toUpperCase().replace(/\s+/g, "_");
+      const safePathway = pathway?.trim()
+        ? pathway.replace(/\s+/g, "_")
+        : "flatmap";
+      const filename = `${safeGene}_${safePathway}.svg`;
+
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      console.error("SVG download failed", err);
+    }
+  }
+
   return (
     <div key={gene} className="transition-opacity duration-300 opacity-100">
       <div className="flex gap-3 items-center mb-3">
@@ -163,15 +192,13 @@ export default function Panel2Flatmap({ gene }: { gene: string }) {
               <>
                 <div className="w-full flex justify-end mb-2">
                   {svgUrl && (
-                    <a
-                      href={svgUrl}
-                      download
-                      target="_blank"
-                      rel="noreferrer"
+                    <button
+                      type="button"
+                      onClick={() => downloadSvg(svgUrl, gene, selected)}
                       className="border rounded-lg px-3 py-2 bg-gray-100 hover:bg-gray-200 text-sm font-medium"
                     >
                       Save as SVG
-                    </a>
+                    </button>
                   )}
                 </div>
 
@@ -218,15 +245,13 @@ export default function Panel2Flatmap({ gene }: { gene: string }) {
                 <>
                   <div className="w-full flex justify-end mb-2">
                     {svgUrl2 && (
-                      <a
-                        href={svgUrl2}
-                        download
-                        target="_blank"
-                        rel="noreferrer"
+                      <button
+                        type="button"
+                        onClick={() => downloadSvg(svgUrl2, gene, selected2)}
                         className="border rounded-lg px-3 py-2 bg-gray-100 hover:bg-gray-200 text-sm font-medium"
                       >
                         Save as SVG
-                      </a>
+                      </button>
                     )}
                   </div>
 
