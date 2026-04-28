@@ -141,12 +141,15 @@ export default function HomePage() {
 
         <h1 className="title">Welcome to STARMAP</h1>
         <p className="subtitle">
-          (variant -{" "}
-          <span className="underline-letter">S</span>tructure –{" "}
-          <span className="underline-letter">T</span>ranscriptional{" "}
-          <span className="underline-letter">A</span>ctivity – drug{" "}
-          <span className="underline-letter">R</span>esponse{" "}
-          <span className="underline-letter">MAP</span>)
+          ({" "}
+          <span className="underline-letter">S</span>tructure-based{" "}
+          <span className="underline-letter">T</span>opological{" "}
+          <span className="underline-letter">A</span>nalysis of{" "}
+          <span className="underline-letter">R</span>egulatory and{" "}
+          <span className="underline-letter">M</span>olecular{" "}
+          <span className="underline-letter">A</span>ctivity{" "}
+          <span className="underline-letter">P</span>atterns{" "}
+          )
         </p>
 
         {/* ---------- METRICS ---------- */}
