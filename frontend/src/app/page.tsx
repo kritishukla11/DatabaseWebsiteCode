@@ -156,7 +156,7 @@ export default function HomePage() {
         <div className="metrics">
           <div className="metric">
             <p className="metric-label">PROTEINS</p>
-            <p className="metric-value">16,000+</p>
+            <p className="metric-value">14,980</p>
           </div>
           <div className="divider">|</div>
           <div className="metric">
@@ -168,7 +168,7 @@ export default function HomePage() {
           <div className="divider">|</div>
           <div className="metric">
             <p className="metric-label">DRUGS</p>
-            <p className="metric-value">300</p>
+            <p className="metric-value">545</p>
           </div>
         </div>
 
@@ -239,14 +239,14 @@ export default function HomePage() {
             This database uses AI-based modeling to study how genetic mutations
             in cancer influence transcriptional regulation and drug response.
             We generate 2D functional flatmaps for over{" "}
-            <strong>16,000 human proteins</strong>, identifying{" "}
+            <strong>14,980 human proteins</strong>, identifying{" "}
             <strong>Regions of Functional Interest (RFIs)</strong> that contain
             clustered mutations from the{" "}
             <strong>Cancer Dependency Map (DepMap)</strong>. Our multi-omics
             pipeline connects these RFIs to changes in{" "}
             <strong>Transcriptional Regulatory Networks (TRNs)</strong> across{" "}
             <strong>500 transcription factors</strong> and predicts{" "}
-            <strong>drug sensitivity profiles</strong> for more than 300
+            <strong>drug sensitivity profiles</strong> for more than 545
             compounds from CTRP and PRISM.
           </p>
         </div>

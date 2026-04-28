@@ -7,7 +7,7 @@ export default function AboutPage() {
 
       {/* Panel: Code & Citation (moved to top) */}
       <div className="panel">
-        <h2 className="panel-title">Code & Citation</h2>
+        <h2 className="panel-title">Attribution</h2>
         <p>
           <strong>Code Repository:</strong> Link coming soon
         </p>
@@ -41,7 +41,7 @@ export default function AboutPage() {
       {/* Panel: Attribution */}
       <div className="panel">
         <p>
-          This project was developed by <strong>Kriti Shukla</strong> in the
+          This project was developed by Kriti Shukla in the
           Brunk Lab at the University of North Carolina at Chapel Hill.
         </p>
       </div>
