@@ -5,104 +5,160 @@ export default function UserGuidePage() {
     <main className="container">
       <h1 className="title">User Guide</h1>
 
-      {/* Panel: Searching the Database */}
-      <div className="panel full">
+      {/* Attribution */}
+      <div className="panel">
+        <h2 className="panel-title">Attribution</h2>
+        <p><strong>Code Repository:</strong> Link coming soon</p>
+        <p><strong>Please cite:</strong> Manuscript currently in preparation</p>
+      </div>
+
+      {/* Getting Started */}
+      <div className="panel">
+        <h2 className="panel-title">Getting Started</h2>
+        <p>
+          The platform is organized around proteins, transcriptional regulatory
+          networks (TRNs), and drugs.
+        </p>
+        <ul>
+          <li>
+            Search for a <strong>protein</strong> to explore its structural
+            organization and associated transcriptional and drug response
+            patterns.
+          </li>
+          <li>
+            Search for a <strong>TRN</strong> to identify proteins associated
+            with that transcriptional program.
+          </li>
+          <li>
+            Search for a <strong>drug</strong> to learn more about its structure
+            and the protein regions it associates with.
+          </li>
+        </ul>
+      </div>
+
+      {/* Searching */}
+      <div className="panel">
         <h2 className="panel-title">Searching the Database</h2>
         <p>
-          You can search the database by <strong>protein</strong>,{" "}
-          <strong>transcriptional regulatory network (TRN)</strong>, or{" "}
-          <strong>drug</strong> using the search bar on the homepage.  
+          You can search the database by protein, transcriptional regulatory
+          network (TRN), or drug using the search bar on the homepage. All
+          searches are case-insensitive.
         </p>
+
+        <h3 className="subheading">Protein Search</h3>
         <ul>
+          <li>3D protein structure view (AlphaFold or PDB), colored by structural region</li>
+          <li>2D flatmaps highlighting spatial clustering of functional regions</li>
+          <li>Visualization of TRN associations mapped onto structure</li>
+          <li>Single-cell Perturb-seq validation of TRN associations</li>
+          <li>Single-cell drug perturbation validation of drug associations</li>
+          <li>Network view of similar proteins annotated with Gene Ontology terms</li>
+        </ul>
+
+        <h3 className="subheading">TRN (Transcriptional Regulatory Network) Search</h3>
+        <ul>
+          <li>Proteins most strongly associated with the selected TRN</li>
           <li>
-            <strong>Protein search:</strong> Returns information about the
-            selected protein, including its associations with transcriptional
-            networks and drug sensitivity data (when available).
-          </li>
-          <li>
-            <strong>Transcriptional Regulatory Network search:</strong> Returns
-            proteins predicted to associate with the selected TRN above a chosen
-            threshold, STRING evidence for protein–gene set interactions, and
-            a gene set description from MSigDB.
-          </li>
-          <li>
-            <strong>Drug search:</strong> Placeholder feature – coming soon.
+            Comparison to known STRING interactions between predicted proteins
+            and TRN gene set members
           </li>
         </ul>
-        <p>
-          All searches are <strong>case-insensitive</strong>. For example,{" "}
-          <code>ada2</code>, <code>Ada2</code>, and <code>ADA2</code> will all
-          return results for <code>ADA2</code>.
-        </p>
-      </div>
 
-      {/* Panel: Pathway/Network Results */}
-      <div className="panel full">
-        <h2 className="panel-title">Pathway / Network Results</h2>
-        <p>
-          When searching for a transcriptional regulatory network (TRN), the
-          results page contains several panels:
-        </p>
+        <h3 className="subheading">Drug Search</h3>
         <ul>
+          <li>PubMed and ChEMBL information for each drug</li>
           <li>
-            <strong>Gene Set Description:</strong> A brief description of how the
-            TRN was defined, including transcription factor binding evidence and
-            supporting publications (PubMed links and author lists provided where
-            available).
-          </li>
-          <li>
-            <strong>Proteins Panel:</strong> Displays all proteins associated
-            with the selected TRN above a chosen score threshold. You can adjust
-            the minimum threshold using the dropdown menu.
-          </li>
-          <li>
-            <strong>STRING Evidence Panel:</strong> Shows functional interactions
-            between predicted proteins and curated gene set members as reported
-            by the STRING database.
-          </li>
-          <li>
-            <strong>Expandable Explanation:</strong> Provides background
-            information on MSigDB and how transcriptional regulatory networks are
-            curated from ChIP-seq experiments.
+            2D flatmaps of proteins showing drug associations with specific
+            structural regions
           </li>
         </ul>
       </div>
 
-      {/* Panel: Error Handling */}
-      <div className="panel full">
+      {/* Downloads */}
+      <div className="panel">
+        <h2 className="panel-title">Downloads</h2>
+        <p>
+          Use this section to access underlying data for external analysis.
+        </p>
+        <ul>
+          <li>Protein-level scores and cluster assignments</li>
+          <li>TRN association matrices</li>
+          <li>Drug association results</li>
+          <li>Processed datasets used in STARMAP analyses</li>
+        </ul>
+      </div>
+
+      {/* Interpreting */}
+      <div className="panel">
+        <h2 className="panel-title">Interpreting Results</h2>
+        <p>
+          Structural regions represent spatially coherent areas of the protein
+          associated with shared transcriptional or pharmacologic effects.
+        </p>
+        <p>
+          TRN and drug associations reflect statistically enriched patterns and
+          should be interpreted as hypotheses for functional mechanisms rather
+          than direct causal relationships.
+        </p>
+      </div>
+
+      {/* Errors */}
+      <div className="panel">
         <h2 className="panel-title">Error Messages</h2>
         <p>
-          If a query does not match any entry in the database, you will see the
-          message:
+          If a query does not match any entry in the database, you will see:
         </p>
         <p className="error">
-          "Sorry, we don't have information for this transcription regulatory
-          network"
-        </p>
-        <p>
-          This means the TRN or protein you searched for is not currently
-          included in the dataset.
+          "Sorry, we don't have information for [...]"
         </p>
       </div>
 
-      {/* Panel: Future Features */}
-      <div className="panel full">
-        <h2 className="panel-title">Future Features</h2>
-        <p>
-          We are actively expanding the database to include:
-        </p>
+      {/* Data Sources */}
+      <div className="panel">
+        <h2 className="panel-title">Data Sources</h2>
+        <p>STARMAP combines data from the following sources:</p>
+
+        <h3 className="subheading">Structural Data</h3>
         <ul>
-          <li>
-            Drug–TRN and drug–protein connections, enabling searches for compounds
-            that modulate transcriptional regulatory networks.
-          </li>
-          <li>
-            Interactive network visualizations for proteins, pathways, and drugs.
-          </li>
-          <li>
-            Expanded variant annotations across additional cancer types and
-            biological contexts.
-          </li>
+          <li>AlphaFold Protein Structure Database</li>
+          <li>Protein Data Bank (PDB)</li>
+        </ul>
+
+        <h3 className="subheading">Mutation & Gene Expression Data</h3>
+        <ul>
+          <li>DepMap / Cancer Cell Line Encyclopedia (CCLE)</li>
+        </ul>
+
+        <h3 className="subheading">Protein Functional Annotation</h3>
+        <ul>
+          <li>UniProt</li>
+        </ul>
+
+        <h3 className="subheading">Protein–Protein Interaction Data</h3>
+        <ul>
+          <li>BioGRID</li>
+          <li>Interologous Interaction Database (IID)</li>
+        </ul>
+
+        <h3 className="subheading">TRN / Gene Set Data</h3>
+        <ul>
+          <li>Gene Transcription Regulation Database (GTRD) via MSigDB TFT collection</li>
+        </ul>
+
+        <h3 className="subheading">Single-Cell Perturbation Data</h3>
+        <ul>
+          <li>X-Atlas / Orion</li>
+          <li>Tahoe-100M</li>
+        </ul>
+
+        <h3 className="subheading">Drug Response Data</h3>
+        <ul>
+          <li>Cancer Therapeutics Research Portal (CTRP)</li>
+        </ul>
+
+        <h3 className="subheading">Variant Functional Effect Data</h3>
+        <ul>
+          <li>MaveDB</li>
         </ul>
       </div>
 
@@ -133,13 +189,16 @@ export default function UserGuidePage() {
           font-weight: 700;
           margin-bottom: 1rem;
         }
+        .subheading {
+          font-size: 1.1rem;
+          font-weight: 700;
+          margin-top: 1rem;
+        }
         ul {
-          margin-top: 0.5rem;
           padding-left: 1.5rem;
-          list-style-type: disc;
         }
         li {
-          margin-bottom: 0.5rem;
+          margin-bottom: 0.4rem;
         }
         .error {
           color: red;
