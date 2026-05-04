@@ -8,7 +8,11 @@ export default function UserGuidePage() {
       {/* Attribution */}
       <div className="panel">
         <h2 className="panel-title">Attribution</h2>
-        <p><strong>Code Repository:</strong> https://github.com/Brunk-Lab/STARMAP for the software package, https://github.com/Brunk-Lab/STARMAP_paper for the accompanying paper</p>
+        <p>
+          <strong>Code Repository:</strong> 
+          <a href="https://github.com/Brunk-Lab/STARMAP" target="_blank">STARMAP software package</a>, 
+          <a href="https://github.com/Brunk-Lab/STARMAP_paper" target="_blank">Code for accompanying paper</a> 
+        </p>
         <p><strong>Please cite:</strong> Manuscript currently in preparation</p>
       </div>
 
