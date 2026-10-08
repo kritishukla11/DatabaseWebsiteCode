@@ -88,15 +88,22 @@ export default function HomePage() {
   // Handle search
   // -----------------------------
   const handleSearch = () => {
-    if (!query) return;
-    let normalizedQuery = query;
+    if (!query.trim()) return;
+
+    let normalizedQuery = query.trim();
+
     if (searchType === "drug") {
-      normalizedQuery = query.toLowerCase().trim();
+      normalizedQuery = normalizedQuery.toLowerCase();
     } else {
-      normalizedQuery = query.toUpperCase();
+      normalizedQuery = normalizedQuery.toUpperCase();
     }
 
     if (searchType === "protein") {
+      if (!allProteins.includes(normalizedQuery)) {
+        alert("This protein is not currently available in STARMAP.");
+        return;
+      }
+
       router.push(`/search?gene=${encodeURIComponent(normalizedQuery)}`);
     } else if (searchType === "pathway") {
       router.push(`/pathway?pathway=${encodeURIComponent(normalizedQuery)}`);
@@ -104,7 +111,6 @@ export default function HomePage() {
       router.push(`/drug?drug=${encodeURIComponent(normalizedQuery)}`);
     }
   };
-
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") handleSearch();
   };
