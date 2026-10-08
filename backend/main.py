@@ -2545,16 +2545,19 @@ def mave_legend(gene: str):
 
 @app.get("/proteins/list")
 def proteins_list():
-    """
-    Return a sorted list of all proteins available for downloads/homepage autocomplete.
-    """
     try:
-        if PATHWAY_MATRIX.empty:
-            return {"proteins": []}
-        proteins = sorted([str(x).strip().upper() for x in PATHWAY_MATRIX.index if pd.notna(x)])
+        path = Path(__file__).resolve().parent / "valid_flatmap_genes.json"
+
+        with open(path, "r") as f:
+            proteins = json.load(f)
+
         return {"proteins": proteins}
+
     except Exception as e:
-        return {"error": str(e)}
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to load protein list: {e}"
+        )
 
 
 @app.get("/pathways/list")
