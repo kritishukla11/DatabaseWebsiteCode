@@ -225,9 +225,11 @@ export default function Panel3Calibration({ gene }: { gene: string }) {
             editing with single-cell RNA sequencing.
           </p>
           <p className="mb-2">
-            Our Perturb-seq data comes from the X-Atlas/Orion dataset, which
-            contains data for all human protein-coding genes in the HCT116
-            colorectal carcinoma cell line.
+            Our Perturb-seq data comes from two sources: targeted knock-in 
+            (coding-variant) Perturb-seq profiling approximately 200 TP53 and 
+            KRAS variants, and the X-Atlas/Orion dataset, which
+            contains genome-scale knockdown data for all human protein-coding 
+            genes in the HCT116 colorectal carcinoma cell line.
           </p>
           <p className="mb-2">
             For each protein, we identify the most impactful transcriptional
