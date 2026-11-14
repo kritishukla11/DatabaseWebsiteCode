@@ -13,7 +13,7 @@ export default function PathwayPageContent() {
   const [showExplanation, setShowExplanation] = useState(false);
 
   // ─── State ───────────────────────────────────────────────
-  const [threshold, setThreshold] = useState(0.8);
+  const [threshold, setThreshold] = useState(0.1);
   const [proteins, setProteins] = useState<{ id: string; score: number }[]>([]);
   const [interactions, setInteractions] = useState<
     {
