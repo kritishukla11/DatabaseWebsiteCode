@@ -1,3 +1,18 @@
+import os
+
+os.environ["HF_HOME"] = "/tmp/starmap_hf"
+os.environ["HF_HUB_CACHE"] = "/tmp/starmap_hf/hub"
+os.environ["HF_XET_CACHE"] = "/tmp/starmap_hf/xet"
+os.environ["MPLCONFIGDIR"] = "/tmp/matplotlib_cache"
+
+for folder in [
+    os.environ["HF_HOME"],
+    os.environ["HF_HUB_CACHE"],
+    os.environ["HF_XET_CACHE"],
+    os.environ["MPLCONFIGDIR"],
+]:
+    os.makedirs(folder, exist_ok=True)
+
 # backend/main.py
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse, StreamingResponse, PlainTextResponse, Response, FileResponse
@@ -5,7 +20,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
 import json
 import numpy as np
-import pandas as pd
+import pandas as psd
 import plotly.graph_objects as go
 import re
 import math
