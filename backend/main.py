@@ -135,25 +135,50 @@ def cluster_pathway_scores(gene: str, pathway: str) -> pd.DataFrame:
         raise HTTPException(status_code=404, detail="No scores for this TRN")
     return df.rename(columns={"score": "gi_sum"})[["cluster", "gi_sum"]]
 
-OUT_DIR = Path(__file__).resolve().parent / "protein_map_outputs"  # must contain manifest.json
+OUT_DIR = Path(__file__).resolve().parent / "protein_map_outputs"
 
 def _load_artifacts(base: Path = OUT_DIR):
-    # Positive associations define the network; signed scores remain unchanged
-    # in flatmaps, tables, downloads, and the master matrix.
-    vecs = site_matrix().fillna(0).clip(lower=0)
-    vecs = vecs.loc[(vecs > 0).any(axis=1)].copy()
-    V = vecs.to_numpy(dtype=np.float32, copy=True)
-    V /= np.linalg.norm(V, axis=1, keepdims=True) + 1e-12
-    coords = pd.DataFrame(columns=["protein_id", "x", "y"])
-    # Existing coordinates may be reused only as display positions.
+    t0 = time.time()
+
     manifest_path = base / "manifest.json"
-    if manifest_path.exists():
-        with manifest_path.open() as handle:
-            old_manifest = json.load(handle)
-        coord_path = base / old_manifest.get("coords_parquet", "coords.parquet")
-        if coord_path.is_file():
-            coords = pd.read_parquet(coord_path)[["protein_id", "x", "y"]]
-    return {"revision": SITE_REVISION}, vecs, coords, V, vecs.index.to_numpy()
+    if not manifest_path.exists():
+        raise RuntimeError(
+            f"manifest.json not found under {base.resolve()}"
+        )
+
+    with manifest_path.open() as handle:
+        manifest = json.load(handle)
+
+    vectors_path = base / manifest["vectors_parquet"]
+    coords_path = base / manifest["coords_parquet"]
+
+    if not vectors_path.exists():
+        raise RuntimeError(
+            f"vectors parquet missing: {vectors_path.resolve()}"
+        )
+    if not coords_path.exists():
+        raise RuntimeError(
+            f"coords parquet missing: {coords_path.resolve()}"
+        )
+
+    vecs = pd.read_parquet(vectors_path).set_index("protein_id")
+    coords = pd.read_parquet(coords_path)
+
+    if not {"protein_id", "x", "y"}.issubset(coords.columns):
+        raise RuntimeError(
+            "coords parquet must have columns: protein_id, x, y"
+        )
+
+    V = vecs.to_numpy(dtype=np.float32, copy=True)
+    V = V / (np.linalg.norm(V, axis=1, keepdims=True) + 1e-12)
+    ids = vecs.index.to_numpy()
+
+    print(
+        f"[LOAD] vectors={V.shape} coords={coords.shape} "
+        f"in {time.time() - t0:.3f}s"
+    )
+
+    return manifest, vecs, coords, V, ids
 
 
 try:
