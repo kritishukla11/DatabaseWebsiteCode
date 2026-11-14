@@ -142,7 +142,7 @@ def _load_artifacts(base: Path = OUT_DIR):
     # in flatmaps, tables, downloads, and the master matrix.
     vecs = site_matrix().fillna(0).clip(lower=0)
     vecs = vecs.loc[(vecs > 0).any(axis=1)].copy()
-    V = vecs.to_numpy(dtype=np.float32)
+    V = vecs.to_numpy(dtype=np.float32, copy=True)
     V /= np.linalg.norm(V, axis=1, keepdims=True) + 1e-12
     coords = pd.DataFrame(columns=["protein_id", "x", "y"])
     # Existing coordinates may be reused only as display positions.
