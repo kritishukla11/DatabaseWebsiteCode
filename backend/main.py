@@ -62,37 +62,84 @@ def root():
 # =============== PANEL 5: /plot endpoints ================
 # =========================================================
 
-OUT_DIR = Path("protein_map_outputs")  # must contain manifest.json
+
+# Public, versioned website dataset. No authentication token is sent.
+from functools import lru_cache
+SITE_REPO = "kritishukla/starmap-site-data"
+SITE_REVISION = "8573ab8d968431ea7d77c8bcf15e24fa1d3d8dfd"
+
+@lru_cache(maxsize=128)
+def site_file(filename: str) -> str:
+    try:
+        return hf_hub_download(repo_id=SITE_REPO, repo_type="dataset",
+                               revision=SITE_REVISION, filename=filename, token=False,
+                               cache_dir=os.environ.get("STARMAP_CACHE_DIR", "/tmp/starmap_hf"))
+    except Exception as exc:
+        if getattr(getattr(exc, "response", None), "status_code", None) == 404:
+            raise HTTPException(status_code=404, detail=f"Dataset file missing: {filename}") from exc
+        raise
+
+def canonical_gene(gene: str) -> str:
+    gene = gene.strip().upper()
+    if not gene:
+        raise HTTPException(status_code=400, detail="Gene must not be empty")
+    return gene
+
+@lru_cache(maxsize=1)
+def site_genes():
+    with open(site_file("valid_flatmap_genes.json")) as handle:
+        return frozenset(json.load(handle))
+
+@lru_cache(maxsize=128)
+def _site_gene_table(kind: str, gene: str) -> pd.DataFrame:
+    letter = gene[0] if gene[0].isalpha() else "OTHER"
+    if kind in {"nmf", "scores"} and gene not in site_genes():
+        raise HTTPException(status_code=404, detail=f"No website data for {gene}")
+    df = pd.read_parquet(site_file(f"{kind}/{letter}.parquet"),
+                         filters=[("gene", "==", gene)])
+    if df.empty:
+        raise HTTPException(status_code=404, detail=f"No {kind} data for {gene}")
+    return df
+
+def site_gene_table(kind: str, gene: str) -> pd.DataFrame:
+    return _site_gene_table(kind, canonical_gene(gene)).copy()
+
+@lru_cache(maxsize=1)
+def site_matrix() -> pd.DataFrame:
+    df = pd.read_parquet(site_file("matrices/protein_trn_scores.parquet"))
+    df.index = df.index.astype(str).str.strip().str.upper()
+    df.columns = df.columns.astype(str).str.strip().str.upper()
+    if df.index.duplicated().any() or df.columns.duplicated().any():
+        raise RuntimeError("Duplicate names in website score matrix")
+    return df.apply(pd.to_numeric, errors="raise")
+
+def cluster_pathway_scores(gene: str, pathway: str) -> pd.DataFrame:
+    df = site_gene_table("scores", gene)
+    df = df[df["pathway"].eq(pathway.strip().upper())].copy()
+    if df.empty:
+        raise HTTPException(status_code=404, detail="No scores for this TRN")
+    return df.rename(columns={"score": "gi_sum"})[["cluster", "gi_sum"]]
+
+OUT_DIR = Path(__file__).resolve().parent / "protein_map_outputs"  # must contain manifest.json
 
 def _load_artifacts(base: Path = OUT_DIR):
-    t0 = time.time()
-    man_path = base / "manifest.json"
-    if not man_path.exists():
-        raise RuntimeError(f"manifest.json not found under {base.resolve()}")
-    with open(man_path) as f:
-        m = json.load(f)
+    # Positive associations define the network; signed scores remain unchanged
+    # in flatmaps, tables, downloads, and the master matrix.
+    vecs = site_matrix().fillna(0).clip(lower=0)
+    vecs = vecs.loc[(vecs > 0).any(axis=1)].copy()
+    V = vecs.to_numpy(dtype=np.float32)
+    V /= np.linalg.norm(V, axis=1, keepdims=True) + 1e-12
+    coords = pd.DataFrame(columns=["protein_id", "x", "y"])
+    # Existing coordinates may be reused only as display positions.
+    manifest_path = base / "manifest.json"
+    if manifest_path.exists():
+        with manifest_path.open() as handle:
+            old_manifest = json.load(handle)
+        coord_path = base / old_manifest.get("coords_parquet", "coords.parquet")
+        if coord_path.is_file():
+            coords = pd.read_parquet(coord_path)[["protein_id", "x", "y"]]
+    return {"revision": SITE_REVISION}, vecs, coords, V, vecs.index.to_numpy()
 
-    vecs_path   = base / m["vectors_parquet"]
-    coords_path = base / m["coords_parquet"]
-
-    if not vecs_path.exists():
-        raise RuntimeError(f"vectors parquet missing: {vecs_path.resolve()}")
-    if not coords_path.exists():
-        raise RuntimeError(f"coords parquet missing: {coords_path.resolve()}")
-
-    vecs   = pd.read_parquet(vecs_path).set_index("protein_id")
-    coords = pd.read_parquet(coords_path)
-
-    if "protein_id" not in coords.columns or "x" not in coords.columns or "y" not in coords.columns:
-        raise RuntimeError("coords parquet must have columns: protein_id, x, y")
-
-    # Normalize vectors once for cosine
-    V = vecs.values.astype(np.float32)
-    V = V / (np.linalg.norm(V, axis=1, keepdims=True) + 1e-12)
-    ids = vecs.index.to_numpy()
-
-    print(f"[LOAD] vectors={V.shape} coords={coords.shape} in {time.time()-t0:.3f}s")
-    return m, vecs, coords, V, ids
 
 try:
     _MAN, _VECS_DF, _COORDS, _V_NORM, _IDS = _load_artifacts()
@@ -123,7 +170,7 @@ def _topk_cosine(query_protein: str, k: int = 10) -> pd.DataFrame:
         sims[idx_self[0]] = -np.inf
 
     k = int(max(1, min(k, len(sims)-1)))
-    topk_idx = np.argpartition(-sims, kth=k)[:k]
+    topk_idx = np.argpartition(-sims, kth=k-1)[:k]
     order = np.argsort(-sims[topk_idx])
     topk_idx = topk_idx[order]
 
@@ -271,6 +318,7 @@ def plot_ping(gene: str = "KEAP1"):
     """
     Lightweight sanity check for Panel 5. Returns timing + quick stats or an error message.
     """
+    gene = canonical_gene(gene)
     t0 = time.time()
     try:
         if _V_NORM.size == 0 or _VECS_DF.empty:
@@ -299,6 +347,7 @@ def check_gene(gene: str):
 
 @app.get("/plot")
 def get_plot(gene: str, topk: int = 10):
+    gene = canonical_gene(gene)
     t0 = time.time()
     try:
         if _V_NORM.size == 0 or _VECS_DF.empty:
@@ -338,7 +387,7 @@ def get_plot(gene: str, topk: int = 10):
         fig = _plot_network(gene, nbrs_df)
 
         out = {
-            "plot": fig.to_plotly_json(),
+            "plot": json.loads(fig.to_json()),
             "neighbors": nbrs_df.to_dict(orient="records"),
             "shared_pathways": shared_pw.to_dict(orient="records"),
             "elapsed_sec": round(time.time() - t0, 3),
@@ -500,66 +549,16 @@ def make_cluster_cmap(n_clusters: int) -> ListedColormap:
 # ---------------- Data loaders ----------------
 @lru_cache(maxsize=128)
 def load_gene_parquet(gene: str) -> pd.DataFrame:
-    letter = gene[0].upper() if gene and gene[0].isalpha() else "OTHER"
-    repo_id = "kritishukla/parquet_storage"
-    filename = f"{letter}.parquet"
-
-    try:
-        parquet_url = f"hf://datasets/{repo_id}/{filename}"
-        df = pd.read_parquet(
-            parquet_url,
-            engine="pyarrow",
-            filters=[("gene", "==", gene.upper())]
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to load parquet {filename}: {e}")
-
-    if df.empty:
-        raise HTTPException(status_code=404, detail=f"No data for {gene} in {filename}")
-
-    # normalize column names once, everywhere else use lowercase
-    df.columns = df.columns.str.lower()
-
-    # (optional) keep pathway tidy without turning NaN into "nan"
-    if "pathway" in df.columns:
-        df["pathway"] = df["pathway"].where(df["pathway"].notna(), None)
-        # strip whitespace for non-null paths
-        df.loc[df["pathway"].notna(), "pathway"] = df.loc[df["pathway"].notna(), "pathway"].str.strip()
-
+    # Compatibility adapter for the remaining NMF-download code.
+    df = site_gene_table("nmf", gene).rename(columns={
+        "residue": "res", "cluster": "clust", "x": "x_axis", "y": "y_axis"})
+    df["table"] = "nmfinfo"
     return df
+
 
 def load_scores_csv(gene: str) -> pd.DataFrame:
-    letter = gene[0].upper() if gene and gene[0].isalpha() else "OTHER"
-    gene_upper = gene.upper()
-    repo_id = "kritishukla/clust_pathway_scores"
-    filename = f"{letter}/{gene_upper}_scores_cleaned.csv"
+    return site_gene_table("scores", gene)
 
-    try:
-        csv_url = f"hf://datasets/{repo_id}/{filename}"
-        df = pd.read_csv(
-            csv_url
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to load csv {filename}: {e}")
-
-    if df.empty:
-        raise HTTPException(status_code=404, detail=f"No data for {gene} in {filename}")
-
-    # normalize column names once, everywhere else use lowercase
-    df.columns = df.columns.str.lower()
-
-    # Convert score columns to numeric
-    for col in df.columns:
-        if col.startswith("score_"):
-            df[col] = pd.to_numeric(df[col], errors="coerce")
-
-    # (optional) keep pathway tidy without turning NaN into "nan"
-    if "pathway" in df.columns:
-        df["pathway"] = df["pathway"].where(df["pathway"].notna(), None)
-        # strip whitespace for non-null paths
-        df.loc[df["pathway"].notna(), "pathway"] = df.loc[df["pathway"].notna(), "pathway"].str.strip()
-
-    return df
 
 
 
@@ -570,45 +569,25 @@ def normalize_clusters(series: pd.Series) -> pd.Series:
     return series.map(mapping), mapping
 
 def load_nmf(gene: str, df: pd.DataFrame | None = None):
-    if df is None:
-        df = load_gene_parquet(gene)
-
-    nmf = df[df["table"] == "nmfinfo"].copy()
-    if nmf.empty:
-        raise HTTPException(status_code=404, detail=f"No nmfinfo data for {gene}")
-
-    nmf = nmf.rename(columns={"x_axis": "x", "y_axis": "y", "clust": "cluster"})
+    nmf = site_gene_table("nmf", gene)
     nmf["x_r"] = nmf["x"].round(6)
     nmf["y_r"] = nmf["y"].round(6)
-    nmf["cluster"], mapping = normalize_clusters(nmf["cluster"])
+    mapping = {int(c): int(c) for c in nmf["cluster"].unique()}
     return nmf, mapping
 
 
 
+
 def list_pathways_for_gene(gene: str) -> list[str]:
-    df = load_gene_parquet(gene)
-    gdfs = df[df["table"] == "gdf"]
+    scores = site_gene_table("scores", gene)
+    maxima = scores.groupby("pathway")["score"].max()
+    return sorted(maxima[maxima > 0].index.tolist())
 
-    if gdfs.empty:
-        return []
-
-    # keep only pathways where Gi_sum > 0 at least once
-    valid = (
-        gdfs.groupby("pathway")["gi_sum"]
-        .max()
-        .reset_index()
-    )
-    valid = valid[valid["gi_sum"] > 0]
-
-    return sorted(valid["pathway"].dropna().unique().tolist())
 
 @lru_cache(maxsize=128)
 def load_global_max_scores() -> pd.DataFrame:
-    path = "all_proteins_max_score_matrix_cleaned.csv"
-    df = pd.read_csv(path)
-    df.columns = df.columns.str.upper()
-    df.index = df[df.columns[0]].str.upper()   # first col = gene name
-    return df.drop(columns=df.columns[0])
+    return site_matrix()
+
 
 
 
@@ -637,28 +616,11 @@ def flatmap_image(
 
         gi_vals = None
         if name:
-            df_all = load_gene_parquet(gene)
-            df_scores = load_scores_csv(gene)
-
-            cols = df_scores.columns
-
-            scores_list = []
-            for i in cols:
-                if i.startswith('score'):
-                    scores_list.append(i)
-
-            if df_scores[df_scores["pathway"].str.upper() == name.upper()].empty:
-                raise HTTPException(status_code=404, detail="No GI* scores for this pathway")
-
-
-            slice = df_scores[df_scores['pathway'].str.upper()== name.upper()][scores_list].reset_index(drop=True).copy().T.reset_index().reset_index()
-            slice = slice.rename(columns={'level_0': 'cluster'})
-            slice = slice.rename(columns={0: 'gi_sum'})
-            df = df.drop(columns='gi_sum')
-
-            merged = pd.merge(df, slice, on=["cluster"], how="left")
-
-            gi_vals = merged["gi_sum"].fillna(0.0).astype(float)
+            slice = cluster_pathway_scores(gene, name)
+            merged = df.merge(slice, on="cluster", how="left", validate="many_to_one")
+            if merged["gi_sum"].isna().any():
+                raise HTTPException(status_code=500, detail="Missing cluster scores")
+            gi_vals = merged["gi_sum"].astype(float)
         else:
             merged = df
 
@@ -763,7 +725,7 @@ def flatmap_image(
                     edgecolors="darkgrey", facecolors="none", linewidths=0, zorder=3)
 
             cb = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
-            cb.set_label(f"Cluster GI* ({collapse})\nGreen = Low, Red = High")
+            cb.set_label("Gi* score\nGreen = Low, Red = High")
 
         # ---------- Altitude + Border ----------
         ax.contour(Xi, Yi, Zi_alt_masked, levels=40,
@@ -885,96 +847,14 @@ def flatmap_image(
 
 @app.get("/flatmap/summary")
 def flatmap_summary(gene: str, pathway: str | None = None):
-    """
-    Return dynamic summary sentences for Panel 2.
-    - Default: report mutation + cell line counts (from The Cancer Dependency Map) + cluster count.
-    - Pathway-specific: describe TRN association + top cluster description.
-    """
-    try:
-        # --- Load mutation + cell line counts ---
-        mut_csv = Path("mutation_counts.csv")
-        n_mut, n_cell = None, None
-        if mut_csv.exists():
-            mdf = pd.read_csv(mut_csv)
-            # expect columns: gene, mut_count, cell_line_count
-            if {"gene", "mut_count", "cell_line_count"}.issubset(mdf.columns):
-                row = mdf[mdf["gene"].str.upper() == gene.upper()]
-                if not row.empty:
-                    n_mut = int(row.iloc[0]["mut_count"])
-                    n_cell = int(row.iloc[0]["cell_line_count"])
+    gene = canonical_gene(gene)
+    nmf, _ = load_nmf(gene)
+    if not pathway:
+        return {"summary": f"{gene} is divided into {nmf['cluster'].nunique()} regions of functional interest (RFIs)."}
+    scores = cluster_pathway_scores(gene, pathway)
+    best = scores.loc[scores["gi_sum"].idxmax()]
+    return {"summary": f"This flatmap shows the Gi* score for the association of {gene} with {pathway.strip().upper()}. RFI {int(best['cluster'])} (zero-indexed) has the highest Gi* score: {best['gi_sum']:.4g}."}
 
-        # --- Load cluster info (from NMF data) ---
-        nmf, mapping = load_nmf(gene)
-        n_clusters = nmf["cluster"].nunique()
-
-        # --- Default summary sentence ---
-        if not pathway:
-            s = (
-                f"{gene.upper()} has {n_mut if n_mut is not None else 'multiple'} mutations "
-                f"across {n_cell if n_cell is not None else 'several'} cell lines "
-                f"from The Cancer Dependency Map. "
-                f"Shown here is a flatmap of {gene.upper()} split into {n_clusters} "
-                f"regions of functional interest (RFIs)."
-            )
-            return {"summary": s}
-
-        # --- Pathway-specific summary sentence ---
-        df_scores = load_scores_csv(gene)
-
-        cols = df_scores.columns
-
-        scores_list = []
-        for i in cols:
-            if i.startswith('score'):
-                scores_list.append(i)
-
-        if df_scores[df_scores["pathway"].str.upper() == pathway.upper()].empty:
-            raise HTTPException(status_code=404, detail="No GI* scores for this pathway")
-
-
-        slice = df_scores[df_scores['pathway'].str.upper()== pathway.upper()][scores_list].reset_index(drop=True).copy().T.reset_index().reset_index()
-        slice = slice.rename(columns={'level_0': 'cluster'})
-        slice = slice.rename(columns={0: 'gi_sum'})
-        df = df.drop(columns='gi_sum')
-
-        max_val = slice[slice['gi_sum']==slice['gi_sum'].max()].reset_index(drop=True)
-        top_cluster = max_val['cluster'][0]
-        top_score = max_val['gi_sum'][0]
-
-        # Lookup annotation label for that cluster
-        desc = None
-        ann_path = DATA_DIR / "annotated_clusters.csv"
-        if ann_path.exists():
-            ann = pd.read_csv(ann_path)
-            ann_sub = ann[ann["gene"].str.upper() == gene.upper()]
-            if not ann_sub.empty and "cluster" in ann_sub.columns:
-                ann_sub["cluster"] = ann_sub["cluster"].map(mapping)
-                if top_cluster in ann_sub["cluster"].values:
-                    desc = ann_sub.loc[
-                        ann_sub["cluster"] == top_cluster, "annotation_type"
-                    ].iloc[0]
-
-        if not desc:
-            desc = f"cluster {top_cluster}"
-
-        # 🆕 Include GI* score in sentence
-        if top_score is not None:
-            s = (
-                f"This flatmap of {gene.upper()} is colored by association to {pathway.upper()}. "
-                f"The '{desc}' region of functional interest (RFI) shows the strongest association "
-                f"with this TRN, with a GI* score of {top_score}."
-            )
-        else:
-            s = (
-                f"This flatmap of {gene.upper()} is colored by association to {pathway.upper()}. "
-                f"The '{desc}' region of functional interest (RFI) shows the strongest association "
-                f"with this TRN."
-            )
-
-        return {"summary": s}
-
-    except Exception as e:
-        return {"error": str(e)}
 
 
 
@@ -987,282 +867,99 @@ PARQUET_DIR = Path("data/Parquet_letter_concat")
 
 
 def load_gene_data(gene: str) -> pd.DataFrame:
-    """Load Parquet file for the gene's first letter and filter for the gene."""
-    letter = gene[0].upper()
-    file_path = PARQUET_DIR / f"{letter}.parquet"
+    try:
+        return site_gene_table("calibration", gene)
+    except HTTPException as exc:
+        if exc.status_code == 404:
+            return pd.DataFrame()
+        raise
 
-    if not file_path.exists():
-        raise FileNotFoundError(f"Missing Parquet file for letter {letter}")
 
-    df = pd.read_parquet(file_path)
-    sub = df[df["gene"].str.upper() == gene.upper()]
-    return sub
 
+def fit_free_exponential(x, y):
+    """Fit a*exp(-b*x)+c; all three parameters are estimated from the data."""
+    from scipy.optimize import curve_fit
+    x = np.asarray(x, dtype=float)
+    y = np.asarray(y, dtype=float)
+    if len(x) < 4 or len(np.unique(x)) < 3 or np.ptp(y) == 0:
+        return None
+    def exponential(rank, a, b, c):
+        return a * np.exp(-b * rank) + c
+    best = None
+    span = max(float(np.ptp(x)), 1.0)
+    for initial_b in [0.2 / span, 1.0 / span, 5.0 / span]:
+        initial_c = float(np.median(y[-max(1, len(y)//10):]))
+        initial_a = float(y[0] - initial_c) * np.exp(initial_b*x[0])
+        try:
+            params, _ = curve_fit(
+                exponential, x, y, p0=[initial_a, initial_b, initial_c],
+                bounds=([-np.inf, 0, -np.inf], [np.inf, np.inf, np.inf]),
+                maxfev=50000,
+            )
+            prediction = exponential(x, *params)
+            error = float(np.sum((y-prediction)**2))
+            r2 = 1 - error / float(np.sum((y-y.mean())**2))
+            if np.isfinite(prediction).all() and np.isfinite(r2):
+                if best is None or error < best["error"]:
+                    best = {"params": params, "r2": r2,
+                            "error": error, "func": exponential}
+        except (RuntimeError, ValueError, FloatingPointError):
+            continue
+    return best
 
 @app.get("/calibration/image")
 def calibration_image(gene: str):
-    """
-    Returns a matplotlib plot (PNG) of adjusted_rank vs confidence
-    for the given gene, with the best constrained regression curve chosen
-    automatically from several candidate models.
-    Each model is forced to pass through the first point.
-    Highlights the top 10% region.
-    If no data exist, returns a text image instead.
-    """
-    import io
-    import numpy as np
-    import matplotlib.pyplot as plt
-    from scipy.optimize import curve_fit
-    from sklearn.metrics import r2_score
-    from fastapi.responses import StreamingResponse, JSONResponse
-
-    def no_data_image():
-        fig, ax = plt.subplots(figsize=(6, 4))
-        ax.axis("off")
-        ax.text(
-            0.5,
-            0.5,
-            "We don't have Perturb-seq data\nfor this protein.",
-            ha="center",
-            va="center",
-            fontsize=12,
-            wrap=True,
-        )
-        buf = io.BytesIO()
-        fig.tight_layout()
-        fig.savefig(buf, format="png", bbox_inches="tight", dpi=160)
-        plt.close(fig)
-        buf.seek(0)
-        return StreamingResponse(
-            buf,
-            media_type="image/png",
-            headers={
-                "Cache-Control": "no-store",
-                "Access-Control-Allow-Origin": "*",
-            },
-        )
-
+    """Dynamic-scaled confidence with a free exponential fit only."""
     with PLOT_LOCK:
+        sub = load_gene_data(gene)
+        fig, ax = plt.subplots(figsize=(6, 4))
         try:
-            sub = load_gene_data(gene)
-
-            if sub is None or sub.empty:
-                return no_data_image()
-
-            sub = sub.copy()
-            sub["adjusted_rank"] = pd.to_numeric(sub["adjusted_rank"], errors="coerce")
-            sub["confidence"] = pd.to_numeric(sub["confidence"], errors="coerce")
-            sub = sub.dropna(subset=["adjusted_rank", "confidence"]).reset_index(drop=True)
-
             if sub.empty:
-                return no_data_image()
-
-            x = sub["adjusted_rank"].to_numpy(dtype=float) + 1
-            y = sub["confidence"].to_numpy(dtype=float)
-
-            if len(x) < 3 or len(np.unique(x)) < 3:
-                fig, ax = plt.subplots(figsize=(6, 4))
+                ax.axis("off")
+                ax.text(0.5, 0.5, "We don't have Perturb-seq data\nfor this protein.",
+                        ha="center", va="center", transform=ax.transAxes)
+            else:
+                sub = sub.copy()
+                cols = ["adjusted_rank", "confidence"]
+                sub[cols] = sub[cols].apply(pd.to_numeric, errors="coerce")
+                sub = sub.replace([np.inf, -np.inf], np.nan).dropna(subset=cols)
+                sub = sub.sort_values("adjusted_rank")
+                x = sub["adjusted_rank"].to_numpy(dtype=float) + 1
+                y = sub["confidence"].to_numpy(dtype=float)
                 ax.scatter(x, y, s=30, alpha=0.7, label="Data")
+                best = fit_free_exponential(x, y)
+                if best is not None:
+                    xx = np.linspace(x.min(), x.max(), 300)
+                    ax.plot(xx, best["func"](xx, *best["params"]), color="red",
+                            linewidth=2, label=f'Exponential; $R^2 = {best["r2"]:.3f}$')
+                    ax.legend(loc="upper right", fontsize=9)
+                else:
+                    ax.text(0.02, 0.02, "Exponential fit unavailable", fontsize=9,
+                            transform=ax.transAxes)
+                # Preserve the existing green percentile highlight.
+                if len(x):
+                    x_min = float(x.min())
+                    x_thresh = float(np.quantile(x, 0.1))
+                    y_thresh = float(np.quantile(y, 0.9))
+                    ax.add_patch(plt.Rectangle(
+                        (x_min, y_thresh), x_thresh-x_min, float(y.max())-y_thresh,
+                        facecolor="lightgreen", alpha=0.3, edgecolor="green",
+                        linewidth=1.5, linestyle="--"))
                 ax.set_xlim(left=1)
-
                 ax.set_xlabel("Rank of TRNs (predicted using spatial statistics)")
                 ax.set_ylabel(
-                    f"Confidence of association between\n{gene} and each TRN\n(validated by Perturb-seq)",
-                    fontsize=10,
-                    labelpad=8,
-                    wrap=True,
-                )
+                    f"Confidence of association between\n{canonical_gene(gene)} and each TRN\n(validated by Perturb-seq)",
+                    fontsize=10, labelpad=8)
                 ax.grid(False)
-
-                x_thresh = sub["adjusted_rank"].quantile(0.1) + 1
-                y_thresh = sub["confidence"].quantile(0.9)
-                x_min = sub["adjusted_rank"].min() + 1
-                width = x_thresh - x_min
-
-                ax.add_patch(
-                    plt.Rectangle(
-                        (x_min, y_thresh),
-                        width,
-                        sub["confidence"].max() - y_thresh,
-                        facecolor="lightgreen",
-                        alpha=0.3,
-                        edgecolor="green",
-                        linewidth=1.5,
-                        linestyle="--",
-                    )
-                )
-
-                buf = io.BytesIO()
-                fig.tight_layout()
-                fig.savefig(buf, format="png", bbox_inches="tight", dpi=160)
-                plt.close(fig)
-                buf.seek(0)
-
-                return StreamingResponse(
-                    buf,
-                    media_type="image/png",
-                    headers={
-                        "Cache-Control": "no-store",
-                        "Access-Control-Allow-Origin": "*",
-                    },
-                )
-
-            order = np.argsort(x)
-            x = x[order]
-            y = y[order]
-
-            x0 = x[0]
-            y0 = y[0]
-
-            def exp_decay_fixed_first(x, b, c):
-                a = (y0 - c) / np.exp(-b * x0)
-                return a * np.exp(-b * x) + c
-
-            def logistic_fixed_first(x, k, xmid, c):
-                L = (y0 - c) * (1 + np.exp(k * (x0 - xmid)))
-                return c + L / (1 + np.exp(k * (x - xmid)))
-
-            def linear_fixed_first(x, m):
-                b = y0 - m * x0
-                return m * x + b
-
-            candidates = []
-
-            try:
-                p0 = [0.01, np.min(y)]
-                bounds = ([0, -np.inf], [np.inf, np.inf])
-                popt, _ = curve_fit(
-                    exp_decay_fixed_first,
-                    x,
-                    y,
-                    p0=p0,
-                    bounds=bounds,
-                    maxfev=20000,
-                )
-                y_pred = exp_decay_fixed_first(x, *popt)
-                r2 = r2_score(y, y_pred)
-                if np.isfinite(r2):
-                    candidates.append(
-                        {
-                            "name": "Exponential",
-                            "func": exp_decay_fixed_first,
-                            "params": popt,
-                            "r2": r2,
-                        }
-                    )
-            except Exception:
-                pass
-
-            try:
-                p0 = [0.01, np.median(x), np.min(y)]
-                popt, _ = curve_fit(
-                    logistic_fixed_first,
-                    x,
-                    y,
-                    p0=p0,
-                    maxfev=20000,
-                )
-                y_pred = logistic_fixed_first(x, *popt)
-                r2 = r2_score(y, y_pred)
-                if np.isfinite(r2):
-                    candidates.append(
-                        {
-                            "name": "Logistic",
-                            "func": logistic_fixed_first,
-                            "params": popt,
-                            "r2": r2,
-                        }
-                    )
-            except Exception:
-                pass
-
-            try:
-                p0 = [-0.001]
-                popt, _ = curve_fit(
-                    linear_fixed_first,
-                    x,
-                    y,
-                    p0=p0,
-                    maxfev=10000,
-                )
-                y_pred = linear_fixed_first(x, *popt)
-                r2 = r2_score(y, y_pred)
-                if np.isfinite(r2):
-                    candidates.append(
-                        {
-                            "name": "Linear",
-                            "func": linear_fixed_first,
-                            "params": popt,
-                            "r2": r2,
-                        }
-                    )
-            except Exception:
-                pass
-
-            best_model = max(candidates, key=lambda c: c["r2"]) if candidates else None
-
-            fig, ax = plt.subplots(figsize=(6, 4))
-            ax.scatter(x, y, s=30, alpha=0.7, label="Data")
-
-            if best_model is not None:
-                x_plot = np.linspace(np.min(x), np.max(x), 300)
-                y_plot = best_model["func"](x_plot, *best_model["params"])
-                ax.plot(
-                    x_plot,
-                    y_plot,
-                    color="red",
-                    linewidth=2,
-                    label=f'$R^2 = {best_model["r2"]:.3f}$',
-                )
-                ax.legend(loc="upper right", fontsize=9)
-
-            ax.set_xlim(left=1)
-            ax.set_xlabel("Rank of TRNs (predicted using spatial statistics)")
-            ax.set_ylabel(
-                f"Confidence of association between\n{gene} and each TRN\n(validated by Perturb-seq)",
-                fontsize=10,
-                labelpad=8,
-                wrap=True,
-            )
-            ax.grid(False)
-
-            x_thresh = sub["adjusted_rank"].quantile(0.1) + 1
-            y_thresh = sub["confidence"].quantile(0.9)
-            x_min = sub["adjusted_rank"].min() + 1
-            width = x_thresh - x_min
-
-            ax.add_patch(
-                plt.Rectangle(
-                    (x_min, y_thresh),
-                    width,
-                    sub["confidence"].max() - y_thresh,
-                    facecolor="lightgreen",
-                    alpha=0.3,
-                    edgecolor="green",
-                    linewidth=1.5,
-                    linestyle="--",
-                )
-            )
-
             buf = io.BytesIO()
             fig.tight_layout()
             fig.savefig(buf, format="png", bbox_inches="tight", dpi=160)
+        finally:
             plt.close(fig)
-            buf.seek(0)
+        buf.seek(0)
+        return StreamingResponse(buf, media_type="image/png",
+                                 headers={"Cache-Control": "no-store"})
 
-            return StreamingResponse(
-                buf,
-                media_type="image/png",
-                headers={
-                    "Cache-Control": "no-store",
-                    "Access-Control-Allow-Origin": "*",
-                },
-            )
-
-        except FileNotFoundError:
-            return no_data_image()
-        except Exception as e:
-            return JSONResponse({"error": str(e)}, status_code=500)
 
 
 # ====== /calibration/genes ======
@@ -1380,90 +1077,44 @@ def stable_bucket(g: str, n_buckets: int = N_BUCKETS) -> int:
 
 @app.get("/residues")
 def get_residues(gene: str):
-    """Return only residue-cluster mapping (for coloring structures)."""
-    bucket = stable_bucket(gene)
-    path = Path(f"gene_buckets/bucket_{bucket:04d}.parquet")
-    if not path.exists():
-        raise HTTPException(status_code=404, detail=f"No bucket file for {gene}")
-    df = pd.read_parquet(path)
+    df = site_gene_table("nmf", gene)
+    return df[["gene", "residue", "cluster"]].to_dict(orient="records")
 
-    df = df.rename(columns={"clust": "cluster", "res": "residue"})
-    df = df[df["gene"].str.upper() == gene.upper()].copy()
-
-    # Normalize residues and clusters as ints
-    df["residue"] = pd.to_numeric(df["residue"], errors="coerce")
-    df["cluster"] = pd.to_numeric(df["cluster"], errors="coerce")
-
-    df = df.dropna(subset=["residue", "cluster"])
-    df["residue"] = df["residue"].astype(int)
-    df["cluster"] = df["cluster"].astype(int)
-
-    subset = df[["gene", "residue", "cluster"]].drop_duplicates()
-    return subset.to_dict(orient="records")
 
 
 @app.get("/residues_with_pathways")
 def get_residues_with_pathways(gene: str):
-    """Return full residue-cluster-pathway-score mapping (for pathway table)."""
-    bucket = stable_bucket(gene)
-    path = Path(f"gene_buckets/bucket_{bucket:04d}.parquet")
-    if not path.exists():
-        raise HTTPException(status_code=404, detail=f"No bucket file for {gene}")
-    df = pd.read_parquet(path)
+    nmf = site_gene_table("nmf", gene)[["gene", "residue", "cluster"]]
+    scores = site_gene_table("scores", gene)
+    return nmf.merge(scores, on=["gene", "cluster"], how="inner").to_dict(orient="records")
 
-    df = df.rename(columns={"clust": "cluster", "res": "residue"})
-    df = df[df["gene"].str.upper() == gene.upper()].copy()
-
-    # Normalize types
-    df["residue"] = pd.to_numeric(df["residue"], errors="coerce")
-    df["cluster"] = pd.to_numeric(df["cluster"], errors="coerce")
-    df["score"] = pd.to_numeric(df["score"], errors="coerce")
-
-    df = df.dropna(subset=["residue", "cluster"])
-    df["residue"] = df["residue"].astype(int)
-    df["cluster"] = df["cluster"].astype(int)
-
-    return df.to_dict(orient="records")
 
 
 @app.get("/trn_by_cluster_or_residue")
 def trn_by_cluster_or_residue(gene: str, cluster: int | None = None, residue: int | None = None, collapse: str = "max"):
-    """Return top-500 TRNs aggregated by cluster or residue (fast single parquet read)."""
-    df_all = load_gene_parquet(gene)
-    gdf = df_all[df_all["table"] == "gdf"].copy()
-    nmf, mapping = load_nmf(gene, df_all)
+    gene = canonical_gene(gene)
+    if collapse not in {"max", "mean"}:
+        raise HTTPException(status_code=400, detail="collapse must be max or mean")
+    if cluster is not None and residue is not None:
+        raise HTTPException(status_code=400, detail="Specify cluster or residue, not both")
+    selected_cluster = cluster
+    nmf = site_gene_table("nmf", gene)
+    if residue is not None:
+        match = nmf.loc[nmf["residue"].eq(residue), "cluster"]
+        if match.empty:
+            raise HTTPException(status_code=404, detail="Residue not found")
+        selected_cluster = int(match.iloc[0])
+    scores = site_gene_table("scores", gene)
+    if selected_cluster is not None:
+        scores = scores[scores["cluster"].eq(selected_cluster)]
+    if scores.empty:
+        raise HTTPException(status_code=404, detail="Cluster not found")
+    agg = scores.groupby("pathway")["score"]
+    result = (agg.mean() if collapse == "mean" else agg.max()).sort_values(ascending=False)
+    return {"gene": gene, "n_trns": len(result), "aggregation": collapse,
+            "cluster": cluster, "residue": residue,
+            "pathways": result.rename("score").reset_index().head(500).to_dict(orient="records")}
 
-    # parse geometry if needed
-    if "geometry" in gdf.columns and ("x" not in gdf.columns or "y" not in gdf.columns):
-        coords = gdf["geometry"].str.extract(r"POINT\s*\(?\s*([-0-9\.Ee+]+)\s+([-0-9\.Ee+]+)\s*\)?", expand=True)
-        coords.columns = ["x", "y"]
-        coords = coords.astype(float)
-        gdf = pd.concat([gdf, coords], axis=1)
-
-    gdf["x_r"], gdf["y_r"] = gdf["x"].round(6), gdf["y"].round(6)
-    nmf["x_r"], nmf["y_r"] = nmf["x"].round(6), nmf["y"].round(6)
-    merged = pd.merge(gdf, nmf[["x_r", "y_r", "cluster"]], on=["x_r", "y_r"], how="left")
-
-    if cluster is not None:
-        merged = merged[merged["cluster"] == cluster]
-    elif residue is not None and "residue" in merged.columns:
-        merged = merged[merged["residue"] == residue]
-
-    if merged.empty:
-        raise HTTPException(status_code=404, detail="No matching points.")
-
-    agg = merged.groupby("pathway")["gi_sum"]
-    trn_scores = (agg.mean() if collapse == "mean" else agg.max()).reset_index()
-    trn_scores = trn_scores.rename(columns={"gi_sum": "score"}).sort_values("score", ascending=False)
-
-    return {
-        "gene": gene.upper(),
-        "n_trns": len(trn_scores),
-        "aggregation": collapse,
-        "cluster": cluster,
-        "residue": residue,
-        "pathways": trn_scores.head(500).to_dict(orient="records"),
-    }
 
 
 # =========================================================
@@ -1471,12 +1122,11 @@ def trn_by_cluster_or_residue(gene: str, cluster: int | None = None, residue: in
 # =========================================================
 
 # Load once at startup
-PATHWAY_MATRIX = pd.read_csv("all_proteins_max_score_matrix_cleaned.csv", index_col=0)
+PATHWAY_MATRIX = site_matrix()
 
 def gene_in_master_matrix(gene: str) -> bool:
-    """Check if the given gene exists in the main all_proteins_max_score_matrix_cleaned.csv index."""
-    g = gene.strip().upper()
-    return g in [x.strip().upper() for x in PATHWAY_MATRIX.index]
+    return canonical_gene(gene) in PATHWAY_MATRIX.index
+
 
 
 
@@ -2194,48 +1844,11 @@ def build_panel2_nmf_csv(gene: str) -> pd.DataFrame:
 
 
 def build_panel2_cluster_gi_csv(gene: str, pathway: str) -> pd.DataFrame:
-    """
-    Download cluster-level GI* info using the exact same source logic
-    as Panel 2 flatmap_image: load_scores_csv(gene).
-    """
-    df_scores = load_scores_csv(gene)
+    df = cluster_pathway_scores(gene, pathway).rename(columns={"gi_sum": "gi_score"})
+    df.insert(0, "pathway", pathway.strip().upper())
+    df.insert(0, "gene", canonical_gene(gene))
+    return df[["gene", "pathway", "cluster", "gi_score"]].sort_values("cluster")
 
-    if "pathway" not in df_scores.columns:
-        raise HTTPException(status_code=500, detail="Scores file missing pathway column")
-
-    sub = df_scores[df_scores["pathway"].str.upper() == pathway.upper()].copy()
-    if sub.empty:
-        raise HTTPException(status_code=404, detail=f"No GI* scores found for {gene} and {pathway}")
-
-    score_cols = [c for c in sub.columns if c.startswith("score")]
-    if not score_cols:
-        raise HTTPException(status_code=500, detail="No score columns found in cluster pathway scores file")
-
-    # same transpose logic you use in flatmap_image
-    out = (
-        sub[score_cols]
-        .reset_index(drop=True)
-        .T
-        .reset_index()
-    )
-
-    out.columns = ["score_col", "gi_score"]
-    out["cluster"] = (
-        out["score_col"]
-        .astype(str)
-        .str.extract(r"(\d+)")
-        .iloc[:, 0]
-    )
-
-    out["cluster"] = pd.to_numeric(out["cluster"], errors="coerce")
-    out["gi_score"] = pd.to_numeric(out["gi_score"], errors="coerce")
-    out = out.dropna(subset=["cluster"]).copy()
-    out["cluster"] = out["cluster"].astype(int)
-
-    out.insert(0, "pathway", pathway.upper())
-    out.insert(0, "gene", gene.upper())
-
-    return out[["gene", "pathway", "cluster", "gi_score"]].sort_values("cluster").reset_index(drop=True)
 
 
 def build_panel4_cluster_logodds_csv(gene: str, drug: str) -> pd.DataFrame:
@@ -2395,39 +2008,66 @@ DOWNLOADABLE_FILES = {
 }
 
 
+
+HF_BULK_DOWNLOADS = {
+    "all_protein_trn_cluster_scores.csv": "Gi* scores for all TRNs and protein clusters (mass download)",
+    "all_protein_nmf.csv": "NMF residue coordinates, altitude, and original zero-based clusters",
+    "protein_trn_scores.csv": "Protein by TRN maximum Gi* score matrix",
+}
+
+def stream_site_csv(filename: str):
+    if filename == "protein_trn_scores.csv":
+        # Keep protein identifiers as the first CSV column.
+        yield site_matrix().to_csv(index=True)
+        return
+    kind = "scores" if filename == "all_protein_trn_cluster_scores.csv" else "nmf"
+    letters = sorted({g[0] if g[0].isalpha() else "OTHER" for g in site_genes()})
+    header = True
+    for letter in letters:
+        df = pd.read_parquet(site_file(f"{kind}/{letter}.parquet"))
+        if kind == "scores":
+            df = df.rename(columns={"score": "gi_score"})
+            df = df[["gene", "pathway", "cluster", "gi_score"]]
+        # Bound CSV conversion memory while streaming the response.
+        for offset in range(0, len(df), 10000):
+            yield df.iloc[offset:offset+10000].to_csv(index=False, header=header)
+            header = False
+
 @app.get("/downloads/reference_files")
 def list_reference_files():
-    files = []
-
+    files = [{"name": name, "description": description,
+              "href": f"/downloads/reference/{name}"}
+             for name, description in HF_BULK_DOWNLOADS.items()]
     for filename, meta in DOWNLOADABLE_FILES.items():
-        file_path = meta["path"]
-        if file_path.exists():
-            files.append(
-                {
-                    "name": filename,
-                    "description": meta["description"],
-                    "href": f"/downloads/reference/{filename}",
-                }
-            )
-
+        if filename not in HF_BULK_DOWNLOADS and meta["path"].exists():
+            files.append({"name": filename, "description": meta["description"],
+                          "href": f"/downloads/reference/{filename}"})
     return {"files": files}
+
 
 
 @app.get("/downloads/reference/{filename:path}")
 def download_reference_file(filename: str):
+    if filename in HF_BULK_DOWNLOADS:
+        # Resolve the first source before response headers are sent.
+        if filename == "protein_trn_scores.csv":
+            site_matrix()
+        else:
+            kind = "scores" if filename == "all_protein_trn_cluster_scores.csv" else "nmf"
+            gene = sorted(site_genes())[0]
+            letter = gene[0] if gene[0].isalpha() else "OTHER"
+            site_file(f"{kind}/{letter}.parquet")
+        return StreamingResponse(
+            stream_site_csv(filename), media_type="text/csv",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"',
+                     "X-Data-Revision": SITE_REVISION})
     if filename not in DOWNLOADABLE_FILES:
         raise HTTPException(status_code=404, detail="File not found")
-
-    file_path = DOWNLOADABLE_FILES[filename]["path"]
-
-    if not file_path.exists():
+    path = DOWNLOADABLE_FILES[filename]["path"]
+    if not path.exists():
         raise HTTPException(status_code=404, detail="File not found on server")
+    return FileResponse(path=path, media_type="text/csv", filename=filename)
 
-    return FileResponse(
-        path=file_path,
-        media_type="text/csv",
-        filename=filename,
-    )
 
 
 # ===========================
@@ -2468,43 +2108,10 @@ def get_mave_data(gene: str):
 # ====== /clusters/colors ======
 @app.get("/clusters/colors")
 def get_cluster_colors(gene: str):
-    """
-    Return mapping of residue position → hex color for the given gene.
-    Colors correspond to the cluster each residue belongs to.
-    """
-    try:
-        # --- Load residue-cluster mappings (from gene_buckets) ---
-        bucket = stable_bucket(gene)
-        path = Path(f"gene_buckets/bucket_{bucket:04d}.parquet")
-        if not path.exists():
-            raise HTTPException(status_code=404, detail=f"No bucket file for {gene}")
-        df = pd.read_parquet(path)
+    nmf = site_gene_table("nmf", gene)
+    return {str(int(row.residue)): BASE_COLORS[int(row.cluster) % len(BASE_COLORS)]
+            for row in nmf.itertuples()}
 
-        df = df.rename(columns={"clust": "cluster", "res": "residue"})
-        df = df[df["gene"].str.upper() == gene.upper()].copy()
-
-        # Clean types
-        df["residue"] = pd.to_numeric(df["residue"], errors="coerce")
-        df["cluster"] = pd.to_numeric(df["cluster"], errors="coerce")
-        df = df.dropna(subset=["residue", "cluster"])
-        df["residue"] = df["residue"].astype(int)
-        df["cluster"] = df["cluster"].astype(int)
-
-        # --- Assign cluster colors ---
-        n_clusters = df["cluster"].nunique()
-        cmap = make_cluster_cmap(n_clusters)
-        hex_colors = [matplotlib.colors.rgb2hex(c) for c in cmap.colors]
-
-        # Build mapping: residue → color
-        color_map = {
-            str(int(res)): hex_colors[int(cluster) % len(hex_colors)]
-            for res, cluster in zip(df["residue"], df["cluster"])
-        }
-
-        return color_map
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to build residue color map for {gene}: {e}")
 
 @app.get("/mave/legend")
 def mave_legend(gene: str):
@@ -2545,19 +2152,8 @@ def mave_legend(gene: str):
 
 @app.get("/proteins/list")
 def proteins_list():
-    try:
-        path = Path(__file__).resolve().parent / "valid_flatmap_genes.json"
+    return {"proteins": sorted(site_genes())}
 
-        with open(path, "r") as f:
-            proteins = json.load(f)
-
-        return {"proteins": proteins}
-
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to load protein list: {e}"
-        )
 
 
 @app.get("/pathways/list")
@@ -2591,3 +2187,24 @@ def drugs_list():
     cleaned = sorted({d.lower().strip() for d in drugs if d.strip()})
     return {"drugs": cleaned}
 
+
+@app.get("/data/release")
+def data_release():
+    return {"repo": SITE_REPO, "revision": SITE_REVISION,
+            "score": "scores_mutation_density_normalized", "score_label": "Gi* score",
+            "cluster_numbering": "zero_based_original_nmf",
+            "calibration": "dynamic_scaled_snapshot",
+            "panel3_fit": "free_exponential"}
+
+# Existing local reference downloads remain available.
+
+@app.get("/downloads/calibration_csv")
+def download_calibration_csv(gene: str):
+    gene = canonical_gene(gene)
+    df = load_gene_data(gene)
+    if df.empty:
+        raise HTTPException(status_code=404, detail="No calibration data for this protein")
+    safe_gene = re.sub(r"[^A-Z0-9._-]", "_", gene)
+    return Response(df.to_csv(index=False), media_type="text/csv",
+                    headers={"Content-Disposition": f'attachment; filename="{safe_gene}_calibration.csv"',
+                             "X-Data-Revision": SITE_REVISION})
