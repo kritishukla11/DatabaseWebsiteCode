@@ -20,7 +20,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
 import json
 import numpy as np
-import pandas as psd
+import pandas as pd
 import plotly.graph_objects as go
 import re
 import math
