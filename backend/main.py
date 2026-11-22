@@ -81,7 +81,7 @@ def root():
 # Public, versioned website dataset. No authentication token is sent.
 from functools import lru_cache
 SITE_REPO = "kritishukla/starmap-site-data"
-SITE_REVISION = "8573ab8d968431ea7d77c8bcf15e24fa1d3d8dfd"
+SITE_REVISION = "6ed16990ac837cb0d7b8c6dc1c9eb782451dee79"
 
 @lru_cache(maxsize=128)
 def site_file(filename: str) -> str:
@@ -135,67 +135,16 @@ def cluster_pathway_scores(gene: str, pathway: str) -> pd.DataFrame:
         raise HTTPException(status_code=404, detail="No scores for this TRN")
     return df.rename(columns={"score": "gi_sum"})[["cluster", "gi_sum"]]
 
-OUT_DIR = Path(__file__).resolve().parent / "protein_map_outputs"
+# Panel 5 uses the same release matrix as the TRN rankings.
+_VECS_DF = site_matrix().fillna(0.0)
+_IDS = _VECS_DF.index.to_numpy()
+_V_NORM = _VECS_DF.to_numpy(dtype=np.float32, copy=True)
+_V_NORM /= np.linalg.norm(_V_NORM, axis=1, keepdims=True) + 1e-12
 
-def _load_artifacts(base: Path = OUT_DIR):
-    t0 = time.time()
-
-    manifest_path = base / "manifest.json"
-    if not manifest_path.exists():
-        raise RuntimeError(
-            f"manifest.json not found under {base.resolve()}"
-        )
-
-    with manifest_path.open() as handle:
-        manifest = json.load(handle)
-
-    vectors_path = base / manifest["vectors_parquet"]
-    coords_path = base / manifest["coords_parquet"]
-
-    if not vectors_path.exists():
-        raise RuntimeError(
-            f"vectors parquet missing: {vectors_path.resolve()}"
-        )
-    if not coords_path.exists():
-        raise RuntimeError(
-            f"coords parquet missing: {coords_path.resolve()}"
-        )
-
-    vecs = pd.read_parquet(vectors_path).set_index("protein_id")
-    coords = pd.read_parquet(coords_path)
-
-    if not {"protein_id", "x", "y"}.issubset(coords.columns):
-        raise RuntimeError(
-            "coords parquet must have columns: protein_id, x, y"
-        )
-
-    V = vecs.to_numpy(dtype=np.float32, copy=True)
-    V = V / (np.linalg.norm(V, axis=1, keepdims=True) + 1e-12)
-    ids = vecs.index.to_numpy()
-
-    print(
-        f"[LOAD] vectors={V.shape} coords={coords.shape} "
-        f"in {time.time() - t0:.3f}s"
-    )
-
-    return manifest, vecs, coords, V, ids
-
-
-try:
-    _MAN, _VECS_DF, _COORDS, _V_NORM, _IDS = _load_artifacts()
-except Exception as e:
-    # Don’t crash app; expose clear message on /plot_ping
-    _MAN = {}
-    _VECS_DF = pd.DataFrame()
-    _COORDS = pd.DataFrame(columns=["protein_id","x","y"])
-    _V_NORM = np.zeros((0,0), dtype=np.float32)
-    _IDS = np.array([], dtype=object)
-    print("[LOAD][ERROR]", e)
-    traceback.print_exc()
 
 def _topk_cosine(query_protein: str, k: int = 10) -> pd.DataFrame:
     if _V_NORM.size == 0 or _VECS_DF.empty:
-        raise RuntimeError("Embeddings not loaded. Check protein_map_outputs/manifest.json and parquet files.")
+        raise RuntimeError("Panel 5 score matrix is empty.")
 
     if query_protein not in _VECS_DF.index:
         raise KeyError(f"{query_protein} not found in vectors index")
@@ -203,16 +152,11 @@ def _topk_cosine(query_protein: str, k: int = 10) -> pd.DataFrame:
     q = _VECS_DF.loc[query_protein].values.astype(np.float32)
     q = q / (np.linalg.norm(q) + 1e-12)        # normalize query once
 
-    sims = _V_NORM @ q                          # (N, D) dot (D,) -> (N,)
-    # remove self
-    idx_self = np.where(_IDS == query_protein)[0]
-    if idx_self.size:
-        sims[idx_self[0]] = -np.inf
-
-    k = int(max(1, min(k, len(sims)-1)))
-    topk_idx = np.argpartition(-sims, kth=k-1)[:k]
-    order = np.argsort(-sims[topk_idx])
-    topk_idx = topk_idx[order]
+    sims = _V_NORM @ q
+    candidates = np.flatnonzero(_IDS != query_protein)
+    k = min(max(1, int(k)), len(candidates))
+    order = np.argsort(-sims[candidates], kind="stable")
+    topk_idx = candidates[order[:k]]
 
     return pd.DataFrame({
         "protein_id": _IDS[topk_idx],
@@ -255,24 +199,15 @@ def _shared_pathways(query_protein: str, others: list[str], thresh: float = 0.0)
             .reset_index(drop=True))
 
 def _plot_network(query: str, nbrs_df: pd.DataFrame, nn_edge_threshold: float = 0.6) -> go.Figure:
-    keep = [query] + nbrs_df["protein_id"].tolist()
-    pos = _COORDS[_COORDS["protein_id"].isin(keep)].set_index("protein_id")[["x","y"]].copy()
-
-    # fill missing coords near query
-    missing = set(keep) - set(pos.index)
-    if missing:
-        cx, cy = (pos.loc[query].values if query in pos.index else (0.0, 0.0))
-        r = 0.05
-        for i, pid in enumerate(sorted(missing)):
-            ang = 2 * math.pi * i / max(1, len(missing))
-            pos.loc[pid, "x"] = cx + r * math.cos(ang)
-            pos.loc[pid, "y"] = cy + r * math.sin(ang)
-
-    # normalize [-1,1]
-    for col in ["x","y"]:
-        mn, mx = pos[col].min(), pos[col].max()
-        if mx > mn:
-            pos[col] = (pos[col] - mn) / (mx - mn) * 2 - 1
+    neighbors = nbrs_df["protein_id"].tolist()
+    angles = np.linspace(0, 2 * np.pi, len(neighbors), endpoint=False)
+    pos = pd.DataFrame(
+        {
+            "x": np.r_[0.0, np.cos(angles)],
+            "y": np.r_[0.0, np.sin(angles)],
+        },
+        index=[query, *neighbors],
+    )
 
     # --- Query → Neighbor edges (blue)
     xe_q2n, ye_q2n = [], []
@@ -362,7 +297,7 @@ def plot_ping(gene: str = "KEAP1"):
     t0 = time.time()
     try:
         if _V_NORM.size == 0 or _VECS_DF.empty:
-            return "[plot_ping] ERROR: embeddings not loaded. Check manifest/parquet paths."
+            return "[plot_ping] ERROR: Panel 5 score matrix is empty."
 
         if gene not in _VECS_DF.index:
             return f"[plot_ping] ERROR: gene '{gene}' not in vectors index (N={len(_VECS_DF)})."
@@ -2233,7 +2168,7 @@ def data_release():
     return {"repo": SITE_REPO, "revision": SITE_REVISION,
             "score": "scores_mutation_density_normalized", "score_label": "Gi* score",
             "cluster_numbering": "zero_based_original_nmf",
-            "calibration": "dynamic_scaled_snapshot",
+            "calibration": "standard",
             "panel3_fit": "free_exponential"}
 
 # Existing local reference downloads remain available.
